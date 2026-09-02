@@ -434,7 +434,7 @@ function seedState(){
     doixe: [],
     congviec: [],
     thietbi: [],
-    chungchi: [],
+    dangkiem: [],
     baotrixe: [],
     kiemke: [],
     vantai: [],
@@ -466,6 +466,7 @@ function loadState(){
     if(!state.doixe) state.doixe = seedState().doixe;
     if(!state.congviec) state.congviec = seedState().congviec;
     if(!state.baotrixe) state.baotrixe = seedState().baotrixe;
+    if(!state.dangkiem) state.dangkiem = seedState().dangkiem;
     if(state.thietbi) state.thietbi.forEach(t=>{ if(t.boPhan===undefined) t.boPhan='Khai thác'; if(t.bienSo===undefined) t.bienSo=''; });
     if(!state.thietBiSoLuong) state.thietBiSoLuong = seedState().thietBiSoLuong;
     if(!state.dexuatmuahang) state.dexuatmuahang = seedState().dexuatmuahang;
@@ -1660,9 +1661,10 @@ const FIELD_SCHEMAS = {
     {key:'noiDung', label:'Nội dung', type:'text'}, {key:'donViThucHien', label:'Đơn vị thực hiện/NCC', type:'text'},
     {key:'chiPhi', label:'Chi phí (đ)', type:'number'},
   ]},
-  chungchi: {ten:'chứng chỉ vận hành', fields:[
-    {key:'hoTen', label:'Họ tên', type:'text'}, {key:'thietBi', label:'Thiết bị vận hành', type:'text'},
-    {key:'soChungChi', label:'Số chứng chỉ', type:'text'}, {key:'hanChungChi', label:'Hạn chứng chỉ', type:'date'},
+  dangkiem: {ten:'đăng kiểm', fields:[
+    {key:'soDangKiem', label:'Số đăng kiểm', type:'text'},
+    {key:'hanDangKiem', label:'Hạn đăng kiểm', type:'date'},
+    {key:'hanDangKiemRoMoc', label:'Hạn đăng kiểm rơ moóc (nếu có)', type:'date'},
   ]},
   kiemke: {ten:'biên bản kiểm kê', fields:[
     {key:'ngay', label:'Ngày kiểm kê', type:'date'},
@@ -1787,8 +1789,8 @@ function deleteRecord(collection, id){
 /* ===================== M2: THIẾT BỊ & BẢO TRÌ ===================== */
 function renderM2(){
   const content = document.getElementById('content');
-  const tabs = [{id:'thietbi',label:'Thiết bị'},{id:'baotri',label:'Nhiên liệu & Bảo trì'},{id:'chungchi',label:'Chứng chỉ vận hành'}];
-  if(!['thietbi','baotri','chungchi'].includes(currentTab)) currentTab = 'thietbi';
+  const tabs = [{id:'thietbi',label:'Thiết bị'},{id:'baotri',label:'Nhiên liệu & Bảo trì'},{id:'dangkiem',label:'Đăng kiểm'}];
+  if(!['thietbi','baotri','dangkiem'].includes(currentTab)) currentTab = 'thietbi';
   content.innerHTML = `<div class="tabs">` + tabs.map(t =>
     `<button class="tab-btn ${t.id===currentTab?'active':''}" onclick="currentTab='${t.id}';renderM2()">${t.label}</button>`
   ).join('') + `</div><div id="tab-body"></div>`;
@@ -1849,21 +1851,25 @@ function renderM2(){
         }).join('') || `<tr class="empty-row"><td colspan="7">Chưa có ghi nhận nào</td></tr>`}</tbody>
       </table></div>`;
   } else {
+    const phuongTienOptions = state.thietbi.map(t=>`<option value="${t.id}">${t.ten}${t.bienSo?' — '+t.bienSo:''}</option>`).join('');
     body.innerHTML = `
-      <div class="panel-head"><h3>Chứng chỉ người vận hành</h3></div>
-      ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm chứng chỉ</summary>
-        <form class="inline-form" onsubmit="return submitChungChi(event)">
-          <div class="field"><label>Họ tên</label><input required id="cc-hoten"></div>
-          <div class="field"><label>Thiết bị vận hành</label><input required id="cc-thietbi"></div>
-          <div class="field"><label>Số chứng chỉ</label><input required id="cc-so"></div>
-          <div class="field"><label>Hạn chứng chỉ</label><input type="date" required id="cc-han"></div>
+      <div class="panel-head"><h3>Đăng kiểm thiết bị / phương tiện</h3></div>
+      <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Theo dõi hạn đăng kiểm của các thiết bị/xe có đăng kiểm. Với xe đầu kéo, điền thêm hạn đăng kiểm rơ moóc.</p>
+      ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm đăng kiểm</summary>
+        <form class="inline-form" onsubmit="return submitDangKiem(event)">
+          <div class="field"><label>Thiết bị/phương tiện</label><select required id="dk-phuongtien">${phuongTienOptions}</select></div>
+          <div class="field"><label>Số đăng kiểm</label><input required id="dk-so"></div>
+          <div class="field"><label>Hạn đăng kiểm</label><input type="date" required id="dk-han"></div>
+          <div class="field"><label>Hạn đăng kiểm rơ moóc (nếu là xe đầu kéo)</label><input type="date" id="dk-hanromoc"></div>
           <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
         </form></details>` : ''}
       <div class="table-wrap"><table>
-        <thead><tr><th>Họ tên</th><th>Thiết bị</th><th>Số chứng chỉ</th><th>Hạn</th><th></th></tr></thead>
-        <tbody>${state.chungchi.map(c => `<tr><td>${c.hoTen}</td><td>${c.thietBi}</td><td class="mono">${c.soChungChi}</td><td>${expiryPill(c.hanChungChi)}</td>
-          <td>${canAdd ? `<div class="row-actions">${actionButtons('chungchi', c.id)}</div>` : ''}</td></tr>`).join('')
-          || `<tr class="empty-row"><td colspan="5">Chưa có chứng chỉ nào</td></tr>`}</tbody>
+        <thead><tr><th>Thiết bị/phương tiện</th><th>Số đăng kiểm</th><th>Hạn đăng kiểm</th><th>Hạn đăng kiểm rơ moóc</th><th></th></tr></thead>
+        <tbody>${state.dangkiem.map(d => { const pt = state.thietbi.find(t=>t.id===d.phuongTienId);
+          return `<tr><td>${pt?pt.ten+(pt.bienSo?' — '+pt.bienSo:''):''}</td><td class="mono">${d.soDangKiem}</td><td>${expiryPill(d.hanDangKiem)}</td><td>${d.hanDangKiemRoMoc?expiryPill(d.hanDangKiemRoMoc):'—'}</td>
+          <td>${canAdd ? `<div class="row-actions">${actionButtons('dangkiem', d.id)}</div>` : ''}</td></tr>`;
+        }).join('')
+          || `<tr class="empty-row"><td colspan="5">Chưa có dữ liệu đăng kiểm nào</td></tr>`}</tbody>
       </table></div>`;
   }
 }
@@ -1895,12 +1901,14 @@ function duyetBaoTriXe(id){
   logActivity(`Duyệt chi phí "${b.noiDung}" (${fmt(b.chiPhi)} đ)`);
   renderM2();
 }
-function submitChungChi(e){
+function submitDangKiem(e){
   e.preventDefault();
-  const hoTen = document.getElementById('cc-hoten').value;
-  state.chungchi.push({id:'CV'+(state.nextId++), hoTen, thietBi:document.getElementById('cc-thietbi').value,
-    soChungChi:document.getElementById('cc-so').value, hanChungChi:document.getElementById('cc-han').value});
-  logActivity(`Thêm chứng chỉ vận hành cho "${hoTen}"`);
+  const phuongTienId = document.getElementById('dk-phuongtien').value;
+  const pt = state.thietbi.find(t=>t.id===phuongTienId);
+  state.dangkiem.push({id:'DK'+(state.nextId++), phuongTienId,
+    soDangKiem:document.getElementById('dk-so').value, hanDangKiem:document.getElementById('dk-han').value,
+    hanDangKiemRoMoc:document.getElementById('dk-hanromoc').value||null});
+  logActivity(`Thêm đăng kiểm cho "${pt?pt.ten:phuongTienId}"`);
   renderM2(); return false;
 }
 
