@@ -1657,7 +1657,6 @@ const FIELD_SCHEMAS = {
   ]},
   baotrixe: {ten:'nhật ký nhiên liệu/bảo trì', fields:[
     {key:'ngay', label:'Ngày', type:'date'},
-    {key:'loai', label:'Loại', type:'select', options:[{v:'Nhiên liệu',t:'Nhiên liệu'},{v:'Vật tư',t:'Vật tư'},{v:'Sửa chữa',t:'Sửa chữa'}]},
     {key:'noiDung', label:'Nội dung', type:'text'}, {key:'donViThucHien', label:'Đơn vị thực hiện/NCC', type:'text'},
     {key:'chiPhi', label:'Chi phí (đ)', type:'number'},
   ]},
@@ -1832,23 +1831,22 @@ function renderM2(){
         <form class="inline-form" onsubmit="return submitBaoTriXe(event)">
           <div class="field"><label>Ngày</label><input type="date" required id="bt-ngay"></div>
           <div class="field"><label>Thiết bị/phương tiện</label><select required id="bt-phuongtien">${phuongTienOptions}</select></div>
-          <div class="field"><label>Loại</label><select id="bt-loai"><option value="Nhiên liệu">Nhiên liệu</option><option value="Vật tư">Vật tư</option><option value="Sửa chữa">Sửa chữa</option></select></div>
           <div class="field"><label>Nội dung</label><input required id="bt-noidung" placeholder="VD: Đổ dầu diesel 120 lít"></div>
           <div class="field"><label>Đơn vị thực hiện/NCC</label><input id="bt-donvi"></div>
           <div class="field"><label>Chi phí (đ)</label><input type="number" required id="bt-chiphi"></div>
           <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
         </form></details>` : ''}
       <div class="table-wrap"><table>
-        <thead><tr><th>Ngày</th><th>Thiết bị/phương tiện</th><th>Loại</th><th>Nội dung</th><th style="text-align:right">Chi phí</th><th>Trạng thái</th><th></th></tr></thead>
+        <thead><tr><th>Ngày</th><th>Thiết bị/phương tiện</th><th>Nội dung</th><th style="text-align:right">Chi phí</th><th>Trạng thái</th><th></th></tr></thead>
         <tbody>${state.baotrixe.map(b => {
           const pt = state.thietbi.find(t=>t.id===b.phuongTienId);
           const pillClass = b.trangThai==='Đã duyệt' ? 'approved' : 'pending';
           const coDuyet = pt && ((currentUser.id==='KT' && pt.boPhan==='Khai thác') || (currentUser.id==='VT' && pt.boPhan==='Vận tải'));
           let action = (coDuyet && b.trangThai==='Chờ duyệt') ? `<button class="mini-btn approve" onclick="duyetBaoTriXe('${b.id}')">Duyệt</button>` : '';
           if(canAdd) action += actionButtons('baotrixe', b.id);
-          return `<tr><td class="mono">${b.ngay}</td><td>${pt?pt.ten+(pt.bienSo?' — '+pt.bienSo:''):''}</td><td>${b.loai}</td><td>${b.noiDung}</td>
+          return `<tr><td class="mono">${b.ngay}</td><td>${pt?pt.ten+(pt.bienSo?' — '+pt.bienSo:''):''}</td><td>${b.noiDung}</td>
             <td class="num">${fmt(b.chiPhi)}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
-        }).join('') || `<tr class="empty-row"><td colspan="7">Chưa có ghi nhận nào</td></tr>`}</tbody>
+        }).join('') || `<tr class="empty-row"><td colspan="6">Chưa có ghi nhận nào</td></tr>`}</tbody>
       </table></div>`;
   } else {
     const phuongTienOptions = state.thietbi.map(t=>`<option value="${t.id}">${t.ten}${t.bienSo?' — '+t.bienSo:''}</option>`).join('');
@@ -1886,7 +1884,7 @@ function submitBaoTriXe(e){
   e.preventDefault();
   const noiDung = document.getElementById('bt-noidung').value;
   state.baotrixe.push({id:'BT'+(state.nextId++), ngay:document.getElementById('bt-ngay').value,
-    phuongTienId:document.getElementById('bt-phuongtien').value, loai:document.getElementById('bt-loai').value,
+    phuongTienId:document.getElementById('bt-phuongtien').value,
     noiDung, donViThucHien:document.getElementById('bt-donvi').value, chiPhi:parseFloat(document.getElementById('bt-chiphi').value)||0,
     trangThai:'Chờ duyệt', nguoiGhiNhan:currentUser.name, nguoiDuyet:null});
   logActivity(`Ghi nhận "${noiDung}" — chờ duyệt`);
