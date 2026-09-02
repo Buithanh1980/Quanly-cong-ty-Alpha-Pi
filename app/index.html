@@ -1650,8 +1650,9 @@ const FIELD_SCHEMAS = {
   thietbi: {ten:'thiết bị', fields:[
     {key:'ten', label:'Tên thiết bị', type:'text'}, {key:'loai', label:'Loại', type:'text'},
     {key:'boPhan', label:'Bộ phận quản lý', type:'select', options:[{v:'Khai thác',t:'Khai thác'},{v:'Vận tải',t:'Vận tải'}]},
-    {key:'bienSo', label:'Biển số (nếu là xe)', type:'text'},
-    {key:'viTri', label:'Vị trí', type:'text'}, {key:'hanKiemDinh', label:'Hạn kiểm định', type:'date'},
+    {key:'bienSo', label:'Biển số', type:'text'},
+    {key:'viTri', label:'Vị trí / tuyến hoạt động', type:'select', options:[{v:'Nội bộ bãi',t:'Nội bộ bãi'},{v:'Xe chạy ngoài bãi',t:'Xe chạy ngoài bãi'}]},
+    {key:'hanKiemDinh', label:'Hạn kiểm định', type:'date'},
   ]},
   baotrixe: {ten:'nhật ký nhiên liệu/bảo trì', fields:[
     {key:'ngay', label:'Ngày', type:'date'},
@@ -1801,10 +1802,12 @@ function renderM2(){
       ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm thiết bị / phương tiện</summary>
         <form class="inline-form" onsubmit="return submitThietBi(event)">
           <div class="field"><label>Tên thiết bị/phương tiện</label><input required id="tb-ten"></div>
-          <div class="field"><label>Loại</label><input required id="tb-loai" placeholder="VD: Cẩu bờ, Xe xúc lật, Xe đầu kéo"></div>
           <div class="field"><label>Bộ phận quản lý</label><select id="tb-bophan"><option value="Khai thác">Khai thác</option><option value="Vận tải">Vận tải</option></select></div>
-          <div class="field"><label>Biển số (nếu là xe)</label><input id="tb-bienso" placeholder="VD: 43H-060.50"></div>
-          <div class="field"><label>Vị trí / tuyến hoạt động</label><input required id="tb-vitri"></div>
+          <div class="field"><label>Biển số</label><input id="tb-bienso" placeholder="VD: 43H-060.50"></div>
+          <div class="field"><label>Vị trí / tuyến hoạt động</label><select required id="tb-vitri">
+            <option value="Nội bộ bãi">Nội bộ bãi</option>
+            <option value="Xe chạy ngoài bãi">Xe chạy ngoài bãi</option>
+          </select></div>
           <div class="field"><label>Hạn kiểm định</label><input type="date" required id="tb-han"></div>
           <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
         </form></details>` : ''}
@@ -1867,7 +1870,7 @@ function renderM2(){
 function submitThietBi(e){
   e.preventDefault();
   const ten = document.getElementById('tb-ten').value;
-  state.thietbi.push({id:'TB'+(state.nextId++), ten, loai:document.getElementById('tb-loai').value,
+  state.thietbi.push({id:'TB'+(state.nextId++), ten, loai:'',
     boPhan:document.getElementById('tb-bophan').value, bienSo:document.getElementById('tb-bienso').value,
     viTri:document.getElementById('tb-vitri').value, hanKiemDinh:document.getElementById('tb-han').value});
   logActivity(`Thêm thiết bị/phương tiện "${ten}"`);
