@@ -1,0 +1,2614 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpha Pi — Quản lý công ty</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --paper:#F3EFE4; --paper-raised:#FBF8F0; --line:#DED5BC;
+    --ink:#241F16; --ink-soft:#5B5646;
+    --brand:#0E5C52; --brand-ink:#063A34; --brand-tint:#DCEAE6;
+    --amber:#B4691A; --amber-tint:#F3E1C4;
+    --violet:#6A5A8C; --violet-tint:#E7E1EF;
+    --red:#A3372B; --red-tint:#F4DDD8;
+    --slate:#56605A; --slate-tint:#E3E6E0;
+    --grey:#948C79; --grey-tint:#ECE7DA;
+    --shadow:0 1px 0 rgba(36,31,22,0.06);
+    --sidebar-w:250px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Be Vietnam Pro","Segoe UI",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace;}
+  button{font-family:inherit;cursor:pointer;}
+  input,select,textarea{font-family:inherit;}
+
+  /* ============ LOGIN ============ */
+  #login-screen{
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:var(--brand-ink);
+    background-image:repeating-linear-gradient(135deg, rgba(255,255,255,0.035) 0 2px, transparent 2px 14px);
+    padding:32px;
+  }
+  .login-card{
+    background:var(--paper-raised); border-radius:6px; padding:40px 44px;
+    max-width:900px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,0.35);
+  }
+  .login-eyebrow{
+    font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--brand); display:flex; align-items:center; gap:10px; margin-bottom:14px;
+  }
+  .login-eyebrow::before{content:"";width:20px;height:1px;background:var(--brand);}
+  .login-card h1{font-size:26px;font-weight:800;margin:0 0 8px;letter-spacing:-.01em;}
+  .login-card>p{font-size:13.5px;color:var(--ink-soft);margin:0 0 26px;line-height:1.55;max-width:560px;}
+  .role-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;}
+  .role-btn{
+    text-align:left; border:1px solid var(--line); background:var(--paper);
+    border-radius:5px; padding:12px 14px; transition:border-color .15s, transform .1s;
+  }
+  .role-btn:hover{border-color:var(--brand); transform:translateY(-1px);}
+  .role-btn .rname{font-weight:700;font-size:13.5px;margin-bottom:6px;}
+  .role-btn .rdesc{font-size:11px;color:var(--ink-soft);margin-top:6px;line-height:1.4;}
+  .role-btn.group-btn{background:var(--brand-tint);border-color:var(--brand);}
+  .role-btn.group-btn .rname{color:var(--brand-ink);}
+  .role-btn.role-btn-sub{margin-left:18px;width:calc(100% - 18px);border-left:3px solid var(--brand);background:var(--paper-raised);}
+  .perm-strip{display:flex;gap:3px;}
+  .perm-dot{width:15px;height:15px;border-radius:3px;font-family:"IBM Plex Mono",monospace;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;color:transparent;}
+  .perm-dot.d{background:var(--brand);color:#fff;}
+  .perm-dot.n{background:var(--amber);color:#fff;}
+  .perm-dot.x{background:transparent;border:1px solid var(--grey);}
+  .perm-dot.q{background:var(--brand-ink);color:#fff;}
+  .perm-dot.none{background:var(--grey-tint);}
+
+  /* ============ APP SHELL ============ */
+  #app-screen{display:none;min-height:100vh;}
+  #app-screen.active{display:flex;}
+  .sidebar{
+    width:var(--sidebar-w); flex-shrink:0; background:var(--brand-ink); color:#F4F1E4;
+    display:flex; flex-direction:column; padding:22px 0;
+  }
+  .sidebar-brand{padding:0 20px 20px;border-bottom:1px solid rgba(255,255,255,0.12);margin-bottom:14px;}
+  .sidebar-brand .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;color:#9FD8CB;text-transform:uppercase;}
+  .sidebar-brand h2{font-size:16px;margin:4px 0 0;font-weight:800;}
+  .nav-list{list-style:none;margin:0;padding:0;flex:1;overflow-y:auto;}
+  .nav-item{
+    display:flex; align-items:center; gap:10px; padding:10px 20px;
+    font-size:13px; color:#CFC9B6; cursor:pointer; border-left:3px solid transparent;
+  }
+  .nav-item .ncode{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:#7FB8AC;width:20px;flex-shrink:0;}
+  .nav-item.active{background:rgba(255,255,255,0.07);color:#fff;border-left-color:var(--brand);}
+  .nav-item.disabled{opacity:.4;cursor:not-allowed;}
+  .nav-item:not(.disabled):hover{background:rgba(255,255,255,0.05);}
+  .sidebar-foot{padding:16px 20px 0;border-top:1px solid rgba(255,255,255,0.12);margin-top:10px;}
+  .sidebar-user{font-size:12.5px;color:#E9E4D3;margin-bottom:10px;}
+  .sidebar-user b{display:block;font-size:13.5px;}
+  .sidebar-user span{color:#9FD8CB;font-family:"IBM Plex Mono",monospace;font-size:10.5px;}
+  .logout-btn{
+    width:100%;background:transparent;border:1px solid rgba(255,255,255,0.25);color:#F4F1E4;
+    padding:7px 10px;border-radius:4px;font-size:12px;
+  }
+  .logout-btn:hover{border-color:#fff;}
+
+  .main{flex:1;overflow-y:auto;height:100vh;}
+  .topbar{
+    padding:20px 32px; border-bottom:1px solid var(--line); background:var(--paper-raised);
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+  }
+  .topbar h1{font-size:19px;margin:0;font-weight:700;}
+  .topbar .sub{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+  .reset-btn{
+    background:var(--paper);border:1px solid var(--line);color:var(--ink-soft);
+    padding:7px 12px;border-radius:4px;font-size:11.5px;
+  }
+  .reset-btn:hover{border-color:var(--red);color:var(--red);}
+
+  .content{padding:26px 32px 60px;}
+
+  .deny-box{
+    background:var(--red-tint); border:1px solid var(--red); border-radius:5px;
+    padding:28px; text-align:center; max-width:520px; margin:40px auto;
+  }
+  .deny-box h3{margin:0 0 8px;color:var(--red);}
+  .deny-box p{margin:0;font-size:13px;color:var(--ink-soft);}
+  .warn-box{
+    background:var(--red-tint); border:1px solid var(--red); border-left-width:4px; border-radius:5px;
+    padding:14px 18px; margin-bottom:18px;
+  }
+  .warn-box .wtitle{font-weight:700;color:var(--red);font-size:13.5px;margin-bottom:6px;}
+  .warn-box ul{margin:0;padding-left:18px;font-size:12.5px;color:var(--ink-soft);line-height:1.7;}
+
+  .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;}
+  .stat-row.compact{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));}
+  table.grid-boxed{font-size:12px;}
+  table.grid-boxed th{font-size:11px;padding:8px 6px;}
+  table.grid-boxed td{padding:6px 4px;}
+  .cell-box{display:block;width:100%;box-sizing:border-box;text-align:center;background:var(--paper-raised);border:1px solid var(--line);border-radius:4px;padding:6px 4px;font-weight:700;font-size:13px;}
+  .stat-card{
+    background:var(--paper-raised);border:1px solid var(--line);border-radius:5px;padding:10px 14px;
+    box-shadow:var(--shadow);
+  }
+  .stat-card .slabel{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);font-family:"IBM Plex Mono",monospace;}
+  .stat-card .sval{font-size:19px;font-weight:800;margin-top:3px;font-variant-numeric:tabular-nums;}
+  .stat-card .sval.warn{color:var(--amber);}
+  .stat-card .sunit{font-size:12px;color:var(--ink-soft);font-weight:500;}
+
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:20px;flex-wrap:wrap;}
+  .tab-btn{
+    background:none;border:none;padding:10px 16px;font-size:13.5px;color:var(--ink-soft);
+    border-bottom:2px solid transparent;font-weight:600;
+  }
+  .tab-btn.active{color:var(--brand);border-bottom-color:var(--brand);}
+
+  .panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:12px;flex-wrap:wrap;}
+  .panel-head h3{margin:0;font-size:15px;}
+  .add-btn{
+    background:var(--brand);color:#fff;border:none;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;
+  }
+  .add-btn:hover{background:var(--brand-ink);}
+
+  .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:5px;background:var(--paper-raised);box-shadow:var(--shadow);}
+  table{border-collapse:collapse;width:100%;min-width:640px;}
+  thead th{
+    text-align:left;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--ink-soft);padding:10px 14px;border-bottom:1px solid var(--line);background:var(--grey-tint);
+  }
+  tbody td{padding:10px 14px;border-bottom:1px solid var(--line);font-size:13.2px;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:color-mix(in srgb, var(--paper) 50%, var(--paper-raised));}
+  td.num{font-variant-numeric:tabular-nums;text-align:right;}
+
+  .pill{
+    display:inline-flex;align-items:center;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;
+    font-family:"IBM Plex Mono",monospace;white-space:nowrap;
+  }
+  .pill.approved{background:var(--brand-tint);color:var(--brand);}
+  .pill.pending{background:var(--amber-tint);color:var(--amber);}
+  .pill.rejected{background:var(--red-tint);color:var(--red);}
+  .pill.done{background:var(--violet-tint);color:var(--violet);}
+  .pill.paid{background:var(--brand-ink);color:#fff;}
+
+  .eq-tag{
+    display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;
+    padding:1px 7px;border-radius:99px;margin:0 3px 3px 0;background:var(--slate-tint);color:var(--slate);
+  }
+  .info-box{
+    border:1px dashed var(--line);border-radius:5px;padding:14px 16px;font-size:12.5px;color:var(--ink-soft);
+    line-height:1.7;background:var(--paper);margin-top:18px;
+  }
+  .info-box b{color:var(--ink);}
+  .assign-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+  .assign-row select{padding:5px 8px;border:1px solid var(--line);border-radius:4px;background:var(--paper-raised);font-size:12px;}
+
+  .row-actions{display:flex;gap:6px;}
+  .mini-btn{
+    border:1px solid var(--line);background:var(--paper);border-radius:4px;padding:4px 9px;font-size:11.5px;white-space:nowrap;
+  }
+  .mini-btn.approve{border-color:var(--brand);color:var(--brand);}
+  .mini-btn.approve:hover{background:var(--brand);color:#fff;}
+
+  .empty-row td{text-align:center;color:var(--ink-soft);font-style:italic;padding:22px;}
+
+  .progress-track{background:var(--grey-tint);border-radius:99px;height:8px;width:100px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px;}
+  .progress-fill{height:100%;background:var(--brand);}
+  .progress-cell{display:flex;align-items:center;}
+
+  /* Inline add form (details/summary) */
+  .add-details{margin-bottom:16px;}
+  .add-summary{cursor:pointer;color:var(--brand);font-weight:700;font-size:13px;list-style:none;display:inline-block;}
+  .add-summary::-webkit-details-marker{display:none;}
+  .add-summary::before{content:"+ ";}
+  .inline-form{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;
+    padding:16px;border:1px solid var(--line);border-radius:5px;background:var(--paper);margin-top:10px;
+  }
+  .inline-form .field{margin-bottom:0;}
+  .inline-form .field label{white-space:nowrap;}
+  .inline-form .form-actions{grid-column:1/-1;display:flex;justify-content:flex-end;}
+  .inline-form.compact-filters{gap:6px;}
+  .inline-form.compact-filters .field label{font-size:10.5px;margin-bottom:3px;}
+  .inline-form.compact-filters .field input,.inline-form.compact-filters .field select{font-size:12px;padding:6px 8px;}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:5px;}
+  .field input,.field select,.field textarea{
+    width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--paper-raised);
+    font-size:13.5px;color:var(--ink);
+  }
+  .field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--brand);outline-offset:1px;}
+  .form-error{color:var(--red);font-size:12px;margin-top:-6px;margin-bottom:12px;display:none;}
+  .form-error.show{display:block;}
+
+  /* Modal (M1 only) */
+  .modal-overlay{
+    display:none;position:fixed;inset:0;background:rgba(20,18,12,0.45);
+    align-items:center;justify-content:center;z-index:50;padding:20px;
+  }
+  .modal-overlay.active{display:flex;}
+  .modal{
+    background:var(--paper-raised);border-radius:6px;padding:26px 28px;max-width:480px;width:100%;
+    box-shadow:0 24px 60px rgba(0,0,0,0.3);
+  }
+  .modal h3{margin:0 0 4px;font-size:17px;}
+  .modal .mnote{font-size:12px;color:var(--ink-soft);margin:0 0 18px;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
+  .btn-secondary{background:none;border:1px solid var(--line);color:var(--ink-soft);padding:8px 16px;border-radius:4px;font-size:13px;}
+
+  /* M9: permission grid */
+  .permcell{
+    border:none;width:36px;height:28px;border-radius:4px;font-family:"IBM Plex Mono",monospace;
+    font-weight:700;font-size:11px;color:var(--grey);background:transparent;
+  }
+  .permcell.d{background:var(--brand);color:#fff;}
+  .permcell.n{background:var(--amber-tint);color:var(--amber);}
+  .permcell.x{background:var(--grey-tint);color:var(--grey);}
+  .permcell.q{background:var(--brand-ink);color:#fff;}
+  button.permcell:not(:disabled):hover{outline:2px solid var(--brand);cursor:pointer;}
+  button.permcell:disabled{cursor:default;}
+  .perm-hint{font-size:12px;color:var(--ink-soft);margin-bottom:12px;}
+
+  .log-list{max-height:420px;overflow-y:auto;}
+  .log-item{padding:9px 0;border-bottom:1px dashed var(--line);font-size:12.5px;}
+  .log-item:last-child{border-bottom:none;}
+  .log-time{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-soft);margin-right:8px;}
+  .log-user{font-weight:700;margin-right:4px;}
+
+  .section-block{margin-bottom:30px;}
+  .section-block h3{font-size:15px;margin:0 0 12px;}
+
+  /* ============ AI ASSISTANT WIDGET ============ */
+  .ai-fab{
+    position:fixed;right:24px;bottom:24px;z-index:60;background:var(--brand);color:#fff;
+    width:52px;height:52px;border-radius:50%;display:none;align-items:center;justify-content:center;
+    font-size:20px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,0.28);cursor:pointer;border:none;
+  }
+  .ai-fab:hover{background:var(--brand-ink);}
+  .ai-fab .ai-dot{
+    position:absolute;top:2px;right:2px;width:11px;height:11px;border-radius:50%;
+    background:var(--amber);border:2px solid var(--paper-raised);
+  }
+  .ai-panel{
+    position:fixed;right:24px;bottom:88px;z-index:60;width:340px;max-width:calc(100vw - 32px);
+    height:480px;max-height:70vh;background:var(--paper-raised);border:1px solid var(--line);
+    border-radius:8px;box-shadow:0 20px 50px rgba(0,0,0,0.32);display:none;flex-direction:column;overflow:hidden;
+  }
+  .ai-panel.open{display:flex;}
+  .ai-head{padding:12px 14px;background:var(--brand-ink);color:#fff;display:flex;justify-content:space-between;align-items:center;font-size:13.5px;flex-shrink:0;}
+  .ai-badge{margin-left:8px;font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.03em;background:var(--amber);color:#fff;padding:2px 7px;border-radius:99px;vertical-align:middle;}
+  .ai-close{background:none;border:none;color:#fff;font-size:16px;cursor:pointer;line-height:1;padding:2px;}
+  .ai-messages{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px;}
+  .ai-msg{max-width:88%;padding:8px 11px;border-radius:8px;font-size:12.3px;line-height:1.5;white-space:pre-line;}
+  .ai-msg.bot{background:var(--grey-tint);color:var(--ink);align-self:flex-start;border-bottom-left-radius:2px;}
+  .ai-msg.user{background:var(--brand);color:#fff;align-self:flex-end;border-bottom-right-radius:2px;}
+  .ai-chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 10px;flex-shrink:0;}
+  .ai-chip{font-size:10.8px;padding:5px 10px;border-radius:99px;border:1px solid var(--line);background:var(--paper);cursor:pointer;color:var(--ink-soft);}
+  .ai-chip:hover{border-color:var(--brand);color:var(--brand);}
+  .ai-input-row{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--line);flex-shrink:0;}
+  .ai-input-row input{flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:5px;font-size:12.5px;background:var(--paper);color:var(--ink);}
+  .ai-input-row button{background:var(--brand);color:#fff;border:none;border-radius:5px;padding:8px 14px;font-size:12.5px;font-weight:600;}
+
+  @media (max-width:860px){
+    #app-screen.active{flex-direction:column;}
+    .sidebar{width:100%;flex-direction:row;flex-wrap:wrap;padding:14px;}
+    .sidebar-brand,.sidebar-foot{display:none;}
+    .nav-list{display:flex;flex-wrap:wrap;flex:none;}
+    .main{height:auto;}
+    .content{padding:20px 16px 40px;}
+    .topbar{padding:16px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-eyebrow">Alpha Pi · Prototype nội bộ</div>
+    <h1>Đăng nhập mô phỏng</h1>
+    <p>Chọn một tài khoản để xem giao diện &amp; quyền truy cập tương ứng trên cả 9 module. Đây là bản chạy thử — không cần mật khẩu, dữ liệu lưu tạm trên trình duyệt của bạn. Mỗi ô vuông bên dưới tên tài khoản là 1 module (M1→M9): đậm = Duyệt, nhạt = Nhập liệu, viền = Xem, mờ = không có quyền.</p>
+    <div class="role-grid" id="role-grid"></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app-screen">
+  <div class="sidebar">
+    <div class="sidebar-brand">
+      <div class="eyebrow">Alpha Pi</div>
+      <h2>Quản lý công ty</h2>
+    </div>
+    <ul class="nav-list" id="nav-list"></ul>
+    <div class="sidebar-foot">
+      <div class="sidebar-user">
+        <b id="user-name"></b>
+        <span id="user-role"></span>
+      </div>
+      <button class="logout-btn" id="logout-btn">Đăng xuất</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="page-title">Vận hành bãi</h1>
+        <div class="sub" id="page-sub">M1 · Nhập / xuất / tồn kho theo lô</div>
+      </div>
+      <button class="reset-btn" id="reset-btn">↺ Xóa toàn bộ, làm lại từ đầu</button>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+
+<!-- ============ MODAL: Sửa bản ghi (dùng chung mọi module) ============ -->
+<div class="modal-overlay" id="modal-edit">
+  <div class="modal">
+    <h3 id="edit-title">Sửa</h3>
+    <p class="mnote" id="edit-error" style="display:none;color:var(--red)"></p>
+    <form id="form-edit" onsubmit="return saveEditModal(event)">
+      <div id="edit-fields"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" onclick="closeModal('modal-edit')">Hủy</button>
+        <button type="submit" class="add-btn">Lưu thay đổi</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ AI ASSISTANT WIDGET (BLĐ / Phòng Khai thác / Kế toán) ============ -->
+<button class="ai-fab" id="ai-fab" onclick="toggleAI()" title="Trợ lý AI Claude">✦<span class="ai-dot"></span></button>
+<div class="ai-panel" id="ai-panel">
+  <div class="ai-head">
+    <div>Trợ lý AI Claude<span class="ai-badge">Sắp kích hoạt</span></div>
+    <button class="ai-close" onclick="toggleAI()">✕</button>
+  </div>
+  <div class="ai-messages" id="ai-messages"></div>
+  <div class="ai-chips" id="ai-chips"></div>
+  <form class="ai-input-row" onsubmit="return submitAIQuestion(event)">
+    <input id="ai-input" placeholder="Hỏi về dữ liệu công ty...">
+    <button type="submit">Gửi</button>
+  </form>
+</div>
+
+<script>
+/* ===================== IDENTITY & PERMISSIONS ===================== */
+const STORAGE_KEY = 'alphapi_full_prototype_v1';
+const REF_DATE = new Date('2026-08-24');
+
+const ROLES = [
+  {id:'BLD', name:'Ban lãnh đạo',                  note:'TGĐ, Phó TGĐ, HĐQT — xem toàn hệ thống, phê duyệt quyết định vượt cấp phòng ban.'},
+  {id:'KT',  name:'Phòng Khai thác',        note:'Quản lý vận hành bãi, thiết bị và kiểm kê kho.'},
+  {id:'DD',  name:'Điều độ / Trưởng ca bãi',       note:'Nhập liệu vận hành hàng ngày tại bãi.'},
+  {id:'CC',  name:'Trạm cân',                       note:'Ghi nhận phiếu cân nhập / xuất.'},
+  {id:'VT',  name:'Phòng Vận tải',          note:'Quản lý đội xe liên vận, cước vận chuyển back-to-back.'},
+  {id:'DV',  name:'Phòng Dịch vụ kỹ thuật', note:'Quản lý gói thầu sửa chữa cảng.'},
+  {id:'TC',  name:'Kế toán — tài chính',           note:'Quản lý công nợ, hóa đơn, chi phí.'},
+  {id:'NS',  name:'Nhân sự — hành chính',          note:'Quản lý hồ sơ nhân sự, chứng chỉ đào tạo.'},
+  {id:'IT',  name:'Quản trị hệ thống',             note:'Toàn quyền cấu hình; chỉnh sửa ma trận phân quyền bên dưới.'},
+  {id:'CH',  name:'Chủ hàng — Nam Tiến',           note:'Chỉ xem dữ liệu của Nam Tiến.', scopeCustomer:'Nam Tiến'},
+];
+
+const MODULES = [
+  {code:'M1', name:'Vận hành bãi',              desc:'Nhập / xuất / tồn kho theo lô'},
+  {code:'M2', name:'Thiết bị & Bảo trì',        desc:'Kiểm định thiết bị, chứng chỉ vận hành'},
+  {code:'M3', name:'Kiểm kê & Đối soát kho',    desc:'Kiểm kê định kỳ, xử lý chênh lệch'},
+  {code:'M4', name:'Vận tải liên vận',          desc:'Xe tự có & thuê ngoài back-to-back'},
+  {code:'M5', name:'Dịch vụ kỹ thuật',          desc:'Gói thầu sửa chữa cảng'},
+  {code:'M7', name:'Tài chính — kế toán',       desc:'Đề xuất mua hàng, thanh toán, tạm ứng, sổ quỹ, công nợ'},
+  {code:'M8', name:'Nhân sự — hành chính',      desc:'Hồ sơ nhân sự, chứng chỉ'},
+  {code:'M9', name:'Quản trị hệ thống',         desc:'Tài khoản, phân quyền, nhật ký'},
+];
+
+function defaultPermissions(){
+  return {
+    BLD:{M1:'X',M2:'X',M3:'D',M4:'X',M5:'X',M7:'D',M8:'X',M9:'X'},
+    KT: {M1:'D',M2:'D',M3:'N',M4:'X',M7:'N'},
+    DD: {M1:'N',M2:'N',M3:'N'},
+    CC: {M1:'N',M2:'X'},
+    VT: {M1:'X',M2:'D',M4:'D',M7:'N'},
+    DV: {M2:'X',M5:'D',M7:'N'},
+    TC: {M1:'X',M2:'N',M3:'X',M4:'X',M5:'X',M7:'D'},
+    NS: {M2:'X',M8:'D'},
+    IT: {M1:'X',M2:'X',M3:'X',M4:'X',M5:'X',M7:'X',M8:'X',M9:'Q'},
+    CH: {M1:'X',M3:'X'},
+  };
+}
+
+/* ===================== SEED DATA ===================== */
+function seedState(){
+  return {
+    permissions: defaultPermissions(),
+    log: [],
+    lots: [],
+    nhap: [],
+    xuat: [],
+    dichvu: [],
+    doixe: [],
+    congviec: [],
+    thietbi: [],
+    chungchi: [],
+    baotrixe: [],
+    kiemke: [],
+    vantai: [],
+    goithau: [],
+    congno: [],
+    dexuatmuahang: [],
+    denghithanhtoan: [],
+    tamung: [],
+    soquy: [],
+    nhansu: [],
+    thietBiSoLuong: {'Xúc lật':0, 'Máy múc':0, 'Cẩu điện':0},
+    nextId: 1,
+  };
+}
+
+let state = null;
+let currentUser = null;
+let currentModule = 'M1';
+let currentTab = 'tongquan';
+let pendingBatch = [];
+let pendingBatchDate = '';
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    state = raw ? JSON.parse(raw) : seedState();
+    if(!state.permissions) state.permissions = defaultPermissions();
+    if(!state.log) state.log = [];
+    if(!state.doixe) state.doixe = seedState().doixe;
+    if(!state.congviec) state.congviec = seedState().congviec;
+    if(!state.baotrixe) state.baotrixe = seedState().baotrixe;
+    if(state.thietbi) state.thietbi.forEach(t=>{ if(t.boPhan===undefined) t.boPhan='Khai thác'; if(t.bienSo===undefined) t.bienSo=''; });
+    if(!state.thietBiSoLuong) state.thietBiSoLuong = seedState().thietBiSoLuong;
+    if(!state.dexuatmuahang) state.dexuatmuahang = seedState().dexuatmuahang;
+    if(!state.denghithanhtoan) state.denghithanhtoan = seedState().denghithanhtoan;
+    if(!state.tamung) state.tamung = seedState().tamung;
+    if(!state.soquy) state.soquy = seedState().soquy;
+  }catch(e){ state = seedState(); }
+}
+function saveState(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){ /* bỏ qua nếu trình duyệt chặn localStorage */ }
+}
+function logActivity(msg){
+  state.log.unshift({ts:new Date().toLocaleString('vi-VN'), user:currentUser.name, msg});
+  if(state.log.length>200) state.log.length = 200;
+  saveState();
+}
+
+/* ===================== PERMISSION HELPERS ===================== */
+function getPerm(roleId, moduleCode){ return (state.permissions[roleId]||{})[moduleCode] || null; }
+function canEnter(moduleCode){ const p=getPerm(currentUser.id,moduleCode); return p==='N'||p==='D'||p==='Q'; }
+function canApprove(moduleCode){ const p=getPerm(currentUser.id,moduleCode); return p==='D'||p==='Q'; }
+function canView(moduleCode){ return !!getPerm(currentUser.id,moduleCode); }
+
+function tonHienTai(lotId){
+  const lot = state.lots.find(l => l.id === lotId);
+  if(!lot) return 0;
+  const tongNhap = state.nhap.filter(n => n.lotId === lotId).reduce((s,n)=>s+n.khoiLuong,0);
+  const tongXuat = state.xuat.filter(x => x.lotId === lotId).reduce((s,x)=>s+x.khoiLuong,0);
+  return lot.tonDauKy + tongNhap - tongXuat;
+}
+function visibleLots(){
+  if(currentUser.scopeCustomer) return state.lots.filter(l => l.chuHang === currentUser.scopeCustomer);
+  return state.lots;
+}
+function fmt(n){ return Number(n).toLocaleString('vi-VN', {maximumFractionDigits:2}); }
+function daysUntil(dateStr){ return Math.round((new Date(dateStr) - REF_DATE) / 86400000); }
+function expiryPill(dateStr){
+  const d = daysUntil(dateStr);
+  if(d < 0) return `<span class="pill rejected">Hết hạn ${dateStr}</span>`;
+  if(d <= 30) return `<span class="pill pending">Sắp hết hạn ${dateStr}</span>`;
+  return `<span class="pill approved">Còn hạn ${dateStr}</span>`;
+}
+
+/* ===================== LOGIN ===================== */
+function permDotClass(p){ return p==='D'?'d':p==='N'?'n':p==='X'?'x':p==='Q'?'q':'none'; }
+const ROLE_GROUPS = {'Phòng Khai thác': {head:'KT', children:['DD','CC']}};
+let expandedLoginGroup = null;
+function findLoginGroupOf(roleId){
+  for(const g in ROLE_GROUPS){ if(ROLE_GROUPS[g].children.includes(roleId)) return g; }
+  return null;
+}
+function roleCardHtml(r, sub){
+  const strip = MODULES.map(m => {
+    const p = getPerm(r.id, m.code);
+    return `<span class="perm-dot ${permDotClass(p)}" title="${m.code} ${m.name}: ${p||'không có quyền'}">${p==='Q'?'Q':''}</span>`;
+  }).join('');
+  return `<button class="role-btn${sub?' role-btn-sub':''}" onclick="login('${r.id}')">
+      <div class="rname">${r.name}</div>
+      <div class="perm-strip">${strip}</div>
+      <div class="rdesc">${r.note}</div>
+    </button>`;
+}
+function toggleLoginGroup(g){
+  expandedLoginGroup = (expandedLoginGroup === g) ? null : g;
+  renderLogin();
+}
+function renderLogin(){
+  const grid = document.getElementById('role-grid');
+  const cards = [];
+  ROLES.forEach(r => {
+    const groupName = Object.keys(ROLE_GROUPS).find(g => ROLE_GROUPS[g].head === r.id);
+    if(!groupName){
+      if(findLoginGroupOf(r.id)) return; // đã/sẽ hiện dưới dạng con của nhóm, không lặp lại ở ngoài
+      cards.push(roleCardHtml(r, false));
+      return;
+    }
+    const group = ROLE_GROUPS[groupName];
+    const children = group.children.map(id => ROLES.find(x=>x.id===id));
+    const isOpen = expandedLoginGroup === groupName;
+    const childLabel = children.map(c => c.name.split(/[\/—]/)[0].trim()).join(' / ');
+    const strip = MODULES.map(m => {
+      const p = getPerm(r.id, m.code);
+      return `<span class="perm-dot ${permDotClass(p)}" title="${m.code} ${m.name}: ${p||'không có quyền'}">${p==='Q'?'Q':''}</span>`;
+    }).join('');
+    cards.push(`<div class="role-btn group-btn">
+      <div class="rname">${groupName}</div>
+      <div class="perm-strip">${strip}</div>
+      <div class="rdesc">${r.note}</div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button type="button" class="mini-btn approve" style="flex:1" onclick="login('${r.id}')">Đăng nhập</button>
+        <button type="button" class="mini-btn" style="flex:1" onclick="toggleLoginGroup('${groupName}')">${childLabel} ${isOpen?'▲':'▼'}</button>
+      </div>
+    </div>`);
+    if(isOpen) children.forEach(m => cards.push(roleCardHtml(m, true)));
+  });
+  grid.innerHTML = cards.join('');
+}
+
+function login(roleId){
+  currentUser = ROLES.find(r => r.id === roleId);
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').classList.add('active');
+  document.getElementById('user-name').textContent = currentUser.name;
+  document.getElementById('user-role').textContent = currentUser.id;
+  currentModule = 'M1';
+  currentTab = 'tongquan';
+  renderSidebar();
+  renderContent();
+  initAIForUser();
+}
+function logout(){
+  currentUser = null;
+  document.getElementById('app-screen').classList.remove('active');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('ai-fab').style.display = 'none';
+  document.getElementById('ai-panel').classList.remove('open');
+  renderLogin();
+}
+
+/* ===================== SIDEBAR / ROUTER ===================== */
+function renderSidebar(){
+  const nav = document.getElementById('nav-list');
+  const visible = MODULES.filter(m => canView(m.code));
+  if(visible.length === 0){
+    nav.innerHTML = `<li style="padding:14px 20px;font-size:12px;color:#CFC9B6;font-style:italic;">Tài khoản này chưa được cấp quyền trên module nào.</li>`;
+    return;
+  }
+  nav.innerHTML = visible.map(m => {
+    const cls = ['nav-item'];
+    if(m.code === currentModule) cls.push('active');
+    return `<li class="${cls.join(' ')}" onclick="selectModule('${m.code}')">
+      <span class="ncode">${m.code}</span><span>${m.name}</span>
+    </li>`;
+  }).join('');
+}
+function selectModule(code){
+  currentModule = code;
+  currentTab = 'tongquan';
+  renderSidebar();
+  renderContent();
+}
+
+const MODULE_RENDERERS = {
+  M1:renderM1, M2:renderM2, M3:renderM3, M4:renderM4,
+  M5:renderM5, M7:renderM7, M8:renderM8, M9:renderM9,
+};
+
+function renderContent(){
+  const content = document.getElementById('content');
+  const mod = MODULES.find(m => m.code === currentModule);
+  document.getElementById('page-title').textContent = mod.name;
+
+  if(!canView(currentModule)){
+    document.getElementById('page-sub').textContent = mod.code + ' · Không có quyền truy cập';
+    content.innerHTML = `<div class="deny-box">
+      <h3>Không có quyền truy cập</h3>
+      <p>Tài khoản <b>${currentUser.name}</b> không được cấp quyền trên module <b>${mod.name}</b> theo ma trận phân quyền hiện tại (xem / chỉnh tại M9 nếu là Quản trị hệ thống).</p>
+    </div>`;
+    return;
+  }
+  document.getElementById('page-sub').textContent = mod.code + ' · ' + mod.desc + (currentUser.scopeCustomer ? ' · Phạm vi: ' + currentUser.scopeCustomer : '');
+  MODULE_RENDERERS[currentModule]();
+}
+
+/* ===================== M1: VẬN HÀNH BÃI ===================== */
+function renderM1(){
+  const content = document.getElementById('content');
+  const tabs = [
+    {id:'tongquan', label:'Tổng quan'},
+    ...(currentUser.id === 'DD' ? [{id:'giaoviec', label:'Giao việc'}] : []),
+    {id:'nhap', label:'Nhập hàng'},
+    {id:'xuat', label:'Xuất hàng'},
+    {id:'dichvu', label:'Dịch vụ tại bãi'},
+  ];
+  if(currentTab === 'giaoviec' && currentUser.id !== 'DD') currentTab = 'tongquan';
+  content.innerHTML = `<div class="tabs">` + tabs.map(t =>
+    `<button class="tab-btn ${t.id===currentTab?'active':''}" onclick="currentTab='${t.id}';renderM1()">${t.label}</button>`
+  ).join('') + `</div><div id="tab-body"></div>`;
+  const body = document.getElementById('tab-body');
+  if(currentTab === 'tongquan') return renderTongQuan(body);
+  if(currentTab === 'giaoviec' && currentUser.id === 'DD') return renderGiaoViec(body);
+  if(currentTab === 'nhap') return renderNhap(body);
+  if(currentTab === 'xuat') return renderXuat(body);
+  if(currentTab === 'dichvu') return renderDichVu(body);
+}
+
+let reportDate = null;
+let tuNgayBaoCao = null, denNgayBaoCao = null;
+function setTuNgayBaoCao(v){ tuNgayBaoCao = v; renderM1(); }
+function setDenNgayBaoCao(v){ denNgayBaoCao = v; renderM1(); }
+function ngayHomTruoc(soNgay){
+  const now = new Date();
+  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()-soNgay)).toISOString().slice(0,10);
+}
+let bcNhapTuNgay = null, bcNhapDenNgay = null, bcNhapKhachHang = '', bcNhapTuyen = '', bcNhapBai = '', bcNhapLoaiXe = '', bcNhapBienSo = '', bcNhapTau = '';
+let bcNhapRowsCache = [];
+function xuatExcelBaoCaoNhap(){
+  if(typeof XLSX === 'undefined'){ alert('Không tải được thư viện Excel — cần kết nối Internet ở lần dùng đầu tiên. Kiểm tra mạng rồi thử lại.'); return; }
+  const data = bcNhapRowsCache.map((n,i)=>{
+    const lot = state.lots.find(l=>l.id===n.lotId);
+    return {
+      'Số TT': i+1, 'Ngày nhập': n.ngay, 'Chủ Hàng': lot?lot.chuHang:'', 'Bãi nhận hàng': lot?lot.viTri:'',
+      'Tuyến': n.tuyen, 'BS xe/ tên tàu': n.bienSo||n.nguon||'', 'Biển số mooc': n.roMoc||'', 'Khối lượng hàng': n.khoiLuong, 'Phương tiện': n.loaiXe||'',
+    };
+  });
+  data.push({'Số TT':'', 'Ngày nhập':'', 'Chủ Hàng':'', 'Bãi nhận hàng':'', 'Tuyến':'', 'BS xe/ tên tàu':'', 'Biển số mooc':'Tổng khối lượng', 'Khối lượng hàng': bcNhapRowsCache.reduce((s,n)=>s+n.khoiLuong,0), 'Phương tiện':''});
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Bao cao nhap hang');
+  XLSX.writeFile(wb, `bao_cao_chi_tiet_nhap_hang_${bcNhapTuNgay}_den_${bcNhapDenNgay}.xlsx`);
+}
+function setBcNhap(key, val){
+  if(key==='khachHang'){ bcNhapKhachHang = val; bcNhapBai = ''; }
+  else if(key==='tuyen'){ bcNhapTuyen = val; bcNhapTau = ''; }
+  else if(key==='bai') bcNhapBai = val;
+  else if(key==='loaiXe') bcNhapLoaiXe = val;
+  else if(key==='bienSo') bcNhapBienSo = val;
+  else if(key==='tau') bcNhapTau = val;
+  else if(key==='tuNgay') bcNhapTuNgay = val;
+  else if(key==='denNgay') bcNhapDenNgay = val;
+  renderM1();
+}
+let bcXuatTuNgay = null, bcXuatDenNgay = null, bcXuatKhachHang = '', bcXuatTuyen = '', bcXuatBai = '', bcXuatLoaiXe = '', bcXuatBienSo = '', bcXuatTau = '';
+let bcXuatRowsCache = [];
+function xuatExcelBaoCaoXuat(){
+  if(typeof XLSX === 'undefined'){ alert('Không tải được thư viện Excel — cần kết nối Internet ở lần dùng đầu tiên. Kiểm tra mạng rồi thử lại.'); return; }
+  const data = bcXuatRowsCache.map((x,i)=>{
+    const lot = state.lots.find(l=>l.id===x.lotId);
+    return {
+      'Số TT': i+1, 'Ngày xuất': x.ngay, 'Chủ Hàng': lot?lot.chuHang:'', 'Bãi xuất hàng': lot?lot.viTri:'',
+      'Tuyến': x.tuyen, 'BS xe/ tên tàu': x.bienSo||x.nguon||'', 'Biển số mooc': x.roMoc||'', 'Khối lượng hàng': x.khoiLuong, 'Phương tiện': x.loaiXe||'',
+    };
+  });
+  data.push({'Số TT':'', 'Ngày xuất':'', 'Chủ Hàng':'', 'Bãi xuất hàng':'', 'Tuyến':'', 'BS xe/ tên tàu':'', 'Biển số mooc':'Tổng khối lượng', 'Khối lượng hàng': bcXuatRowsCache.reduce((s,x)=>s+x.khoiLuong,0), 'Phương tiện':''});
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Bao cao xuat hang');
+  XLSX.writeFile(wb, `bao_cao_chi_tiet_xuat_hang_${bcXuatTuNgay}_den_${bcXuatDenNgay}.xlsx`);
+}
+function setBcXuat(key, val){
+  if(key==='khachHang'){ bcXuatKhachHang = val; bcXuatBai = ''; }
+  else if(key==='tuyen'){ bcXuatTuyen = val; bcXuatTau = ''; }
+  else if(key==='bai') bcXuatBai = val;
+  else if(key==='loaiXe') bcXuatLoaiXe = val;
+  else if(key==='bienSo') bcXuatBienSo = val;
+  else if(key==='tau') bcXuatTau = val;
+  else if(key==='tuNgay') bcXuatTuNgay = val;
+  else if(key==='denNgay') bcXuatDenNgay = val;
+  renderM1();
+}
+function tonTruocNgay(lotId, ngay){
+  const lot = state.lots.find(l=>l.id===lotId); if(!lot) return 0;
+  const nhapTruoc = state.nhap.filter(n=>n.lotId===lotId && n.ngay < ngay).reduce((s,n)=>s+n.khoiLuong,0);
+  const xuatTruoc = state.xuat.filter(x=>x.lotId===lotId && x.ngay < ngay).reduce((s,x)=>s+x.khoiLuong,0);
+  return lot.tonDauKy + nhapTruoc - xuatTruoc;
+}
+function setReportDate(v){ reportDate = v; renderM1(); }
+function renderTongQuan(body){
+  const lots = visibleLots();
+  const lotIds = lots.map(l => l.id);
+  const tongTon = lots.reduce((s,l)=>s+tonHienTai(l.id),0);
+  const namHienTai = String(new Date().getFullYear());
+  const tongNhapNam = state.nhap.filter(n=>lotIds.includes(n.lotId) && n.ngay && n.ngay.startsWith(namHienTai)).reduce((s,n)=>s+n.khoiLuong,0);
+  const tongXuatNam = state.xuat.filter(x=>lotIds.includes(x.lotId) && x.ngay && x.ngay.startsWith(namHienTai)).reduce((s,x)=>s+x.khoiLuong,0);
+
+  if(!reportDate) reportDate = ngayHomTruoc(1);
+  if(!tuNgayBaoCao) tuNgayBaoCao = ngayHomTruoc(1);
+  if(!denNgayBaoCao) denNgayBaoCao = ngayHomTruoc(1);
+
+  const ngaySau = (() => { const [y,m,d] = reportDate.split('-').map(Number); return new Date(Date.UTC(y,m-1,d+1)).toISOString().slice(0,10); })();
+
+  const khachHangSet = new Set(Object.keys(BAI_THEO_KHACH));
+  lots.forEach(l=>khachHangSet.add(l.chuHang));
+  let khachHangList = [...khachHangSet];
+  if(currentUser.scopeCustomer) khachHangList = khachHangList.filter(kh=>kh===currentUser.scopeCustomer);
+  const khachGroups = khachHangList.map(kh=>{
+    const baiSet = new Set(BAI_THEO_KHACH[kh]||[]);
+    lots.filter(l=>l.chuHang===kh).forEach(l=>baiSet.add(l.viTri));
+    const bais = [...baiSet].map(viTri=>{
+      const lot = state.lots.find(l=>l.chuHang===kh && l.viTri===viTri);
+      return {viTri, lotId: lot ? lot.id : null, ton: lot ? tonTruocNgay(lot.id, ngaySau) : 0};
+    });
+    return {chuHang:kh, bais};
+  });
+
+  const LOAI_XE_BANG = LOAI_XE_BANG_CHUNG;
+  const locKhoang = (list, lotId) => lotId ? list.filter(r=>r.lotId===lotId && r.ngay>=tuNgayBaoCao && r.ngay<=denNgayBaoCao) : [];
+  const gomChieu = (list, lotId) => {
+    const all = locKhoang(list, lotId);
+    const theoLoai = LOAI_XE_BANG.map(lx=>{ const l = all.filter(r=>r.loaiXe===lx); return {tan:l.reduce((s,r)=>s+r.khoiLuong,0), chuyen:l.length}; });
+    const theoTuyen = tuyen => { const l = all.filter(r=>r.tuyen===tuyen); return {tan:l.reduce((s,r)=>s+r.khoiLuong,0), chuyen:l.length}; };
+    return {
+      tong:{tan:all.reduce((s,r)=>s+r.khoiLuong,0), chuyen:all.length},
+      theoLoai,
+      duongThuy: theoTuyen('Đường thủy'),
+      duongBo: theoTuyen('Đường bộ'),
+    };
+  };
+  const tatCaBai = khachGroups.flatMap(g=>g.bais.map(b=>({...b, chuHang:g.chuHang})));
+  const tkTheoBai = tatCaBai.map(b=>({...b, nhap:gomChieu(state.nhap,b.lotId), xuat:gomChieu(state.xuat,b.lotId)}));
+  const capO = v => `<td class="num"><span class="cell-box">${v.chuyen?fmt(v.tan):'0'}</span></td>`;
+  const dongNhomTK = (nhanNhom, rows) => rows.map((r,i)=>
+    `<tr>${i===0?`<td rowspan="${rows.length}" style="font-weight:700;vertical-align:middle;background:var(--paper-raised)">${nhanNhom}</td>`:''}<td>${r.label}</td>${tkTheoBai.map(b=>capO(r.get(b))).join('')}</tr>`
+  ).join('');
+  const nhapRows = [
+    {label:'Tổng khối lượng', get:b=>b.nhap.tong},
+    ...LOAI_XE_BANG.map((lx,i)=>({label:lx, get:b=>b.nhap.theoLoai[i]})),
+    {label:'Đường thủy', get:b=>b.nhap.duongThuy},
+  ];
+  const xuatRows = [
+    {label:'Tổng khối lượng', get:b=>b.xuat.tong},
+    {label:'Xuất đường thủy', get:b=>b.xuat.duongThuy},
+    {label:'Xuất đường bộ', get:b=>b.xuat.duongBo},
+  ];
+  const ngayHienThi = (() => { const [y,m,d] = reportDate.split('-'); return `${d}/${m}/${y}`; })();
+  const tonKhoBlock = `
+    <div class="panel-head"><h3>Tồn kho theo khách hàng / bãi — đến hết ngày ${ngayHienThi}</h3></div>
+    ${khachGroups.map(g => {
+      const tongKhach = g.bais.reduce((s,b)=>s+b.ton,0);
+      return `
+      <div style="font-weight:600;color:var(--ink-soft);font-size:13px;margin:14px 0 8px">${g.chuHang}</div>
+      <div class="stat-row compact">
+        ${g.bais.map(b=>`<div class="stat-card"><div class="slabel">${b.viTri}</div><div class="sval">${fmt(b.ton)} <span class="sunit">tấn</span></div></div>`).join('')}
+        <div class="stat-card" style="background:var(--grey-tint)"><div class="slabel">Tổng ${g.chuHang}</div><div class="sval" style="font-weight:700">${fmt(tongKhach)} <span class="sunit">tấn</span></div></div>
+      </div>`;
+    }).join('')}`;
+
+  body.innerHTML = `
+    <div class="stat-row">
+      <div class="stat-card"><div class="slabel">Tổng tồn hiện tại</div><div class="sval">${fmt(tongTon)} <span class="sunit">tấn</span></div></div>
+      <div class="stat-card"><div class="slabel">Nhập lũy kế trong năm</div><div class="sval">${fmt(tongNhapNam)} <span class="sunit">tấn</span></div></div>
+      <div class="stat-card"><div class="slabel">Xuất lũy kế trong năm</div><div class="sval">${fmt(tongXuatNam)} <span class="sunit">tấn</span></div></div>
+    </div>
+    <div class="panel-head">
+      <h3>Chọn ngày xem báo cáo / tồn kho</h3>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:12px;color:var(--ink-soft)">Đến hết ngày</label>
+        <input type="date" value="${reportDate}" onchange="setReportDate(this.value)" style="padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--paper-raised)">
+      </div>
+    </div>
+    ${tonKhoBlock}
+    <div class="panel-head">
+      <h3>Thống kê Nhập - Xuất</h3>
+      <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+        <label style="font-size:12px;color:var(--ink-soft)">Từ ngày</label>
+        <input type="date" value="${tuNgayBaoCao}" onchange="setTuNgayBaoCao(this.value)" style="padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--paper-raised);width:160px">
+        <label style="font-size:12px;color:var(--ink-soft);margin-left:6px">Đến ngày</label>
+        <input type="date" value="${denNgayBaoCao}" onchange="setDenNgayBaoCao(this.value)" style="padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--paper-raised);width:160px">
+      </div>
+    </div>
+    <div class="table-wrap"><table class="grid-boxed">
+      <thead>
+        <tr><th colspan="2">Khách hàng</th>${khachGroups.map(g=>`<th colspan="${g.bais.length}" style="text-align:center">${g.chuHang}</th>`).join('')}</tr>
+        <tr><th colspan="2">Tên bãi (tấn)</th>${tatCaBai.map(b=>`<th style="text-align:center">${b.viTri}</th>`).join('')}</tr>
+      </thead>
+      <tbody>
+        ${tatCaBai.length ? dongNhomTK('Nhập', nhapRows) + dongNhomTK('Xuất', xuatRows) : `<tr class="empty-row"><td colspan="2">Chưa có bãi nào trong phạm vi của bạn</td></tr>`}
+      </tbody>
+    </table></div>
+    ${tatCaBai.some(b=>locKhoang(state.nhap,b.lotId).some(r=>r.tuyen==='Đường bộ' && !r.loaiXe)) ? `<div class="info-box" style="margin-top:10px">Ô "Tổng khối lượng" (Nhập) tính toàn bộ phiếu nhập đường bộ + đường thủy, còn 3 ô xe thùng / xe ben / xe container chỉ tính riêng phiếu đường bộ đã xác định loại xe — vì vậy tổng các ô chi tiết có thể nhỏ hơn ô Tổng khối lượng. Vào tab Nhập hàng, bấm <b>Sửa</b> để gán loại xe cho phiếu còn thiếu.</div>` : ''}`;
+}
+
+function optsFor(values, selected, emptyAsChoose){
+  return values.map(v => `<option value="${v}" ${v===selected?'selected':''}>${v || (emptyAsChoose?'— chọn ca —':v)}</option>`).join('');
+}
+function sortDrivers(list, loaiViec){
+  return list.slice().sort((a,b)=>{
+    const score = d => d.uuTien==='sua_chua' ? 100 : (loaiViec==='Vun hàng' ? (d.uuTien==='vun_hang'?0:1) : (d.uuTien==='vun_hang'?1:0));
+    return score(a) - score(b);
+  });
+}
+function eligibleDriverOptions(thietBiCan, loaiViec){
+  const eligible = sortDrivers(state.doixe.filter(d=>d.thietBi.includes(thietBiCan)), loaiViec);
+  const rest = sortDrivers(state.doixe.filter(d=>!d.thietBi.includes(thietBiCan)), loaiViec);
+  let html = `<optgroup label="Phù hợp thiết bị (${thietBiCan})">` +
+    eligible.map(d=>`<option value="${d.id}">${d.hoTen}${d.ghiChu?' — '+d.ghiChu:''}</option>`).join('') + `</optgroup>`;
+  if(rest.length) html += `<optgroup label="Khác (kiêm nhiệm nếu thiếu người)">` +
+    rest.map(d=>`<option value="${d.id}">${d.hoTen}${d.ghiChu?' — '+d.ghiChu:''}</option>`).join('') + `</optgroup>`;
+  html += `<option value="THUE_NGOAI">— Huy động thuê ngoài —</option>`;
+  return html;
+}
+
+/* ---- Thống kê công lao động & xoay ca ---- */
+function ngayTruoc(ngay){ const d=new Date(ngay+'T00:00:00'); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); }
+function congThangCuaTaiXe(hoTen, ngay){
+  const prefix = (ngay||'2026-08-01').slice(0,7);
+  const ngaySet = new Set(state.congviec.filter(j => j.taiXe===hoTen && (j.trangThai==='Đã giao'||j.trangThai==='Hoàn thành') && j.ngay && j.ngay.startsWith(prefix)).map(j=>j.ngay));
+  return ngaySet.size;
+}
+function daLamHomTruoc(hoTen, ngay){
+  const hom = ngayTruoc(ngay);
+  return state.congviec.some(j => j.taiXe===hoTen && (j.trangThai==='Đã giao'||j.trangThai==='Hoàn thành') && j.ngay===hom);
+}
+function thongKeCongThang(thangPrefix){
+  return state.doixe.map(d=>({hoTen:d.hoTen, cong: congThangCuaTaiXe(d.hoTen, thangPrefix+'-01')})).sort((a,b)=>b.cong-a.cong);
+}
+
+/* ---- Diễn giải mô tả kế hoạch nhiều việc thành các dòng ---- */
+function parseKeHoach(text){
+  return text.split(/[\.\n]+/).map(s=>s.trim()).filter(Boolean).map(raw=>{
+    const m = raw.match(/^(\d+)\s+(.*)$/);
+    if(!m) return {soLuong:1, thietBi:'', loaiViec:'', khuVuc:'', ca:'', raw, ok:false};
+    const soLuong = parseInt(m[1],10);
+    const rest = m[2];
+    const low = rest.toLowerCase();
+    let thietBi = '';
+    if(low.includes('xúc lật')) thietBi = 'Xúc lật';
+    else if(low.includes('múc')) thietBi = 'Máy múc';
+    else if(low.includes('cẩu')) thietBi = 'Cẩu điện';
+    let loaiViec = '';
+    if(low.includes('vun')) loaiViec = 'Vun hàng';
+    else if(low.includes('sàng')) loaiViec = 'Sàng than';
+    else if(low.includes('phối trộn')) loaiViec = 'Phối trộn';
+    else if(low.includes('sửa chữa')) loaiViec = 'Sửa chữa thiết bị';
+    else if(low.includes('nhập')) loaiViec = 'Xuống hàng nhập';
+    else if(low.includes('xuất')) loaiViec = 'Xuất hàng';
+    const baiMatch = rest.match(/bãi\s+([^\.]+)/i);
+    const khuVuc = baiMatch ? baiMatch[1].trim() : '';
+    let ca = '';
+    if(low.includes('nhập')) ca = 'Ca nhập 7h-11h';
+    else if(low.includes('xuất')) ca = 'Ca xuất 6h-18h';
+    return {soLuong, thietBi, loaiViec, khuVuc, ca, raw, ok: !!(thietBi && loaiViec)};
+  });
+}
+function parseBatch(){
+  const text = document.getElementById('kh-text').value;
+  const ngay = document.getElementById('kh-ngay').value;
+  if(!text.trim() || !ngay){ alert('Nhập ngày và mô tả kế hoạch trước khi phân tích.'); return; }
+  pendingBatchDate = ngay;
+  pendingBatch = parseKeHoach(text);
+  renderM1();
+}
+function addBatchRow(){
+  pendingBatch.push({soLuong:1, thietBi:'Xúc lật', loaiViec:'Xuống hàng nhập', khuVuc:'', ca:'', raw:'', ok:true});
+  renderM1();
+}
+function removeBatchRow(i){ pendingBatch.splice(i,1); renderM1(); }
+function cancelBatch(){ pendingBatch = []; pendingBatchDate=''; renderM1(); }
+function readBatchRowsFromDom(){
+  return pendingBatch.map((row,i) => ({
+    soLuong: parseInt(document.getElementById(`br-sl-${i}`).value,10) || 1,
+    thietBi: document.getElementById(`br-tb-${i}`).value,
+    loaiViec: document.getElementById(`br-lv-${i}`).value,
+    khuVuc: document.getElementById(`br-kv-${i}`).value,
+    ca: document.getElementById(`br-ca-${i}`).value,
+    raw: row.raw,
+  }));
+}
+
+/* ---- Đối chiếu nhu cầu thiết bị với số lượng thực có ---- */
+function nhuCauTheoNgay(ngay, extraSlots){
+  const dem = {};
+  state.congviec.filter(j => j.ngay===ngay && j.trangThai!=='Từ chối').forEach(j => { dem[j.thietBiCan] = (dem[j.thietBiCan]||0) + 1; });
+  (extraSlots||[]).forEach(s => { dem[s.thietBi] = (dem[s.thietBi]||0) + 1; });
+  return dem;
+}
+function canhBaoThieuTheoNgay(ngay, extraSlots){
+  const dem = nhuCauTheoNgay(ngay, extraSlots);
+  return Object.keys(dem).map(loai => {
+    const can = dem[loai], co = state.thietBiSoLuong[loai] || 0, thieu = Math.max(0, can-co);
+    return {loai, can, co, thieu};
+  }).filter(x=>x.thieu>0);
+}
+function tatCaCanhBaoThieuThietBi(){
+  const ngayList = [...new Set(state.congviec.filter(j=>j.trangThai!=='Từ chối').map(j=>j.ngay))].sort();
+  const out = [];
+  ngayList.forEach(ngay => canhBaoThieuTheoNgay(ngay).forEach(c => out.push({ngay, ...c})));
+  return out;
+}
+
+function autoAssignBatch(slots, ngay){
+  const assignedToday = {};
+  const machineUsed = nhuCauTheoNgay(ngay); // số lượng đã dùng trước batch này (nếu có)
+  return slots.map(slot => {
+    const limit = state.thietBiSoLuong[slot.thietBi];
+    const daDung = machineUsed[slot.thietBi] || 0;
+    const conMay = limit===undefined || daDung < limit;
+    machineUsed[slot.thietBi] = daDung + 1;
+    if(!conMay){
+      return {...slot, taiXe:'Thuê ngoài (huy động thêm)', thieu:true};
+    }
+    let pool = state.doixe.filter(d=>d.thietBi.includes(slot.thietBi));
+    if(pool.length===0) pool = state.doixe.slice();
+    const scored = pool.map(d => {
+      let score = 0;
+      if(d.uuTien==='sua_chua') score += 100;
+      else if(slot.loaiViec==='Vun hàng') score += (d.uuTien==='vun_hang'?0:2);
+      else score += (d.uuTien==='vun_hang'?2:0);
+      score += congThangCuaTaiXe(d.hoTen, ngay);
+      if(daLamHomTruoc(d.hoTen, ngay)) score += 3;
+      score += (assignedToday[d.id]||0) * 5;
+      return {d, score};
+    }).sort((a,b)=>a.score-b.score);
+    const chosen = scored[0] ? scored[0].d : null;
+    if(chosen) assignedToday[chosen.id] = (assignedToday[chosen.id]||0) + 1;
+    return {...slot, taiXe: chosen ? chosen.hoTen : 'Thuê ngoài (huy động thêm)', thieu: !chosen};
+  });
+}
+function confirmBatch(){
+  const rows = readBatchRowsFromDom();
+  const bad = rows.find(r=>!r.thietBi || !r.loaiViec || !r.ca);
+  if(bad){ alert('Còn dòng thiếu Thiết bị / Loại việc / Ca — vui lòng chọn đủ trước khi phân công.'); return; }
+  const slots = [];
+  rows.forEach(r => { for(let k=0;k<r.soLuong;k++) slots.push(r); });
+  const assigned = autoAssignBatch(slots, pendingBatchDate);
+  assigned.forEach(a => {
+    state.congviec.push({
+      id:'CV'+(state.nextId++), ngay: pendingBatchDate, loaiViec:a.loaiViec, thietBiCan:a.thietBi, ca:a.ca,
+      lotId:null, khuVuc:a.khuVuc, ghiChu:(a.raw ? a.raw+' — ' : '')+'Tự động phân công'+(a.thieu?' — THIẾU THIẾT BỊ':''),
+      trangThai:'Đã giao', taiXe:a.taiXe, nguoiGiao: currentUser.name,
+    });
+  });
+  logActivity(`Tự động phân công ${assigned.length} đầu việc ngày ${pendingBatchDate}`);
+  const thieuList = canhBaoThieuTheoNgay(pendingBatchDate);
+  if(thieuList.length){
+    logActivity(`Cảnh báo thiếu thiết bị ngày ${pendingBatchDate}: ` + thieuList.map(t=>`${t.loai} thiếu ${t.thieu} (cần ${t.can}, có ${t.co})`).join('; '));
+    alert('Đã phân công xong, nhưng KHÔNG ĐỦ THIẾT BỊ nội bộ cho ngày ' + pendingBatchDate + ':\n' +
+      thieuList.map(t=>`• ${t.loai}: cần ${t.can}, hiện có ${t.co} → khuyến cáo thuê thêm ${t.thieu} chiếc`).join('\n') +
+      '\n\nCác đầu việc vượt quá số lượng thiết bị đã được đánh dấu "Thuê ngoài (huy động thêm)".');
+  }
+  pendingBatch = []; pendingBatchDate = '';
+  renderM1();
+}
+
+function renderGiaoViec(body){
+  const canAdd = canEnter('M1');
+  const lotOptions = state.lots.map(l=>`<option value="${l.id}">${l.id} · ${l.chuHang} — ${l.loaiHang}</option>`).join('');
+  const jobs = state.congviec.slice().sort((a,b)=>b.ngay.localeCompare(a.ngay));
+  const eqOpts = `<option value="Xúc lật">Xúc lật</option><option value="Máy múc">Máy múc</option><option value="Cẩu điện">Cẩu điện</option>`;
+  const viecOpts = ['Xuống hàng nhập','Xuất hàng','Vun hàng','Sàng than','Phối trộn','Sửa chữa thiết bị'].map(v=>`<option value="${v}">${v}</option>`).join('');
+  const caOpts = ['','Ca nhập 7h-11h','Ca nhập 13h-17h','Ca xuất 6h-18h','Ca xuất 18h-6h'].map(v=>`<option value="${v}">${v||'— chọn ca —'}</option>`).join('');
+
+  const batchSection = !canAdd ? '' : (pendingBatch.length===0 ? `
+    <details class="add-details"><summary class="add-summary">Mô tả kế hoạch nhiều việc trong ngày (tự động phân công)</summary>
+      <div class="inline-form" style="grid-template-columns:1fr;">
+        <div class="field" style="max-width:220px"><label>Ngày</label><input type="date" id="kh-ngay" value="${pendingBatchDate||''}"></div>
+        <div class="field"><label>Mô tả (mỗi việc 1 câu, cách nhau bởi dấu chấm)</label>
+          <textarea id="kh-text" rows="4" placeholder="VD: 2 máy múc nhỏ nhập hàng bãi Phú Thái. 2 xúc lật vun hàng nhập bãi Phú Thái. 1 múc lớn vun hàng bãi Phú Thái. 2 xúc lật xuất hàng bãi Alpha Pi. 1 cẩu điện xuất tàu."></textarea>
+        </div>
+        <div class="form-actions"><button type="button" class="add-btn" onclick="parseBatch()">Phân tích thành các đầu việc</button></div>
+      </div>
+    </details>` : `
+    <div class="inline-form" style="grid-template-columns:1fr;border-color:var(--brand)">
+      <div class="panel-head" style="margin:0"><h3 style="font-size:14px">Kiểm tra trước khi phân công — ngày ${pendingBatchDate}</h3>
+        <button type="button" class="mini-btn" onclick="addBatchRow()">+ Thêm dòng</button></div>
+      <div class="table-wrap" style="box-shadow:none">
+        <table><thead><tr><th>Mô tả gốc</th><th>SL</th><th>Thiết bị</th><th>Loại việc</th><th>Khu vực/bãi</th><th>Ca</th><th></th></tr></thead>
+        <tbody>${pendingBatch.map((r,i)=>`<tr ${!r.ok?'style="background:var(--amber-tint)"':''}>
+          <td style="font-size:11.5px;color:var(--ink-soft);max-width:180px">${r.raw||'(dòng thêm tay)'}</td>
+          <td><input type="number" min="1" id="br-sl-${i}" value="${r.soLuong}" style="width:50px;padding:4px"></td>
+          <td><select id="br-tb-${i}">${optsFor(['Xúc lật','Máy múc','Cẩu điện'], r.thietBi||'Xúc lật')}</select></td>
+          <td><select id="br-lv-${i}">${optsFor(['Xuống hàng nhập','Xuất hàng','Vun hàng','Sàng than','Phối trộn','Sửa chữa thiết bị'], r.loaiViec||'Xuống hàng nhập')}</select></td>
+          <td><input id="br-kv-${i}" value="${r.khuVuc}" style="width:110px;padding:4px"></td>
+          <td><select id="br-ca-${i}">${optsFor(['','Ca nhập 7h-11h','Ca nhập 13h-17h','Ca xuất 6h-18h','Ca xuất 18h-6h'], r.ca||'', true)}</select></td>
+          <td><button type="button" class="mini-btn" onclick="removeBatchRow(${i})">Xóa</button></td>
+        </tr>`).join('')}</tbody></table>
+      </div>
+      <div class="form-actions" style="gap:10px">
+        <button type="button" class="btn-secondary" onclick="cancelBatch()">Hủy</button>
+        <button type="button" class="add-btn" onclick="confirmBatch()">Tự động phân công tất cả</button>
+      </div>
+    </div>`);
+
+  const congThang = thongKeCongThang('2026-08');
+  const canhBaoAll = tatCaCanhBaoThieuThietBi();
+  const canhBaoHtml = canhBaoAll.length ? `
+    <div class="warn-box">
+      <div class="wtitle">⚠ Thiếu thiết bị nội bộ — khuyến cáo thuê thêm</div>
+      <ul>${canhBaoAll.map(c=>`<li>Ngày <b>${c.ngay}</b> — <b>${c.loai}</b>: cần ${c.can}, hiện có ${c.co} → khuyến cáo thuê thêm <b>${c.thieu}</b> chiếc.</li>`).join('')}</ul>
+    </div>` : '';
+
+  body.innerHTML = `
+    <div class="panel-head"><h3>Tiếp nhận kế hoạch &amp; giao việc</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Ghi lại kế hoạch nhận được từ khách hàng (qua nhóm Zalo Điều độ) thành công việc, rồi giao cho đội lái máy — từng việc một hoặc mô tả cả ngày để phần mềm tự phân công.</p>
+    ${canhBaoHtml}
+    ${batchSection}
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm 1 công việc (giao tay)</summary>
+      <form class="inline-form" onsubmit="return submitCongViec(event)">
+        <div class="field"><label>Loại việc</label><select id="cv-loai">${viecOpts}</select></div>
+        <div class="field"><label>Thiết bị cần</label><select id="cv-thietbi">${eqOpts}</select></div>
+        <div class="field"><label>Ca làm việc</label><select id="cv-ca">${caOpts.replace('<option value="">— chọn ca —</option>','')}</select></div>
+        <div class="field"><label>Khu vực/bãi</label><input id="cv-khuvuc" placeholder="VD: Bãi Phú Thái"></div>
+        <div class="field"><label>Lô hàng liên quan (nếu có)</label><select id="cv-lot"><option value="">— không gắn lô —</option>${lotOptions}</select></div>
+        <div class="field"><label>Ghi chú (nguồn kế hoạch)</label><input id="cv-ghichu" placeholder="VD: Chủ hàng báo qua Zalo nhóm Điều độ"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu công việc</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngày</th><th>Loại việc</th><th>Thiết bị</th><th>Ca</th><th>Khu vực/Lô</th><th>Trạng thái</th><th>Người thực hiện</th><th></th></tr></thead>
+      <tbody>${jobs.map(j => {
+        const pillClass = j.trangThai==='Hoàn thành' ? 'done' : j.trangThai==='Đã giao' ? 'approved' : 'pending';
+        let actionCell = '';
+        if(canAdd && j.trangThai==='Chưa giao'){
+          actionCell = `<div class="assign-row"><select id="assign-${j.id}">${eligibleDriverOptions(j.thietBiCan, j.loaiViec)}</select>
+            <button class="mini-btn approve" onclick="giaoViec('${j.id}')">Giao việc</button></div>`;
+        } else if(canAdd && j.trangThai==='Đã giao'){
+          actionCell = `<div class="assign-row"><select id="assign-${j.id}">${eligibleDriverOptions(j.thietBiCan, j.loaiViec)}</select>
+            <button class="mini-btn" onclick="giaoViec('${j.id}')">Đổi người</button>
+            <button class="mini-btn approve" onclick="hoanThanhCongViec('${j.id}')">Hoàn thành</button></div>`;
+        }
+        if(canAdd) actionCell += actionButtons('congviec', j.id);
+        return `<tr><td class="mono">${j.ngay}</td><td>${j.loaiViec}</td><td>${j.thietBiCan}</td><td style="font-size:12px">${j.ca}</td><td class="mono">${j.khuVuc||j.lotId||''}</td>
+          <td><span class="pill ${pillClass}">${j.trangThai}</span></td><td>${j.taiXe||''}</td><td><div class="row-actions">${actionCell}</div></td></tr>`;
+      }).join('') || `<tr class="empty-row"><td colspan="8">Chưa có công việc nào được ghi nhận</td></tr>`}</tbody>
+    </table></div>
+    <div class="section-block" style="margin-top:24px">
+      <h3 style="font-size:14px">Thống kê công lao động tháng 08/2026 <span style="font-weight:400;color:var(--ink-soft);font-size:12px">(số ngày có việc đã giao/hoàn thành — dùng để cân đối khi tự động phân công)</span></h3>
+      <div class="table-wrap"><table><thead><tr><th>Người</th><th style="text-align:right">Số công</th></tr></thead>
+      <tbody>${congThang.map(c=>`<tr><td>${c.hoTen}</td><td class="num">${c.cong}</td></tr>`).join('')}</tbody></table></div>
+    </div>
+    <div class="section-block" style="margin-top:24px">
+      <div class="panel-head"><h3 style="font-size:14px">Đội lái máy (${state.doixe.length} người)</h3></div>
+      ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm tài xế / người vận hành máy</summary>
+        <form class="inline-form" onsubmit="return submitDoiXe(event)">
+          <div class="field"><label>Họ tên</label><input required id="dx-hoten"></div>
+          <div class="field"><label>Ưu tiên</label><select id="dx-uutien">
+            <option value="">Không có</option><option value="vun_hang">Ưu tiên vun hàng</option><option value="sua_chua">Ưu tiên sửa chữa (gọi khi thiếu người)</option>
+          </select></div>
+          <div class="field" style="grid-column:1/-1"><label>Vận hành được</label>
+            <div style="display:flex;gap:16px">
+              <label style="display:flex;align-items:center;gap:5px;font-weight:400;font-size:13px"><input type="checkbox" id="dx-tb-xuclat"> Xúc lật</label>
+              <label style="display:flex;align-items:center;gap:5px;font-weight:400;font-size:13px"><input type="checkbox" id="dx-tb-maymuc"> Máy múc</label>
+              <label style="display:flex;align-items:center;gap:5px;font-weight:400;font-size:13px"><input type="checkbox" id="dx-tb-caudien"> Cẩu điện</label>
+            </div>
+          </div>
+          <div class="field" style="grid-column:1/-1"><label>Ghi chú</label><input id="dx-ghichu" placeholder="VD: Ưu tiên sửa chữa thiết bị"></div>
+          <div class="form-actions" style="grid-column:1/-1"><button type="submit" class="add-btn">Lưu</button></div>
+        </form></details>` : ''}
+      <div class="table-wrap"><table>
+        <thead><tr><th>Họ tên</th><th>Vận hành được</th><th>Ghi chú</th><th></th></tr></thead>
+        <tbody>${state.doixe.map(d => `<tr><td>${d.hoTen}</td><td>${d.thietBi.map(t=>`<span class="eq-tag">${t}</span>`).join('')}</td><td>${d.ghiChu||''}</td>
+          <td>${canAdd ? `<div class="row-actions">${actionButtons('doixe', d.id)}</div>` : ''}</td></tr>`).join('')
+          || `<tr class="empty-row"><td colspan="4">Chưa có tài xế nào — thêm để tự động phân công có người nội bộ nhận việc.</td></tr>`}</tbody>
+      </table></div>
+    </div>
+    <div class="info-box">
+      <b>Số lượng thiết bị hiện khai báo:</b> ${Object.entries(state.thietBiSoLuong).map(([k,v])=>`${v} ${k}`).join(' · ')} (chỉnh tại M9 — Quản trị hệ thống).<br>
+      <b>Ca làm việc:</b> Nhập hàng 7h-11h &amp; 13h-17h · Xuất hàng 6h-18h &amp; 18h-6h.<br>
+      <b>Quy tắc tự động phân công:</b> kiểm tra đủ số lượng thiết bị vật lý theo ngày trước → nếu đủ máy thì ưu tiên đúng chuyên môn → người được đánh dấu "Ưu tiên vun hàng" xếp trước cho việc vun hàng, việc khác thì nhường lại cho người còn lại → người có ít công trong tháng được ưu tiên trước (cân bằng khối lượng) → người đã làm hôm trước bị hạ ưu tiên nhẹ (xoay ca nghỉ) → người "Ưu tiên sửa chữa" chỉ điều động khi thật sự thiếu người → <b>vượt quá số thiết bị hiện có thì tự động đề xuất thuê thêm</b>, không gán cho người nội bộ nữa.
+    </div>`;
+}
+function submitDoiXe(e){
+  e.preventDefault();
+  const hoTen = document.getElementById('dx-hoten').value;
+  const thietBi = [];
+  if(document.getElementById('dx-tb-xuclat').checked) thietBi.push('Xúc lật');
+  if(document.getElementById('dx-tb-maymuc').checked) thietBi.push('Máy múc');
+  if(document.getElementById('dx-tb-caudien').checked) thietBi.push('Cẩu điện');
+  state.doixe.push({id:'DX'+(state.nextId++), hoTen, thietBi,
+    uuTien:document.getElementById('dx-uutien').value, ghiChu:document.getElementById('dx-ghichu').value});
+  logActivity(`Thêm tài xế "${hoTen}"`);
+  renderM1(); return false;
+}
+function submitCongViec(e){
+  e.preventDefault();
+  const loaiViec = document.getElementById('cv-loai').value;
+  state.congviec.push({
+    id:'CV'+(state.nextId++),
+    ngay: new Date().toISOString().slice(0,10),
+    loaiViec, thietBiCan: document.getElementById('cv-thietbi').value,
+    ca: document.getElementById('cv-ca').value,
+    lotId: document.getElementById('cv-lot').value || null,
+    khuVuc: document.getElementById('cv-khuvuc').value,
+    ghiChu: document.getElementById('cv-ghichu').value,
+    trangThai:'Chưa giao', taiXe:null, nguoiGiao:null,
+  });
+  logActivity(`Ghi nhận kế hoạch mới: "${loaiViec}" — chờ giao việc`);
+  renderM1(); return false;
+}
+function giaoViec(id){
+  const j = state.congviec.find(j=>j.id===id); if(!j) return;
+  const sel = document.getElementById('assign-'+id);
+  const val = sel.value;
+  const trươcDo = j.taiXe;
+  if(val === 'THUE_NGOAI'){
+    j.taiXe = 'Thuê ngoài (huy động thêm)';
+  } else {
+    const d = state.doixe.find(d=>d.id===val);
+    j.taiXe = d ? d.hoTen : val;
+  }
+  const doiNguoi = j.trangThai === 'Đã giao';
+  j.trangThai = 'Đã giao'; j.nguoiGiao = currentUser.name;
+  logActivity(doiNguoi ? `Đổi người phụ trách "${j.loaiViec}" từ ${trươcDo} sang ${j.taiXe}` : `Giao việc "${j.loaiViec}" (${j.ca}) cho ${j.taiXe}`);
+  renderM1();
+}
+function hoanThanhCongViec(id){
+  const j = state.congviec.find(j=>j.id===id); if(!j) return;
+  j.trangThai = 'Hoàn thành';
+  logActivity(`Hoàn thành công việc "${j.loaiViec}" (${j.taiXe})`);
+  renderM1();
+}
+
+function renderNhap(body){
+  const lots = visibleLots(); const lotIds = lots.map(l=>l.id);
+  const rows = state.nhap.filter(n=>lotIds.includes(n.lotId)).sort((a,b)=>b.ngay.localeCompare(a.ngay));
+  body.innerHTML = `
+    <div class="panel-head"><h3>Phiếu nhập hàng</h3></div>
+    ${renderWeighImportBlock('nhap')}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Số TT</th><th>Ngày nhập</th><th>Chủ Hàng</th><th>Bãi nhận hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th style="text-align:right">Khối lượng hàng</th><th>Phương tiện</th><th></th></tr></thead>
+      <tbody>
+        ${rows.map((n,i) => { const lot = state.lots.find(l=>l.id===n.lotId);
+          return `<tr><td class="mono">${i+1}</td><td class="mono">${n.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${n.tuyen}</td><td>${n.bienSo||n.nguon||''}</td><td>${n.roMoc||''}</td><td class="num">${fmt(n.khoiLuong)}</td><td>${n.loaiXe||''}</td>
+            <td>${canEnter('M1') ? `<div class="row-actions">${actionButtons('nhap', n.id)}</div>` : ''}</td></tr>`;
+        }).join('') || `<tr class="empty-row"><td colspan="10">Chưa có phiếu nhập nào</td></tr>`}
+      </tbody>
+    </table></div>
+    ${renderBaoCaoChiTietNhap()}`;
+  initWeighDropzone('nhap');
+}
+function renderBaoCaoChiTietNhap(){
+  if(!bcNhapTuNgay) bcNhapTuNgay = ngayHomTruoc(0);
+  if(!bcNhapDenNgay) bcNhapDenNgay = ngayHomTruoc(0);
+  const lots = visibleLots(); const lotIds = lots.map(l=>l.id);
+  let rows = state.nhap.filter(n=>lotIds.includes(n.lotId) && n.ngay>=bcNhapTuNgay && n.ngay<=bcNhapDenNgay);
+  if(bcNhapKhachHang) rows = rows.filter(n=>{ const lot=state.lots.find(l=>l.id===n.lotId); return lot && lot.chuHang===bcNhapKhachHang; });
+  if(bcNhapTuyen) rows = rows.filter(n=>n.tuyen===bcNhapTuyen);
+  if(bcNhapLoaiXe) rows = rows.filter(n=>n.loaiXe===bcNhapLoaiXe);
+  if(bcNhapBai) rows = rows.filter(n=>{ const lot=state.lots.find(l=>l.id===n.lotId); return lot && lot.viTri===bcNhapBai; });
+  if(bcNhapBienSo) rows = rows.filter(n=>(n.bienSo||n.nguon)===bcNhapBienSo);
+  if(bcNhapTau) rows = rows.filter(n=>n.tuyen==='Đường thủy' && `${n.nguon}|${n.ngay}`===bcNhapTau);
+  rows = rows.sort((a,b)=>a.ngay.localeCompare(b.ngay));
+  const tongKL = rows.reduce((s,n)=>s+n.khoiLuong,0);
+  const baiOptions = bcNhapKhachHang ? (BAI_THEO_KHACH[bcNhapKhachHang]||[]) : [...new Set(Object.values(BAI_THEO_KHACH).flat())];
+  const bienSoOptions = [...new Set(state.nhap.filter(n=>n.bienSo||n.nguon).map(n=>n.bienSo||n.nguon))];
+  const tauOptions = [...new Set(state.nhap.filter(n=>n.tuyen==='Đường thủy' && n.nguon).map(n=>`${n.nguon}|${n.ngay}`))]
+    .map(key=>{ const [ten,ngay]=key.split('|'); return {v:key, t:`${ten} — ${ngay}`}; })
+    .sort((a,b)=>a.t.localeCompare(b.t));
+  bcNhapRowsCache = rows;
+  return `
+    <div class="panel-head"><h3>Báo cáo chi tiết nhập hàng</h3><button type="button" class="btn-secondary" onclick="xuatExcelBaoCaoNhap()">Xuất file Excel</button></div>
+    <div class="inline-form compact-filters" style="grid-template-columns:repeat(7,1fr)">
+      <div class="field"><label>Từ ngày</label><input type="date" value="${bcNhapTuNgay}" onchange="setBcNhap('tuNgay',this.value)" style="width:130px"></div>
+      <div class="field"><label>Đến ngày</label><input type="date" value="${bcNhapDenNgay}" onchange="setBcNhap('denNgay',this.value)" style="width:130px"></div>
+      <div class="field"><label>Chủ hàng</label><select onchange="setBcNhap('khachHang',this.value)">
+        <option value="">Tất cả</option>
+        ${Object.keys(BAI_THEO_KHACH).map(kh=>`<option value="${kh}" ${bcNhapKhachHang===kh?'selected':''}>${kh}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>Bãi</label><select onchange="setBcNhap('bai',this.value)">
+        <option value="">Tất cả</option>
+        ${baiOptions.map(b=>`<option value="${b}" ${bcNhapBai===b?'selected':''}>${b}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>Tuyến</label><select onchange="setBcNhap('tuyen',this.value)">
+        <option value="">Tất cả</option>
+        <option value="Đường bộ" ${bcNhapTuyen==='Đường bộ'?'selected':''}>Đường bộ</option>
+        <option value="Đường thủy" ${bcNhapTuyen==='Đường thủy'?'selected':''}>Đường thủy</option>
+      </select></div>
+      <div class="field"><label>Phương tiện</label><select onchange="setBcNhap('loaiXe',this.value)">
+        <option value="">Tất cả</option>
+        ${LOAI_XE_OPTIONS.map(o=>`<option value="${o.v}" ${bcNhapLoaiXe===o.v?'selected':''}>${o.t}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>BS xe/ tên tàu</label><select onchange="setBcNhap('bienSo',this.value)">
+        <option value="">Tất cả</option>
+        ${bienSoOptions.map(b=>`<option value="${b}" ${bcNhapBienSo===b?'selected':''}>${b}</option>`).join('')}
+      </select></div>
+      ${bcNhapTuyen==='Đường thủy' ? `<div class="field" style="grid-column:1/-1"><label>Tàu (phân biệt theo ngày nhập, vì tàu có thể ghé nhiều lần)</label><select onchange="setBcNhap('tau',this.value)">
+        <option value="">Tất cả</option>
+        ${tauOptions.map(o=>`<option value="${o.v}" ${bcNhapTau===o.v?'selected':''}>${o.t}</option>`).join('')}
+      </select></div>` : ''}
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Số TT</th><th>Ngày nhập</th><th>Chủ Hàng</th><th>Bãi nhận hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th style="text-align:right">Khối lượng hàng</th><th>Phương tiện</th></tr></thead>
+      <tbody>
+        ${rows.length ? rows.map((n,i)=>{ const lot=state.lots.find(l=>l.id===n.lotId); return `<tr><td class="mono">${i+1}</td><td class="mono">${n.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${n.tuyen}</td><td>${n.bienSo||n.nguon||''}</td><td>${n.roMoc||''}</td><td class="num">${fmt(n.khoiLuong)}</td><td>${n.loaiXe||''}</td></tr>`; }).join('') : `<tr class="empty-row"><td colspan="9">Không có phiếu nhập nào khớp bộ lọc</td></tr>`}
+      </tbody>
+      ${rows.length ? `<tfoot><tr style="font-weight:700;background:var(--grey-tint)"><td colspan="7">Tổng khối lượng</td><td class="num">${fmt(tongKL)}</td><td></td></tr></tfoot>` : ''}
+    </table></div>`;
+}
+function renderBaoCaoChiTietXuat(){
+  if(!bcXuatTuNgay) bcXuatTuNgay = ngayHomTruoc(0);
+  if(!bcXuatDenNgay) bcXuatDenNgay = ngayHomTruoc(0);
+  const lots = visibleLots(); const lotIds = lots.map(l=>l.id);
+  let rows = state.xuat.filter(x=>lotIds.includes(x.lotId) && x.ngay>=bcXuatTuNgay && x.ngay<=bcXuatDenNgay);
+  if(bcXuatKhachHang) rows = rows.filter(x=>{ const lot=state.lots.find(l=>l.id===x.lotId); return lot && lot.chuHang===bcXuatKhachHang; });
+  if(bcXuatTuyen) rows = rows.filter(x=>x.tuyen===bcXuatTuyen);
+  if(bcXuatLoaiXe) rows = rows.filter(x=>x.loaiXe===bcXuatLoaiXe);
+  if(bcXuatBai) rows = rows.filter(x=>{ const lot=state.lots.find(l=>l.id===x.lotId); return lot && lot.viTri===bcXuatBai; });
+  if(bcXuatBienSo) rows = rows.filter(x=>(x.bienSo||x.nguon)===bcXuatBienSo);
+  if(bcXuatTau) rows = rows.filter(x=>x.tuyen==='Đường thủy' && `${x.nguon}|${x.ngay}`===bcXuatTau);
+  rows = rows.sort((a,b)=>a.ngay.localeCompare(b.ngay));
+  const tongKL = rows.reduce((s,x)=>s+x.khoiLuong,0);
+  const baiOptions = bcXuatKhachHang ? (BAI_THEO_KHACH[bcXuatKhachHang]||[]) : [...new Set(Object.values(BAI_THEO_KHACH).flat())];
+  const bienSoOptions = [...new Set(state.xuat.filter(x=>x.bienSo||x.nguon).map(x=>x.bienSo||x.nguon))];
+  const tauOptions = [...new Set(state.xuat.filter(x=>x.tuyen==='Đường thủy' && x.nguon).map(x=>`${x.nguon}|${x.ngay}`))]
+    .map(key=>{ const [ten,ngay]=key.split('|'); return {v:key, t:`${ten} — ${ngay}`}; })
+    .sort((a,b)=>a.t.localeCompare(b.t));
+  bcXuatRowsCache = rows;
+  return `
+    <div class="panel-head"><h3>Báo cáo chi tiết xuất hàng</h3><button type="button" class="btn-secondary" onclick="xuatExcelBaoCaoXuat()">Xuất file Excel</button></div>
+    <div class="inline-form compact-filters" style="grid-template-columns:repeat(7,1fr)">
+      <div class="field"><label>Từ ngày</label><input type="date" value="${bcXuatTuNgay}" onchange="setBcXuat('tuNgay',this.value)" style="width:130px"></div>
+      <div class="field"><label>Đến ngày</label><input type="date" value="${bcXuatDenNgay}" onchange="setBcXuat('denNgay',this.value)" style="width:130px"></div>
+      <div class="field"><label>Chủ hàng</label><select onchange="setBcXuat('khachHang',this.value)">
+        <option value="">Tất cả</option>
+        ${Object.keys(BAI_THEO_KHACH).map(kh=>`<option value="${kh}" ${bcXuatKhachHang===kh?'selected':''}>${kh}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>Bãi</label><select onchange="setBcXuat('bai',this.value)">
+        <option value="">Tất cả</option>
+        ${baiOptions.map(b=>`<option value="${b}" ${bcXuatBai===b?'selected':''}>${b}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>Tuyến</label><select onchange="setBcXuat('tuyen',this.value)">
+        <option value="">Tất cả</option>
+        <option value="Đường bộ" ${bcXuatTuyen==='Đường bộ'?'selected':''}>Đường bộ</option>
+        <option value="Đường thủy" ${bcXuatTuyen==='Đường thủy'?'selected':''}>Đường thủy</option>
+      </select></div>
+      <div class="field"><label>Phương tiện</label><select onchange="setBcXuat('loaiXe',this.value)">
+        <option value="">Tất cả</option>
+        ${LOAI_XE_OPTIONS.map(o=>`<option value="${o.v}" ${bcXuatLoaiXe===o.v?'selected':''}>${o.t}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>Tên tàu/BS xe</label><select onchange="setBcXuat('bienSo',this.value)">
+        <option value="">Tất cả</option>
+        ${bienSoOptions.map(b=>`<option value="${b}" ${bcXuatBienSo===b?'selected':''}>${b}</option>`).join('')}
+      </select></div>
+      ${bcXuatTuyen==='Đường thủy' ? `<div class="field" style="grid-column:1/-1"><label>Tàu (phân biệt theo ngày xuất, vì tàu có thể ghé nhiều lần)</label><select onchange="setBcXuat('tau',this.value)">
+        <option value="">Tất cả</option>
+        ${tauOptions.map(o=>`<option value="${o.v}" ${bcXuatTau===o.v?'selected':''}>${o.t}</option>`).join('')}
+      </select></div>` : ''}
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Số TT</th><th>Ngày xuất</th><th>Chủ Hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th style="text-align:right">Khối lượng hàng</th><th>Phương tiện</th></tr></thead>
+      <tbody>
+        ${rows.length ? rows.map((x,i)=>{ const lot=state.lots.find(l=>l.id===x.lotId); return `<tr><td class="mono">${i+1}</td><td class="mono">${x.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${x.tuyen}</td><td>${x.bienSo||x.nguon||''}</td><td>${x.roMoc||''}</td><td class="num">${fmt(x.khoiLuong)}</td><td>${x.loaiXe||''}</td></tr>`; }).join('') : `<tr class="empty-row"><td colspan="9">Không có phiếu xuất nào khớp bộ lọc</td></tr>`}
+      </tbody>
+      ${rows.length ? `<tfoot><tr style="font-weight:700;background:var(--grey-tint)"><td colspan="7">Tổng khối lượng</td><td class="num">${fmt(tongKL)}</td><td></td></tr></tfoot>` : ''}
+    </table></div>`;
+}
+
+function renderXuat(body){
+  const lots = visibleLots(); const lotIds = lots.map(l=>l.id);
+  const rows = state.xuat.filter(x=>lotIds.includes(x.lotId)).sort((a,b)=>b.ngay.localeCompare(a.ngay));
+  body.innerHTML = `
+    <div class="panel-head"><h3>Phiếu xuất hàng</h3></div>
+    ${renderWeighImportBlock('xuat')}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Số TT</th><th>Ngày xuất</th><th>Chủ Hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th style="text-align:right">Khối lượng hàng</th><th>Phương tiện</th><th></th></tr></thead>
+      <tbody>
+        ${rows.map((x,i) => { const lot = state.lots.find(l=>l.id===x.lotId);
+          return `<tr><td class="mono">${i+1}</td><td class="mono">${x.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${x.tuyen}</td><td>${x.bienSo||x.nguon||''}</td><td>${x.roMoc||''}</td><td class="num">${fmt(x.khoiLuong)}</td><td>${x.loaiXe||''}</td>
+            <td>${canEnter('M1') ? `<div class="row-actions">${actionButtons('xuat', x.id)}</div>` : ''}</td></tr>`;
+        }).join('') || `<tr class="empty-row"><td colspan="10">Chưa có phiếu xuất nào</td></tr>`}
+      </tbody>
+    </table></div>
+    ${renderBaoCaoChiTietXuat()}`;
+  initWeighDropzone('xuat');
+}
+
+/* ---- Nhập số liệu từ file trạm cân (.xls/.xlsx/.csv) — dành cho nhân viên trạm cân ---- */
+let pendingWeigh = null; // {huong, lotId, tuyen, tenTau, khachHang, bai, tickets:[...]}
+const BAI_THEO_KHACH = {'Nam Tiến':['Bãi Alpha Pi','Bãi Phú Thái','Bãi Vinalift'], 'Coalimex':['Bãi Coalimex']};
+function baiOptionsHtml(khachHang, selected){
+  return (BAI_THEO_KHACH[khachHang]||[]).map(b=>`<option value="${b}" ${b===selected?'selected':''}>${b}</option>`).join('');
+}
+function findOrCreateLot(chuHang, viTri, goiYLoaiHang){
+  let lot = state.lots.find(l=>l.chuHang===chuHang && l.viTri===viTri);
+  if(!lot){
+    lot = {id:'L'+(state.nextId++), chuHang, loaiHang: goiYLoaiHang || 'Than', viTri, tonDauKy:0};
+    state.lots.push(lot);
+    logActivity(`Tự tạo lô mới ${lot.id} (${chuHang} — ${viTri}) khi nhập số liệu từ file cân`);
+  }
+  return lot;
+}
+function renderWeighImportBlock(huong){
+  if(!canEnter('M1')) return '';
+  if(!pendingWeigh || pendingWeigh.formKey !== huong){
+    return `<details class="add-details"><summary class="add-summary">Nhập số liệu từ file cân (.xls/.xlsx/.csv)</summary>
+      <div class="inline-form" style="grid-template-columns:1fr 1fr 1fr;">
+        <div class="field"><label>Khách hàng</label><select id="wg-khachhang-${huong}" onchange="updateWeighBaiOptions('${huong}')">
+          <option value="Nam Tiến">Nam Tiến</option><option value="Coalimex">Coalimex</option>
+        </select></div>
+        <div class="field"><label>Bãi</label><select id="wg-bai-${huong}">${baiOptionsHtml('Nam Tiến')}</select></div>
+        <div class="field"><label>Tuyến</label><select id="wg-tuyen-${huong}" onchange="toggleWeighTauField('${huong}')">
+          <option value="Đường bộ">Đường bộ</option><option value="Đường thủy">Đường thủy</option><option value="Khác">Khác</option>
+        </select></div>
+        <div class="field" id="wg-taufield-${huong}" style="display:none;grid-column:1/-1"><label>Tên tàu</label><input id="wg-tentau-${huong}" placeholder="VD: tên tàu"></div>
+        <div class="field" id="wg-tuyenkhacfield-${huong}" style="display:none;grid-column:1/-1"><label>Nhập tên tuyến</label><input id="wg-tuyenkhac-${huong}"></div>
+        ${huong==='xuat' ? `
+        <div class="field" id="wg-dichvufield-${huong}" style="display:none;grid-column:1/-1">
+          <label>Dịch vụ kèm theo (tùy chọn)</label>
+          <div style="display:flex;gap:18px;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400"><input type="checkbox" id="wg-sang-${huong}" onchange="toggleWeighDichVuOption('${huong}','sang')"> Sàng than</label>
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400"><input type="checkbox" id="wg-tron-${huong}" onchange="toggleWeighDichVuOption('${huong}','tron')"> Trộn than</label>
+          </div>
+          <div id="wg-sangoptions-${huong}" style="display:none;margin-top:8px">
+            <div class="field" style="max-width:220px"><select id="wg-sangmode-${huong}" onchange="toggleWeighDichVuKL('${huong}','sang')">
+              <option value="ca_tau">Cả tàu</option>
+              <option value="tuy_chon">Khối lượng tùy chỉnh</option>
+            </select></div>
+            <div id="wg-sangkl-${huong}" style="display:none;margin-top:6px"><input type="number" id="wg-sangkl-input-${huong}" placeholder="Khối lượng (tấn)" style="width:220px"></div>
+          </div>
+          <div id="wg-tronoptions-${huong}" style="display:none;margin-top:8px">
+            <div class="field" style="max-width:220px"><select id="wg-tronmode-${huong}" onchange="toggleWeighDichVuKL('${huong}','tron')">
+              <option value="ca_tau">Cả tàu</option>
+              <option value="tuy_chon">Khối lượng tùy chỉnh</option>
+            </select></div>
+            <div id="wg-tronkl-${huong}" style="display:none;margin-top:6px"><input type="number" id="wg-tronkl-input-${huong}" placeholder="Khối lượng (tấn)" style="width:220px"></div>
+          </div>
+        </div>` : ''}
+        <div class="field" style="grid-column:1/-1"><label>File bảng kê cân hàng (xuất từ phần mềm điều khiển trạm cân)</label>
+          <input type="file" id="wg-file-${huong}" accept=".xls,.xlsx,.csv">
+        </div>
+        <div class="form-actions" style="grid-column:1/-1"><button type="button" class="add-btn" onclick="parseWeighFile('${huong}')">Đọc file</button></div>
+        <p style="grid-column:1/-1;font-size:11.5px;color:var(--ink-soft);margin:0">Nhân viên trạm cân chỉ cần vận hành trạm cân trên phần mềm riêng, cuối ca/cuối ngày/cuối tàu xuất file rồi tải lên đây — không cần gõ tay từng phiếu cân.</p>
+      </div>
+    </details>`;
+  }
+  const pw = pendingWeigh;
+  const tong = pw.tickets.reduce((s,t)=>s+t.khoiLuongTan,0);
+  const tonKhaDung = pw.huong==='xuat' ? tonHienTai(pw.lotId) : null;
+  return `<div class="inline-form" style="grid-template-columns:1fr;border-color:var(--brand)">
+    <div class="panel-head" style="margin:0"><h3 style="font-size:14px">Xem trước — ${pw.huong==='nhap'?'Nhập':'Xuất'} hàng, ${pw.khachHang} — ${pw.bai}${pw.tenTau?' — tàu '+pw.tenTau:''} (lô ${pw.lotId})</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:0">Đọc được <b>${pw.tickets.length}</b> phiếu cân, tổng <b>${fmt(tong)} tấn</b>.
+      ${pw.huong==='xuat' ? `Tồn khả dụng của lô hiện tại: <b>${fmt(tonKhaDung)} tấn</b>${tong>tonKhaDung?' — <span style="color:var(--red)">vượt tồn, kiểm tra lại trước khi duyệt từng phiếu!</span>':''}.` : ''}</p>
+    <div class="table-wrap" style="max-height:260px;overflow-y:auto">
+      <table><thead><tr><th>Số phiếu</th><th>Phương tiện</th><th>Ngày</th><th style="text-align:right">KL hàng (tấn)</th></tr></thead>
+      <tbody>${pw.tickets.slice(0,300).map(t=>`<tr><td class="mono">${t.soPhieu}</td><td>${t.bienSo}${t.roMoc?' — '+t.roMoc:''}</td><td class="mono">${t.ngay||pw.tuyen}</td><td class="num">${fmt(t.khoiLuongTan)}</td></tr>`).join('')}</tbody></table>
+    </div>
+    <div class="form-actions" style="gap:10px">
+      <button type="button" class="btn-secondary" onclick="cancelWeighImport()">Hủy</button>
+      <button type="button" class="add-btn" onclick="confirmWeighImport()">Xác nhận nhập ${pw.tickets.length} phiếu</button>
+    </div>
+  </div>`;
+}
+function updateWeighBaiOptions(huong){
+  const kh = document.getElementById('wg-khachhang-'+huong).value;
+  document.getElementById('wg-bai-'+huong).innerHTML = baiOptionsHtml(kh);
+}
+function toggleWeighTauField(huong){
+  const val = document.getElementById('wg-tuyen-'+huong).value;
+  document.getElementById('wg-taufield-'+huong).style.display = val === 'Đường thủy' ? '' : 'none';
+  document.getElementById('wg-tuyenkhacfield-'+huong).style.display = val === 'Khác' ? '' : 'none';
+  const dichvuField = document.getElementById('wg-dichvufield-'+huong);
+  if(dichvuField) dichvuField.style.display = (huong==='xuat' && val==='Đường thủy') ? '' : 'none';
+}
+function toggleWeighDichVuOption(huong, loai){
+  const checked = document.getElementById('wg-'+loai+'-'+huong).checked;
+  document.getElementById('wg-'+loai+'options-'+huong).style.display = checked ? '' : 'none';
+  if(checked){
+    document.getElementById('wg-'+loai+'mode-'+huong).value = 'ca_tau';
+    document.getElementById('wg-'+loai+'kl-'+huong).style.display = 'none';
+  }
+}
+function toggleWeighDichVuKL(huong, loai){
+  const val = document.getElementById('wg-'+loai+'mode-'+huong).value;
+  document.getElementById('wg-'+loai+'kl-'+huong).style.display = val==='tuy_chon' ? '' : 'none';
+}
+function initWeighDropzone(huong){
+  // placeholder hook (không cần thao tác gì thêm — input file đã có onclick riêng qua nút "Đọc file")
+}
+function findWeighCol(headerRow, keywords){
+  for(let i=0;i<headerRow.length;i++){
+    const cell = String(headerRow[i]||'').toLowerCase();
+    if(keywords.some(k=>cell.includes(k))) return i;
+  }
+  return -1;
+}
+function extractWeighTickets(rows){
+  let headerIdx = -1;
+  for(let i=0;i<rows.length;i++){
+    if(Array.isArray(rows[i]) && rows[i].some(c=>String(c||'').toLowerCase().includes('số phiếu'))){ headerIdx = i; break; }
+  }
+  if(headerIdx===-1) throw new Error('Không tìm thấy dòng tiêu đề "SỐ PHIẾU" trong file — kiểm tra lại đúng file bảng kê cân hàng chưa.');
+  const header = rows[headerIdx];
+  const col = {
+    soPhieu: findWeighCol(header,['số phiếu']),
+    bienSo: findWeighCol(header,['biển số xe']),
+    roMoc: findWeighCol(header,['rơ móc']),
+    khachHang: findWeighCol(header,['tên khách hàng','tên kh']),
+    hangHoa: findWeighCol(header,['tên hàng hóa']),
+    klHang: findWeighCol(header,['kl hàng']),
+    gioCan: findWeighCol(header,['giờ cân tổng']),
+  };
+  if(col.klHang===-1 || col.soPhieu===-1) throw new Error('File thiếu cột SỐ PHIẾU hoặc KL HÀNG — không đúng định dạng bảng kê cân hàng.');
+  const tickets = [];
+  for(let i=headerIdx+1;i<rows.length;i++){
+    const r = rows[i];
+    if(!Array.isArray(r) || r.length===0) continue;
+    const rowText = r.map(c=>String(c||'')).join(' ').toLowerCase();
+    if(rowText.includes('tổng cộng')) break;
+    const soPhieu = r[col.soPhieu];
+    const klHang = parseFloat(r[col.klHang]);
+    if(!soPhieu || isNaN(klHang) || klHang<=0) continue;
+    let ngay = '';
+    const g = col.gioCan>=0 ? r[col.gioCan] : null;
+    if(g instanceof Date){ ngay = g.toISOString().slice(0,10); }
+    else if(typeof g === 'string'){
+      const m = g.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+      if(m){ const yr = m[3].length===2 ? '20'+m[3] : m[3]; ngay = `${yr}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
+    }
+    tickets.push({
+      soPhieu: String(soPhieu),
+      bienSo: col.bienSo>=0 ? String(r[col.bienSo]||'').trim() : '',
+      roMoc: col.roMoc>=0 ? String(r[col.roMoc]||'').trim() : '',
+      khachHang: col.khachHang>=0 ? String(r[col.khachHang]||'').trim() : '',
+      hangHoa: col.hangHoa>=0 ? String(r[col.hangHoa]||'').trim() : '',
+      khoiLuongTan: klHang/1000,
+      ngay,
+    });
+  }
+  if(!tickets.length) throw new Error('Không đọc được phiếu cân nào hợp lệ trong file.');
+  return tickets;
+}
+function parseWeighFile(formKey){
+  if(typeof XLSX === 'undefined'){
+    alert('Không tải được thư viện đọc file Excel — cần kết nối Internet ở lần dùng đầu tiên. Kiểm tra mạng rồi thử lại.');
+    return;
+  }
+  const fileInput = document.getElementById('wg-file-'+formKey);
+  const file = fileInput.files[0];
+  if(!file){ alert('Chọn file bảng kê cân hàng trước.'); return; }
+  const khachHang = document.getElementById('wg-khachhang-'+formKey).value;
+  const huong = formKey; // hướng do đang ở tab Nhập hàng hay Xuất hàng quyết định, không cần chọn lại
+  const tuyenChon = document.getElementById('wg-tuyen-'+formKey).value;
+  const tuyen = tuyenChon==='Khác' ? (document.getElementById('wg-tuyenkhac-'+formKey).value.trim() || 'Khác') : tuyenChon;
+  const bai = document.getElementById('wg-bai-'+formKey).value;
+  const tenTau = tuyenChon==='Đường thủy' ? (document.getElementById('wg-tentau-'+formKey).value||'') : '';
+  let sangThan=false, sangCaTau=true, sangKL=0, tronThan=false, tronCaTau=true, tronKL=0;
+  if(huong==='xuat' && tuyenChon==='Đường thủy'){
+    sangThan = document.getElementById('wg-sang-'+formKey).checked;
+    if(sangThan){
+      sangCaTau = document.getElementById('wg-sangmode-'+formKey).value === 'ca_tau';
+      sangKL = sangCaTau ? 0 : (parseFloat(document.getElementById('wg-sangkl-input-'+formKey).value)||0);
+    }
+    tronThan = document.getElementById('wg-tron-'+formKey).checked;
+    if(tronThan){
+      tronCaTau = document.getElementById('wg-tronmode-'+formKey).value === 'ca_tau';
+      tronKL = tronCaTau ? 0 : (parseFloat(document.getElementById('wg-tronkl-input-'+formKey).value)||0);
+    }
+  }
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:''});
+      const tickets = extractWeighTickets(rows);
+      const lot = findOrCreateLot(khachHang, bai, tickets[0] ? tickets[0].hangHoa : '');
+      pendingWeigh = {formKey, huong, lotId:lot.id, khachHang, bai, tuyen, tenTau, tickets, sangThan, sangCaTau, sangKL, tronThan, tronCaTau, tronKL};
+      renderM1();
+    }catch(err){
+      alert('Không đọc được file: ' + err.message);
+    }
+  };
+  reader.onerror = function(){ alert('Không đọc được file.'); };
+  reader.readAsArrayBuffer(file);
+}
+function cancelWeighImport(){ pendingWeigh = null; renderM1(); }
+function confirmWeighImport(){
+  const pw = pendingWeigh; if(!pw) return;
+  let count = 0;
+  pw.tickets.forEach(t=>{
+    const phuongTien = `${t.bienSo}${t.roMoc?' — '+t.roMoc:''} (phiếu ${t.soPhieu})${pw.tenTau?', tàu '+pw.tenTau:''}`;
+    const loaiXe = pw.tuyen === 'Đường thủy' ? 'Tàu' : (t.roMoc ? 'Xe container' : null);
+    if(pw.huong === 'nhap'){
+      state.nhap.push({id:'N'+(state.nextId++), lotId:pw.lotId, ngay:t.ngay||new Date().toISOString().slice(0,10),
+        khoiLuong:t.khoiLuongTan, tuyen:pw.tuyen, phuongTien, bienSo:t.bienSo||'', roMoc:t.roMoc||'', nguoiNhap:currentUser.name, nguon:pw.tenTau||null, loaiXe});
+    } else {
+      state.xuat.push({id:'X'+(state.nextId++), lotId:pw.lotId, ngay:t.ngay||new Date().toISOString().slice(0,10),
+        khoiLuong:t.khoiLuongTan, tuyen:pw.tuyen, phuongTien, bienSo:t.bienSo||'', roMoc:t.roMoc||'', nguoiTao:currentUser.name, nguon:pw.tenTau||null, loaiXe});
+    }
+    count++;
+  });
+  if(pw.huong === 'xuat' && (pw.sangThan || pw.tronThan)){
+    const tongKL = pw.tickets.reduce((s,t)=>s+t.khoiLuongTan,0);
+    const ngayDv = pw.tickets[0] && pw.tickets[0].ngay ? pw.tickets[0].ngay : new Date().toISOString().slice(0,10);
+    if(pw.sangThan){
+      const kl = pw.sangCaTau ? tongKL : pw.sangKL;
+      state.dichvu.push({id:'D'+(state.nextId++), lotId:pw.lotId, ngay:ngayDv, loai:'Sàng tuyển', khoiLuong:kl, tenTau:pw.tenTau||null,
+        ghiChu: `${pw.sangCaTau?'Sàng cả tàu':'Sàng theo khối lượng tùy chỉnh'}${pw.tenTau?' — tàu '+pw.tenTau:''} (${fmt(kl)} tấn)`, nguoiThucHien: currentUser.name});
+    }
+    if(pw.tronThan){
+      const kl = pw.tronCaTau ? tongKL : pw.tronKL;
+      state.dichvu.push({id:'D'+(state.nextId++), lotId:pw.lotId, ngay:ngayDv, loai:'Phối trộn', khoiLuong:kl, tenTau:pw.tenTau||null,
+        ghiChu: `${pw.tronCaTau?'Trộn cả tàu':'Trộn theo khối lượng tùy chỉnh'}${pw.tenTau?' — tàu '+pw.tenTau:''} (${fmt(kl)} tấn)`, nguoiThucHien: currentUser.name});
+    }
+  }
+  logActivity(`Nhập ${count} phiếu cân từ file (${pw.huong==='nhap'?'nhập':'xuất'} hàng, lô ${pw.lotId})`);
+  pendingWeigh = null;
+  renderM1();
+}
+
+function renderDichVu(body){
+  body.innerHTML = renderBaoCaoChiTietDichVu();
+}
+let bcDvTuNgay = null, bcDvDenNgay = null, bcDvKhachHang = '', bcDvBai = '', bcDvTau = '';
+function setBcDv(key, val){
+  if(key==='khachHang'){ bcDvKhachHang = val; bcDvBai = ''; }
+  else if(key==='bai') bcDvBai = val;
+  else if(key==='tau') bcDvTau = val;
+  else if(key==='tuNgay') bcDvTuNgay = val;
+  else if(key==='denNgay') bcDvDenNgay = val;
+  renderM1();
+}
+function renderBaoCaoChiTietDichVu(){
+  if(!bcDvTuNgay) bcDvTuNgay = ngayHomTruoc(0);
+  if(!bcDvDenNgay) bcDvDenNgay = ngayHomTruoc(0);
+  const lots = visibleLots(); const lotIds = lots.map(l=>l.id);
+  let recs = state.dichvu.filter(d=>lotIds.includes(d.lotId) && (d.loai==='Sàng tuyển'||d.loai==='Phối trộn') && d.ngay>=bcDvTuNgay && d.ngay<=bcDvDenNgay);
+  if(bcDvKhachHang) recs = recs.filter(d=>{ const lot=state.lots.find(l=>l.id===d.lotId); return lot && lot.chuHang===bcDvKhachHang; });
+  if(bcDvBai) recs = recs.filter(d=>{ const lot=state.lots.find(l=>l.id===d.lotId); return lot && lot.viTri===bcDvBai; });
+  if(bcDvTau) recs = recs.filter(d=>d.tenTau===bcDvTau);
+  const groups = [];
+  recs.forEach(d=>{
+    let g = groups.find(g=>g.lotId===d.lotId && g.ngay===d.ngay && g.tenTau===d.tenTau);
+    if(!g){ g = {lotId:d.lotId, ngay:d.ngay, tenTau:d.tenTau, khoiLuongSang:0, khoiLuongTron:0}; groups.push(g); }
+    if(d.loai==='Sàng tuyển') g.khoiLuongSang += d.khoiLuong||0;
+    else g.khoiLuongTron += d.khoiLuong||0;
+  });
+  groups.sort((a,b)=>a.ngay.localeCompare(b.ngay));
+  const baiOptions = bcDvKhachHang ? (BAI_THEO_KHACH[bcDvKhachHang]||[]) : [...new Set(Object.values(BAI_THEO_KHACH).flat())];
+  const tauOptions = [...new Set(state.dichvu.filter(d=>d.tenTau).map(d=>d.tenTau))];
+  return `
+    <div class="panel-head"><h3>Báo cáo chi tiết dịch vụ (sàng / trộn than)</h3></div>
+    <div class="inline-form compact-filters" style="grid-template-columns:repeat(5,1fr)">
+      <div class="field"><label>Từ ngày</label><input type="date" value="${bcDvTuNgay}" onchange="setBcDv('tuNgay',this.value)" style="width:130px"></div>
+      <div class="field"><label>Đến ngày</label><input type="date" value="${bcDvDenNgay}" onchange="setBcDv('denNgay',this.value)" style="width:130px"></div>
+      <div class="field"><label>Chủ hàng</label><select onchange="setBcDv('khachHang',this.value)">
+        <option value="">Tất cả</option>
+        ${Object.keys(BAI_THEO_KHACH).map(kh=>`<option value="${kh}" ${bcDvKhachHang===kh?'selected':''}>${kh}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>Bãi</label><select onchange="setBcDv('bai',this.value)">
+        <option value="">Tất cả</option>
+        ${baiOptions.map(b=>`<option value="${b}" ${bcDvBai===b?'selected':''}>${b}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>Tên tàu</label><select onchange="setBcDv('tau',this.value)">
+        <option value="">Tất cả</option>
+        ${tauOptions.map(t=>`<option value="${t}" ${bcDvTau===t?'selected':''}>${t}</option>`).join('')}
+      </select></div>
+    </div>
+    <div class="table-wrap"><table class="grid-boxed">
+      <thead><tr><th>Số TT</th><th>Ngày</th><th>Chủ Hàng</th><th>Bãi</th><th>Tên tàu</th><th style="text-align:right">Khối lượng sàng (tấn)</th><th style="text-align:right">Khối lượng trộn (tấn)</th></tr></thead>
+      <tbody>
+        ${groups.length ? groups.map((g,i)=>{ const lot=state.lots.find(l=>l.id===g.lotId); return `<tr><td class="mono">${i+1}</td><td class="mono">${g.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${g.tenTau||''}</td><td class="num"><span class="cell-box">${g.khoiLuongSang?fmt(g.khoiLuongSang):'0'}</span></td><td class="num"><span class="cell-box">${g.khoiLuongTron?fmt(g.khoiLuongTron):'0'}</span></td></tr>`; }).join('') : `<tr class="empty-row"><td colspan="7">Không có dịch vụ nào khớp bộ lọc</td></tr>`}
+      </tbody>
+    </table></div>`;
+}
+
+function openModal(id){
+  document.getElementById(id).classList.add('active');
+}
+function closeModal(id){ document.getElementById(id).classList.remove('active'); }
+
+/* ===================== SỬA / XÓA BẢN GHI (DÙNG CHUNG) ===================== */
+const LOAI_XE_OPTIONS = ['Xe ben','Xe thùng','Xe container','Tàu'].map(v=>({v,t:v}));
+const LOAI_XE_BANG_CHUNG = ['Xe thùng','Xe ben','Xe container'];
+const FIELD_SCHEMAS = {
+  doixe: {ten:'tài xế / người vận hành máy', fields:[
+    {key:'hoTen', label:'Họ tên', type:'text'},
+    {key:'thietBi', label:'Vận hành được', type:'checkboxes', options:[{v:'Xúc lật',t:'Xúc lật'},{v:'Máy múc',t:'Máy múc'},{v:'Cẩu điện',t:'Cẩu điện'}]},
+    {key:'uuTien', label:'Ưu tiên', type:'select', options:[{v:'',t:'Không có'},{v:'vun_hang',t:'Ưu tiên vun hàng'},{v:'sua_chua',t:'Ưu tiên sửa chữa (gọi khi thiếu người)'}]},
+    {key:'ghiChu', label:'Ghi chú', type:'text'},
+  ]},
+  nhap: {ten:'phiếu nhập hàng', fields:[
+    {key:'ngay', label:'Ngày nhập', type:'date'},
+    {key:'khoiLuong', label:'Khối lượng (tấn)', type:'number'},
+    {key:'tuyen', label:'Tuyến', type:'select', options:[{v:'Đường bộ',t:'Đường bộ'},{v:'Đường thủy',t:'Đường thủy'},{v:'Khác',t:'Khác'}]},
+    {key:'bienSo', label:'Biển số xe', type:'text'},
+    {key:'roMoc', label:'Biển số mooc', type:'text'},
+    {key:'loaiXe', label:'Loại xe / phương tiện', type:'select', options:LOAI_XE_OPTIONS},
+    {key:'nguon', label:'Tên lệnh / tàu (để gộp báo cáo)', type:'text'},
+  ]},
+  xuat: {ten:'phiếu xuất hàng', guard:'xuat', fields:[
+    {key:'ngay', label:'Ngày xuất', type:'date'},
+    {key:'khoiLuong', label:'Khối lượng (tấn)', type:'number'},
+    {key:'tuyen', label:'Tuyến', type:'select', options:[{v:'Đường bộ',t:'Đường bộ'},{v:'Đường thủy',t:'Đường thủy'},{v:'Khác',t:'Khác'}]},
+    {key:'bienSo', label:'Tên tàu/BS xe', type:'text'},
+    {key:'roMoc', label:'Biển số mooc', type:'text'},
+    {key:'loaiXe', label:'Loại xe / phương tiện', type:'select', options:LOAI_XE_OPTIONS},
+    {key:'nguon', label:'Tên lệnh / tàu (để gộp báo cáo)', type:'text'},
+  ]},
+  dichvu: {ten:'dịch vụ tại bãi', fields:[
+    {key:'ngay', label:'Ngày', type:'date'},
+    {key:'loai', label:'Loại dịch vụ', type:'select', options:['Cân / gom / vun hàng','Che bạt','Sàng tuyển','Phối trộn'].map(v=>({v,t:v}))},
+    {key:'ghiChu', label:'Ghi chú', type:'textarea'},
+  ]},
+  congviec: {ten:'công việc', fields:[
+    {key:'ngay', label:'Ngày', type:'date'},
+    {key:'loaiViec', label:'Loại việc', type:'select', options:['Xuống hàng nhập','Xuất hàng','Vun hàng','Sàng than','Phối trộn','Sửa chữa thiết bị'].map(v=>({v,t:v}))},
+    {key:'thietBiCan', label:'Thiết bị cần', type:'select', options:['Xúc lật','Máy múc','Cẩu điện'].map(v=>({v,t:v}))},
+    {key:'ca', label:'Ca làm việc', type:'select', options:['Ca nhập 7h-11h','Ca nhập 13h-17h','Ca xuất 6h-18h','Ca xuất 18h-6h'].map(v=>({v,t:v}))},
+    {key:'khuVuc', label:'Khu vực/bãi', type:'text'},
+    {key:'ghiChu', label:'Ghi chú', type:'text'},
+  ]},
+  thietbi: {ten:'thiết bị', fields:[
+    {key:'ten', label:'Tên thiết bị', type:'text'}, {key:'loai', label:'Loại', type:'text'},
+    {key:'boPhan', label:'Bộ phận quản lý', type:'select', options:[{v:'Khai thác',t:'Khai thác'},{v:'Vận tải',t:'Vận tải'}]},
+    {key:'bienSo', label:'Biển số (nếu là xe)', type:'text'},
+    {key:'viTri', label:'Vị trí', type:'text'}, {key:'hanKiemDinh', label:'Hạn kiểm định', type:'date'},
+  ]},
+  baotrixe: {ten:'nhật ký nhiên liệu/bảo trì', fields:[
+    {key:'ngay', label:'Ngày', type:'date'},
+    {key:'loai', label:'Loại', type:'select', options:[{v:'Nhiên liệu',t:'Nhiên liệu'},{v:'Vật tư',t:'Vật tư'},{v:'Sửa chữa',t:'Sửa chữa'}]},
+    {key:'noiDung', label:'Nội dung', type:'text'}, {key:'donViThucHien', label:'Đơn vị thực hiện/NCC', type:'text'},
+    {key:'chiPhi', label:'Chi phí (đ)', type:'number'},
+  ]},
+  chungchi: {ten:'chứng chỉ vận hành', fields:[
+    {key:'hoTen', label:'Họ tên', type:'text'}, {key:'thietBi', label:'Thiết bị vận hành', type:'text'},
+    {key:'soChungChi', label:'Số chứng chỉ', type:'text'}, {key:'hanChungChi', label:'Hạn chứng chỉ', type:'date'},
+  ]},
+  kiemke: {ten:'biên bản kiểm kê', fields:[
+    {key:'ngay', label:'Ngày kiểm kê', type:'date'},
+    {key:'tonSoSach', label:'Tồn sổ sách (tấn)', type:'number'}, {key:'tonThucTe', label:'Tồn thực tế (tấn)', type:'number'},
+  ]},
+  vantai: {ten:'chuyến vận tải', fields:[
+    {key:'ngay', label:'Ngày', type:'date'},
+    {key:'loaiXe', label:'Loại xe', type:'select', options:[{v:'Tự có',t:'Tự có'},{v:'Thuê ngoài',t:'Thuê ngoài'}]},
+    {key:'tuyen', label:'Tuyến', type:'text'}, {key:'cuocThu', label:'Cước thu (đ)', type:'number'},
+    {key:'cuocTra', label:'Cước trả (đ)', type:'number'}, {key:'ghiChu', label:'Ghi chú', type:'text'},
+  ]},
+  goithau: {ten:'gói thầu', fields:[
+    {key:'ten', label:'Tên gói thầu', type:'text'}, {key:'congTrinh', label:'Công trình', type:'text'},
+    {key:'donVi', label:'Đơn vị thi công', type:'text'}, {key:'tienDo', label:'Tiến độ (%)', type:'number'},
+    {key:'deadline', label:'Deadline', type:'date'}, {key:'ghiChu', label:'Ghi chú', type:'text'},
+  ]},
+  congno: {ten:'công nợ', fields:[
+    {key:'chuHang', label:'Chủ hàng', type:'text'}, {key:'soTien', label:'Số tiền (đ)', type:'number'},
+    {key:'hanThanhToan', label:'Hạn thanh toán', type:'date'},
+  ]},
+  dexuatmuahang: {ten:'đề xuất mua hàng', fields:[
+    {key:'ngay', label:'Ngày', type:'date'}, {key:'nguoiDeXuat', label:'Người đề xuất', type:'text'},
+    {key:'boPhan', label:'Bộ phận', type:'text'}, {key:'noiDung', label:'Nội dung đề xuất', type:'text'},
+    {key:'donViTinh', label:'Đơn vị tính', type:'text'}, {key:'soLuong', label:'Số lượng', type:'number'},
+    {key:'donGia', label:'Đơn giá (đ)', type:'number'}, {key:'nhaCungCap', label:'Nhà cung cấp', type:'text'},
+    {key:'mucDich', label:'Mục đích', type:'text'},
+  ]},
+  denghithanhtoan: {ten:'đề nghị thanh toán', fields:[
+    {key:'ngay', label:'Ngày', type:'date'},
+    {key:'loai', label:'Loại', type:'select', options:[{v:'Nhà cung cấp',t:'Nhà cung cấp'},{v:'Nội bộ',t:'Nội bộ'}]},
+    {key:'nguoiDeNghi', label:'Người đề nghị', type:'text'}, {key:'boPhan', label:'Bộ phận', type:'text'},
+    {key:'noiDung', label:'Nội dung', type:'text'}, {key:'soTien', label:'Số tiền (đ)', type:'number'},
+    {key:'doiTuongNhan', label:'Đối tượng nhận', type:'text'},
+    {key:'hinhThuc', label:'Hình thức', type:'select', options:[{v:'Chuyển khoản',t:'Chuyển khoản'},{v:'Tiền mặt',t:'Tiền mặt'}]},
+  ]},
+  tamung: {ten:'đề nghị tạm ứng', fields:[
+    {key:'ngay', label:'Ngày', type:'date'}, {key:'nguoiNhan', label:'Người nhận', type:'text'},
+    {key:'boPhan', label:'Bộ phận', type:'text'}, {key:'noiDung', label:'Nội dung', type:'text'},
+    {key:'soTienTamUng', label:'Số tiền tạm ứng (đ)', type:'number'},
+    {key:'hinhThuc', label:'Hình thức', type:'select', options:[{v:'Chuyển khoản',t:'Chuyển khoản'},{v:'Tiền mặt',t:'Tiền mặt'}]},
+  ]},
+  soquy: {ten:'giao dịch sổ quỹ', fields:[
+    {key:'ngay', label:'Ngày', type:'date'},
+    {key:'loai', label:'Loại', type:'select', options:[{v:'Thu',t:'Thu'},{v:'Chi',t:'Chi'}]},
+    {key:'soTien', label:'Số tiền (đ)', type:'number'},
+    {key:'hinhThuc', label:'Hình thức', type:'select', options:[{v:'Chuyển khoản',t:'Chuyển khoản'},{v:'Tiền mặt',t:'Tiền mặt'}]},
+    {key:'noiDung', label:'Nội dung', type:'text'},
+  ]},
+  nhansu: {ten:'nhân sự', fields:[
+    {key:'hoTen', label:'Họ tên', type:'text'}, {key:'chucVu', label:'Chức vụ', type:'text'},
+    {key:'phongBan', label:'Phòng ban', type:'text'}, {key:'ngayVaoLam', label:'Ngày vào làm', type:'date'},
+    {key:'chungChi', label:'Chứng chỉ', type:'text'},
+  ]},
+};
+let editCtx = {collection:null, id:null};
+function actionButtons(collection, id){
+  return `<button type="button" class="mini-btn" onclick="openEditModal('${collection}','${id}')">Sửa</button>
+    <button type="button" class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="deleteRecord('${collection}','${id}')">Xóa</button>`;
+}
+function openEditModal(collection, id){
+  const schema = FIELD_SCHEMAS[collection];
+  const record = state[collection].find(r=>r.id===id);
+  if(!schema || !record) return;
+  editCtx = {collection, id};
+  document.getElementById('edit-title').textContent = 'Sửa ' + schema.ten;
+  document.getElementById('edit-error').style.display = 'none';
+  document.getElementById('edit-fields').innerHTML = schema.fields.map(f => {
+    const val = record[f.key] ?? '';
+    if(f.type==='select'){
+      return `<div class="field"><label>${f.label}</label><select id="ef-${f.key}">${f.options.map(o=>`<option value="${o.v}" ${o.v===val?'selected':''}>${o.t}</option>`).join('')}</select></div>`;
+    }
+    if(f.type==='textarea'){
+      return `<div class="field"><label>${f.label}</label><textarea id="ef-${f.key}" rows="2">${val}</textarea></div>`;
+    }
+    if(f.type==='checkboxes'){
+      const arr = Array.isArray(val) ? val : [];
+      return `<div class="field"><label>${f.label}</label><div style="display:flex;gap:14px;flex-wrap:wrap">${f.options.map(o=>
+        `<label style="display:flex;align-items:center;gap:5px;font-weight:400;font-size:13px"><input type="checkbox" id="ef-${f.key}-${o.v}" ${arr.includes(o.v)?'checked':''}> ${o.t}</label>`).join('')}</div></div>`;
+    }
+    return `<div class="field"><label>${f.label}</label><input type="${f.type}" ${f.type==='number'?'step="0.01"':''} id="ef-${f.key}" value="${val}"></div>`;
+  }).join('');
+  openModal('modal-edit');
+}
+function saveEditModal(e){
+  e.preventDefault();
+  const schema = FIELD_SCHEMAS[editCtx.collection];
+  const record = state[editCtx.collection].find(r=>r.id===editCtx.id);
+  const errEl = document.getElementById('edit-error');
+  if(!schema || !record) return false;
+  const updates = {};
+  schema.fields.forEach(f => {
+    if(f.type==='checkboxes'){
+      updates[f.key] = f.options.filter(o=>document.getElementById('ef-'+f.key+'-'+o.v).checked).map(o=>o.v);
+      return;
+    }
+    const el = document.getElementById('ef-'+f.key);
+    updates[f.key] = f.type==='number' ? (parseFloat(el.value)||0) : el.value;
+  });
+  if(schema.guard === 'xuat'){
+    const tonKhaDung = tonHienTai(record.lotId) + record.khoiLuong;
+    if(updates.khoiLuong > tonKhaDung){
+      errEl.textContent = `Khối lượng mới (${fmt(updates.khoiLuong)} tấn) vượt tồn khả dụng của lô (${fmt(tonKhaDung)} tấn). Không thể lưu.`;
+      errEl.style.display = 'block';
+      return false;
+    }
+  }
+  Object.assign(record, updates);
+  logActivity(`Sửa ${schema.ten} ${record.id}`);
+  closeModal('modal-edit');
+  renderContent();
+  return false;
+}
+function deleteRecord(collection, id){
+  const schema = FIELD_SCHEMAS[collection];
+  if(!confirm(`Xóa ${schema.ten} này? Không thể hoàn tác (trừ khi khôi phục dữ liệu mẫu).`)) return;
+  state[collection] = state[collection].filter(r=>r.id!==id);
+  logActivity(`Xóa ${schema.ten} ${id}`);
+  renderContent();
+}
+
+
+/* ===================== M2: THIẾT BỊ & BẢO TRÌ ===================== */
+function renderM2(){
+  const content = document.getElementById('content');
+  const tabs = [{id:'thietbi',label:'Thiết bị'},{id:'baotri',label:'Nhiên liệu & Bảo trì'},{id:'chungchi',label:'Chứng chỉ vận hành'}];
+  if(!['thietbi','baotri','chungchi'].includes(currentTab)) currentTab = 'thietbi';
+  content.innerHTML = `<div class="tabs">` + tabs.map(t =>
+    `<button class="tab-btn ${t.id===currentTab?'active':''}" onclick="currentTab='${t.id}';renderM2()">${t.label}</button>`
+  ).join('') + `</div><div id="tab-body"></div>`;
+  const body = document.getElementById('tab-body');
+  const canAdd = canEnter('M2');
+
+  if(currentTab === 'thietbi'){
+    body.innerHTML = `
+      <div class="panel-head"><h3>Danh mục thiết bị &amp; phương tiện</h3></div>
+      <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Gồm cả máy móc trong bãi (Khai thác quản lý) và xe tải chạy tuyến ngoài (Vận tải quản lý).</p>
+      ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm thiết bị / phương tiện</summary>
+        <form class="inline-form" onsubmit="return submitThietBi(event)">
+          <div class="field"><label>Tên thiết bị/phương tiện</label><input required id="tb-ten"></div>
+          <div class="field"><label>Loại</label><input required id="tb-loai" placeholder="VD: Cẩu bờ, Xe xúc lật, Xe đầu kéo"></div>
+          <div class="field"><label>Bộ phận quản lý</label><select id="tb-bophan"><option value="Khai thác">Khai thác</option><option value="Vận tải">Vận tải</option></select></div>
+          <div class="field"><label>Biển số (nếu là xe)</label><input id="tb-bienso" placeholder="VD: 43H-060.50"></div>
+          <div class="field"><label>Vị trí / tuyến hoạt động</label><input required id="tb-vitri"></div>
+          <div class="field"><label>Hạn kiểm định</label><input type="date" required id="tb-han"></div>
+          <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+        </form></details>` : ''}
+      <div class="table-wrap"><table>
+        <thead><tr><th>Thiết bị/phương tiện</th><th>Loại</th><th>Biển số</th><th>Bộ phận</th><th>Vị trí/tuyến</th><th>Kiểm định</th><th></th></tr></thead>
+        <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td>${t.loai}</td><td class="mono">${t.bienSo||''}</td><td>${t.boPhan}</td><td>${t.viTri}</td><td>${expiryPill(t.hanKiemDinh)}</td>
+          <td>${canAdd ? `<div class="row-actions">${actionButtons('thietbi', t.id)}</div>` : ''}</td></tr>`).join('')
+          || `<tr class="empty-row"><td colspan="7">Chưa có thiết bị nào</td></tr>`}</tbody>
+      </table></div>`;
+  } else if(currentTab === 'baotri'){
+    const tongChiPhi = state.baotrixe.reduce((s,b)=>s+b.chiPhi,0);
+    const phuongTienOptions = state.thietbi.map(t=>`<option value="${t.id}">${t.ten}${t.bienSo?' — '+t.bienSo:''} (${t.boPhan})</option>`).join('');
+    body.innerHTML = `
+      <div class="stat-row">
+        <div class="stat-card"><div class="slabel">Chi phí nhiên liệu/vật tư/sửa chữa lũy kế</div><div class="sval">${fmt(tongChiPhi)} <span class="sunit">đ</span></div></div>
+      </div>
+      <div class="panel-head"><h3>Nhật ký nhiên liệu, vật tư &amp; sửa chữa</h3></div>
+      <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Ai có quyền trên module này đều ghi nhận được (kể cả Kế toán — chỉ ghi nhận chi phí, không duyệt). Người duyệt là Phòng Khai thác hoặc Phòng Vận tải, tùy phương tiện thuộc bộ phận nào.</p>
+      ${canAdd ? `<details class="add-details"><summary class="add-summary">Ghi nhận nhiên liệu / vật tư / sửa chữa</summary>
+        <form class="inline-form" onsubmit="return submitBaoTriXe(event)">
+          <div class="field"><label>Ngày</label><input type="date" required id="bt-ngay"></div>
+          <div class="field"><label>Thiết bị/phương tiện</label><select required id="bt-phuongtien">${phuongTienOptions}</select></div>
+          <div class="field"><label>Loại</label><select id="bt-loai"><option value="Nhiên liệu">Nhiên liệu</option><option value="Vật tư">Vật tư</option><option value="Sửa chữa">Sửa chữa</option></select></div>
+          <div class="field"><label>Nội dung</label><input required id="bt-noidung" placeholder="VD: Đổ dầu diesel 120 lít"></div>
+          <div class="field"><label>Đơn vị thực hiện/NCC</label><input id="bt-donvi"></div>
+          <div class="field"><label>Chi phí (đ)</label><input type="number" required id="bt-chiphi"></div>
+          <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+        </form></details>` : ''}
+      <div class="table-wrap"><table>
+        <thead><tr><th>Ngày</th><th>Thiết bị/phương tiện</th><th>Loại</th><th>Nội dung</th><th style="text-align:right">Chi phí</th><th>Trạng thái</th><th></th></tr></thead>
+        <tbody>${state.baotrixe.map(b => {
+          const pt = state.thietbi.find(t=>t.id===b.phuongTienId);
+          const pillClass = b.trangThai==='Đã duyệt' ? 'approved' : 'pending';
+          const coDuyet = pt && ((currentUser.id==='KT' && pt.boPhan==='Khai thác') || (currentUser.id==='VT' && pt.boPhan==='Vận tải'));
+          let action = (coDuyet && b.trangThai==='Chờ duyệt') ? `<button class="mini-btn approve" onclick="duyetBaoTriXe('${b.id}')">Duyệt</button>` : '';
+          if(canAdd) action += actionButtons('baotrixe', b.id);
+          return `<tr><td class="mono">${b.ngay}</td><td>${pt?pt.ten+(pt.bienSo?' — '+pt.bienSo:''):''}</td><td>${b.loai}</td><td>${b.noiDung}</td>
+            <td class="num">${fmt(b.chiPhi)}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
+        }).join('') || `<tr class="empty-row"><td colspan="7">Chưa có ghi nhận nào</td></tr>`}</tbody>
+      </table></div>`;
+  } else {
+    body.innerHTML = `
+      <div class="panel-head"><h3>Chứng chỉ người vận hành</h3></div>
+      ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm chứng chỉ</summary>
+        <form class="inline-form" onsubmit="return submitChungChi(event)">
+          <div class="field"><label>Họ tên</label><input required id="cc-hoten"></div>
+          <div class="field"><label>Thiết bị vận hành</label><input required id="cc-thietbi"></div>
+          <div class="field"><label>Số chứng chỉ</label><input required id="cc-so"></div>
+          <div class="field"><label>Hạn chứng chỉ</label><input type="date" required id="cc-han"></div>
+          <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+        </form></details>` : ''}
+      <div class="table-wrap"><table>
+        <thead><tr><th>Họ tên</th><th>Thiết bị</th><th>Số chứng chỉ</th><th>Hạn</th><th></th></tr></thead>
+        <tbody>${state.chungchi.map(c => `<tr><td>${c.hoTen}</td><td>${c.thietBi}</td><td class="mono">${c.soChungChi}</td><td>${expiryPill(c.hanChungChi)}</td>
+          <td>${canAdd ? `<div class="row-actions">${actionButtons('chungchi', c.id)}</div>` : ''}</td></tr>`).join('')
+          || `<tr class="empty-row"><td colspan="5">Chưa có chứng chỉ nào</td></tr>`}</tbody>
+      </table></div>`;
+  }
+}
+function submitThietBi(e){
+  e.preventDefault();
+  const ten = document.getElementById('tb-ten').value;
+  state.thietbi.push({id:'TB'+(state.nextId++), ten, loai:document.getElementById('tb-loai').value,
+    boPhan:document.getElementById('tb-bophan').value, bienSo:document.getElementById('tb-bienso').value,
+    viTri:document.getElementById('tb-vitri').value, hanKiemDinh:document.getElementById('tb-han').value});
+  logActivity(`Thêm thiết bị/phương tiện "${ten}"`);
+  renderM2(); return false;
+}
+function submitBaoTriXe(e){
+  e.preventDefault();
+  const noiDung = document.getElementById('bt-noidung').value;
+  state.baotrixe.push({id:'BT'+(state.nextId++), ngay:document.getElementById('bt-ngay').value,
+    phuongTienId:document.getElementById('bt-phuongtien').value, loai:document.getElementById('bt-loai').value,
+    noiDung, donViThucHien:document.getElementById('bt-donvi').value, chiPhi:parseFloat(document.getElementById('bt-chiphi').value)||0,
+    trangThai:'Chờ duyệt', nguoiGhiNhan:currentUser.name, nguoiDuyet:null});
+  logActivity(`Ghi nhận "${noiDung}" — chờ duyệt`);
+  renderM2(); return false;
+}
+function duyetBaoTriXe(id){
+  const b = state.baotrixe.find(b=>b.id===id); if(!b) return;
+  const pt = state.thietbi.find(t=>t.id===b.phuongTienId);
+  const coQuyen = pt && ((currentUser.id==='KT' && pt.boPhan==='Khai thác') || (currentUser.id==='VT' && pt.boPhan==='Vận tải'));
+  if(!coQuyen) return;
+  b.trangThai = 'Đã duyệt'; b.nguoiDuyet = currentUser.name;
+  logActivity(`Duyệt chi phí "${b.noiDung}" (${fmt(b.chiPhi)} đ)`);
+  renderM2();
+}
+function submitChungChi(e){
+  e.preventDefault();
+  const hoTen = document.getElementById('cc-hoten').value;
+  state.chungchi.push({id:'CV'+(state.nextId++), hoTen, thietBi:document.getElementById('cc-thietbi').value,
+    soChungChi:document.getElementById('cc-so').value, hanChungChi:document.getElementById('cc-han').value});
+  logActivity(`Thêm chứng chỉ vận hành cho "${hoTen}"`);
+  renderM2(); return false;
+}
+
+/* ===================== M3: KIỂM KÊ & ĐỐI SOÁT KHO ===================== */
+function renderM3(){
+  const content = document.getElementById('content');
+  const canAdd = canEnter('M3'); const canAppr = canApprove('M3');
+  const lotOptions = state.lots.map(l=>`<option value="${l.id}">${l.id} · ${l.chuHang} — ${l.loaiHang}</option>`).join('');
+  content.innerHTML = `
+    <div class="panel-head"><h3>Các đợt kiểm kê</h3></div>
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Lập biên bản kiểm kê</summary>
+      <form class="inline-form" onsubmit="return submitKiemKe(event)">
+        <div class="field"><label>Lô hàng</label><select required id="kk-lot">${lotOptions}</select></div>
+        <div class="field"><label>Ngày kiểm kê</label><input type="date" required id="kk-ngay"></div>
+        <div class="field"><label>Tồn thực tế (tấn)</label><input type="number" step="0.01" required id="kk-thucte"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu biên bản</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngày</th><th>Lô</th><th style="text-align:right">Tồn sổ sách</th><th style="text-align:right">Tồn thực tế</th><th style="text-align:right">Chênh lệch</th><th>Trạng thái</th><th></th></tr></thead>
+      <tbody>
+        ${state.kiemke.map(k => {
+          const lech = k.tonThucTe - k.tonSoSach;
+          const pillClass = k.trangThai==='Đã xử lý' ? 'approved' : lech===0 ? 'approved' : 'pending';
+          const trangThaiHien = lech===0 && k.trangThai!=='Đã xử lý' ? 'Khớp' : k.trangThai;
+          let action = (canAppr && k.trangThai==='Chờ xử lý' && lech!==0)
+            ? `<button class="mini-btn approve" onclick="xuLyKiemKe('${k.id}')">Xử lý</button>` : '';
+          if(canAdd) action += actionButtons('kiemke', k.id);
+          return `<tr><td class="mono">${k.ngay}</td><td class="mono">${k.lotId}</td><td class="num">${fmt(k.tonSoSach)}</td>
+            <td class="num">${fmt(k.tonThucTe)}</td><td class="num" style="color:${lech<0?'var(--red)':lech>0?'var(--brand)':'inherit'}">${lech>0?'+':''}${fmt(lech)}</td>
+            <td><span class="pill ${pillClass}">${trangThaiHien}</span>${k.nguyenNhan?`<div style="font-size:11px;color:var(--ink-soft);margin-top:3px">${k.nguyenNhan}</div>`:''}</td><td><div class="row-actions">${action}</div></td></tr>`;
+        }).join('') || `<tr class="empty-row"><td colspan="7">Chưa có đợt kiểm kê nào</td></tr>`}
+      </tbody>
+    </table></div>`;
+}
+function submitKiemKe(e){
+  e.preventDefault();
+  const lotId = document.getElementById('kk-lot').value;
+  const tonThucTe = parseFloat(document.getElementById('kk-thucte').value);
+  const tonSoSach = tonHienTai(lotId);
+  state.kiemke.push({id:'KK'+(state.nextId++), ngay:document.getElementById('kk-ngay').value, lotId,
+    tonSoSach, tonThucTe, trangThai: tonThucTe===tonSoSach ? 'Đã xử lý' : 'Chờ xử lý', nguyenNhan:'', nguoiLap:currentUser.name, nguoiDuyet:null});
+  logActivity(`Lập biên bản kiểm kê lô ${lotId} — chênh lệch ${fmt(tonThucTe-tonSoSach)} tấn`);
+  renderM3(); return false;
+}
+function xuLyKiemKe(id){
+  const k = state.kiemke.find(k=>k.id===id); if(!k) return;
+  const ly = prompt('Nhập nguyên nhân chênh lệch để phê duyệt xử lý:', 'Hao hụt tự nhiên trong quá trình lưu bãi');
+  if(ly === null) return;
+  k.trangThai = 'Đã xử lý'; k.nguyenNhan = ly; k.nguoiDuyet = currentUser.name;
+  logActivity(`Duyệt xử lý chênh lệch kiểm kê lô ${k.lotId}: ${ly}`);
+  renderM3();
+}
+
+/* ===================== M4: VẬN TẢI LIÊN VẬN ===================== */
+function renderM4(){
+  const content = document.getElementById('content');
+  const canAdd = canEnter('M4');
+  const tongLoiNhuan = state.vantai.reduce((s,v)=>s+(v.cuocThu-v.cuocTra),0);
+  content.innerHTML = `
+    <div class="stat-row">
+      <div class="stat-card"><div class="slabel">Số chuyến ghi nhận</div><div class="sval">${state.vantai.length}</div></div>
+      <div class="stat-card"><div class="slabel">Chênh lệch cước lũy kế</div><div class="sval">${fmt(tongLoiNhuan)} <span class="sunit">đ</span></div></div>
+    </div>
+    <div class="panel-head"><h3>Chuyến vận chuyển</h3></div>
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm chuyến</summary>
+      <form class="inline-form" onsubmit="return submitVanTai(event)">
+        <div class="field"><label>Ngày</label><input type="date" required id="vt-ngay"></div>
+        <div class="field"><label>Loại xe</label><select id="vt-loai"><option>Tự có</option><option>Thuê ngoài</option></select></div>
+        <div class="field"><label>Tuyến</label><input required id="vt-tuyen" placeholder="VD: Lào → Chân Mây"></div>
+        <div class="field"><label>Cước thu (đ)</label><input type="number" required id="vt-thu"></div>
+        <div class="field"><label>Cước trả (đ, nếu thuê ngoài)</label><input type="number" id="vt-tra" value="0"></div>
+        <div class="field"><label>Ghi chú</label><input id="vt-ghichu"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngày</th><th>Loại xe</th><th>Tuyến</th><th style="text-align:right">Cước thu</th><th style="text-align:right">Cước trả</th><th style="text-align:right">Chênh lệch</th><th>Ghi chú</th><th></th></tr></thead>
+      <tbody>${state.vantai.map(v => `<tr><td class="mono">${v.ngay}</td><td>${v.loaiXe}</td><td>${v.tuyen}</td>
+        <td class="num">${fmt(v.cuocThu)}</td><td class="num">${fmt(v.cuocTra)}</td>
+        <td class="num" style="font-weight:700">${fmt(v.cuocThu-v.cuocTra)}</td><td>${v.ghiChu||''}</td>
+        <td>${canAdd ? `<div class="row-actions">${actionButtons('vantai', v.id)}</div>` : ''}</td></tr>`).join('')
+        || `<tr class="empty-row"><td colspan="8">Chưa có chuyến nào</td></tr>`}</tbody>
+    </table></div>`;
+}
+function submitVanTai(e){
+  e.preventDefault();
+  state.vantai.push({id:'VC'+(state.nextId++), ngay:document.getElementById('vt-ngay').value,
+    loaiXe:document.getElementById('vt-loai').value, tuyen:document.getElementById('vt-tuyen').value,
+    cuocThu:parseFloat(document.getElementById('vt-thu').value)||0, cuocTra:parseFloat(document.getElementById('vt-tra').value)||0,
+    ghiChu:document.getElementById('vt-ghichu').value});
+  logActivity(`Thêm chuyến vận tải "${document.getElementById('vt-tuyen').value}"`);
+  renderM4(); return false;
+}
+
+/* ===================== M5: DỊCH VỤ KỸ THUẬT ===================== */
+function renderM5(){
+  const content = document.getElementById('content');
+  const canAdd = canEnter('M5');
+  content.innerHTML = `
+    <div class="panel-head"><h3>Gói thầu / dự án dịch vụ</h3></div>
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm gói thầu</summary>
+      <form class="inline-form" onsubmit="return submitGoiThau(event)">
+        <div class="field"><label>Tên gói thầu</label><input required id="gt-ten"></div>
+        <div class="field"><label>Công trình</label><input required id="gt-congtrinh"></div>
+        <div class="field"><label>Đơn vị thi công</label><input required id="gt-donvi"></div>
+        <div class="field"><label>Deadline</label><input type="date" required id="gt-deadline"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Gói thầu</th><th>Công trình</th><th>Đơn vị</th><th>Tiến độ</th><th>Deadline</th><th></th></tr></thead>
+      <tbody>${state.goithau.map(g => `<tr><td>${g.ten}</td><td>${g.congTrinh}</td><td>${g.donVi}</td>
+        <td class="progress-cell"><div class="progress-track"><div class="progress-fill" style="width:${g.tienDo}%"></div></div><span class="mono">${g.tienDo}%</span></td>
+        <td class="mono">${g.deadline}</td>
+        <td><div class="row-actions">${canAdd ? `<button class="mini-btn" onclick="capNhatTienDoGT('${g.id}')">Cập nhật %</button>${actionButtons('goithau', g.id)}` : ''}</div></td></tr>`).join('')
+        || `<tr class="empty-row"><td colspan="6">Chưa có gói thầu nào</td></tr>`}</tbody>
+    </table></div>`;
+}
+function submitGoiThau(e){
+  e.preventDefault();
+  const ten = document.getElementById('gt-ten').value;
+  state.goithau.push({id:'GT'+(state.nextId++), ten, congTrinh:document.getElementById('gt-congtrinh').value,
+    donVi:document.getElementById('gt-donvi').value, tienDo:0, deadline:document.getElementById('gt-deadline').value, ghiChu:''});
+  logActivity(`Thêm gói thầu "${ten}"`);
+  renderM5(); return false;
+}
+function capNhatTienDoGT(id){
+  const g = state.goithau.find(g=>g.id===id); if(!g) return;
+  const v = prompt('Tiến độ mới (%)', g.tienDo);
+  if(v===null) return;
+  g.tienDo = Math.max(0, Math.min(100, parseFloat(v)||0));
+  logActivity(`Cập nhật tiến độ gói "${g.ten}" → ${g.tienDo}%`);
+  renderM5();
+}
+
+/* ===================== M7: TÀI CHÍNH — KẾ TOÁN ===================== */
+function soDuQuy(){ return state.soquy.reduce((s,q)=>s + (q.loai==='Thu' ? q.soTien : -q.soTien), 0); }
+function themSoQuy(loai, soTien, hinhThuc, noiDung, nguon){
+  state.soquy.push({id:'SQ'+(state.nextId++), ngay:new Date().toISOString().slice(0,10), loai, soTien, hinhThuc, noiDung, nguon});
+}
+
+function renderM7(){
+  const content = document.getElementById('content');
+  const tabs = [
+    {id:'tqtc', label:'Tổng quan'},
+    {id:'dexuat', label:'Đề xuất mua hàng'},
+    {id:'denghi', label:'Đề nghị thanh toán'},
+    {id:'tuquy', label:'Tạm ứng'},
+    {id:'soquy', label:'Sổ quỹ'},
+    {id:'congno', label:'Công nợ phải thu'},
+  ];
+  if(!tabs.some(t=>t.id===currentTab)) currentTab = 'tqtc';
+  content.innerHTML = `<div class="tabs">` + tabs.map(t =>
+    `<button class="tab-btn ${t.id===currentTab?'active':''}" onclick="currentTab='${t.id}';renderM7()">${t.label}</button>`
+  ).join('') + `</div><div id="tab-body"></div>`;
+  const body = document.getElementById('tab-body');
+  if(currentTab==='tqtc') return renderTaiChinhTongQuan(body);
+  if(currentTab==='dexuat') return renderDeXuatMuaHang(body);
+  if(currentTab==='denghi') return renderDeNghiThanhToan(body);
+  if(currentTab==='tuquy') return renderTamUng(body);
+  if(currentTab==='soquy') return renderSoQuy(body);
+  if(currentTab==='congno') return renderCongNo(body);
+}
+
+function renderTaiChinhTongQuan(body){
+  const phaiThu = state.congno.filter(c=>c.trangThai==='Chưa thu').reduce((s,c)=>s+c.soTien,0);
+  const phaiTraNCC = state.denghithanhtoan.filter(t=>t.loai==='Nhà cung cấp' && t.trangThai!=='Đã thanh toán').reduce((s,t)=>s+t.soTien,0);
+  const tamUngChuaQuyetToan = state.tamung.filter(t=>t.trangThai!=='Đã quyết toán').reduce((s,t)=>s+t.soTienTamUng,0);
+  const canDuyet = currentUser.id==='BLD' ? [
+    ...state.dexuatmuahang.filter(x=>x.trangThai==='Chờ duyệt').map(x=>`Đề xuất mua hàng — ${x.noiDung} (${fmt(x.soLuong*x.donGia)} đ)`),
+    ...state.denghithanhtoan.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>`Đề nghị thanh toán — ${x.noiDung} (${fmt(x.soTien)} đ)`),
+    ...state.tamung.filter(x=>x.trangThai==='Chờ duyệt').map(x=>`Tạm ứng — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
+  ] : [];
+  const canKiemTra = currentUser.id==='TC' ? [
+    ...state.denghithanhtoan.filter(x=>x.trangThai==='Chờ kiểm tra').map(x=>`Kiểm tra hồ sơ — ${x.noiDung} (${fmt(x.soTien)} đ)`),
+    ...state.denghithanhtoan.filter(x=>x.trangThai==='Đã duyệt').map(x=>`Thực hiện thanh toán — ${x.noiDung} (${fmt(x.soTien)} đ)`),
+    ...state.tamung.filter(x=>x.trangThai==='Đã duyệt').map(x=>`Chi tạm ứng — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
+  ] : [];
+  const viecCanXuLy = [...canDuyet, ...canKiemTra];
+  body.innerHTML = `
+    <div class="stat-row">
+      <div class="stat-card"><div class="slabel">Phải thu (khách hàng)</div><div class="sval">${fmt(phaiThu)} <span class="sunit">đ</span></div></div>
+      <div class="stat-card"><div class="slabel">Phải trả NCC</div><div class="sval warn">${fmt(phaiTraNCC)} <span class="sunit">đ</span></div></div>
+      <div class="stat-card"><div class="slabel">Tạm ứng chưa quyết toán</div><div class="sval">${fmt(tamUngChuaQuyetToan)} <span class="sunit">đ</span></div></div>
+      <div class="stat-card"><div class="slabel">Tồn quỹ (tiền mặt + chuyển khoản)</div><div class="sval">${fmt(soDuQuy())} <span class="sunit">đ</span></div></div>
+    </div>
+    ${viecCanXuLy.length ? `<div class="section-block"><h3 style="font-size:14px">Việc đang chờ bạn xử lý (${viecCanXuLy.length})</h3>
+      <div class="table-wrap" style="padding:4px 18px"><div class="log-list">${viecCanXuLy.map(v=>`<div class="log-item">${v}</div>`).join('')}</div></div>
+    </div>` : `<p style="font-size:13px;color:var(--ink-soft)">Không có việc nào đang chờ bạn xử lý.</p>`}
+    <div class="info-box">
+      <b>Quy trình kiểm soát chi (rút gọn theo văn bản quy trình công ty):</b><br>
+      Phát sinh nhu cầu → Lập đề xuất/đề nghị → Bộ phận phụ trách xác nhận → <b>Kế toán kiểm tra hồ sơ</b> → <b>Ban lãnh đạo phê duyệt</b> → <b>Kế toán/Thủ quỹ thực hiện chi</b> → Hạch toán vào sổ quỹ → Lưu hồ sơ.
+      Người đề nghị không đồng thời là người phê duyệt khoản chi của chính mình.
+    </div>`;
+}
+
+/* ---- Đề xuất mua hàng ---- */
+function renderDeXuatMuaHang(body){
+  const canAdd = canEnter('M7');
+  body.innerHTML = `
+    <div class="panel-head"><h3>Đề xuất mua hàng</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Bộ phận có nhu cầu lập đề xuất kèm nhà cung cấp/đơn giá dự kiến; Ban lãnh đạo phê duyệt trước khi đặt hàng.</p>
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Lập đề xuất mua hàng</summary>
+      <form class="inline-form" onsubmit="return submitDeXuat(event)">
+        <div class="field"><label>Ngày</label><input type="date" required id="dx-ngay"></div>
+        <div class="field"><label>Người đề xuất</label><input required id="dx-nguoi" value="${currentUser.name}"></div>
+        <div class="field"><label>Bộ phận</label><input required id="dx-bophan"></div>
+        <div class="field"><label>Nội dung đề xuất</label><input required id="dx-noidung" placeholder="VD: Mua bình điện thay xe ben 43H-060.60"></div>
+        <div class="field"><label>Đơn vị tính</label><input required id="dx-dvt" placeholder="VD: Bình, Cái, Bộ"></div>
+        <div class="field"><label>Số lượng</label><input type="number" required id="dx-sl" value="1"></div>
+        <div class="field"><label>Đơn giá (đ)</label><input type="number" required id="dx-dg"></div>
+        <div class="field"><label>Nhà cung cấp</label><input id="dx-ncc"></div>
+        <div class="field"><label>Mục đích</label><input id="dx-mucdich"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Gửi đề xuất</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngày</th><th>Nội dung</th><th>Người đề xuất</th><th>Bộ phận</th><th>NCC</th><th style="text-align:right">Thành tiền</th><th>Trạng thái</th><th></th></tr></thead>
+      <tbody>${state.dexuatmuahang.map(x => {
+        const thanhTien = x.soLuong * x.donGia;
+        const pillClass = x.trangThai==='Đã duyệt' ? 'approved' : x.trangThai==='Từ chối' ? 'rejected' : 'pending';
+        let action = '';
+        if(currentUser.id==='BLD' && x.trangThai==='Chờ duyệt'){
+          action = `<button class="mini-btn approve" onclick="duyetDeXuat('${x.id}',true)">Duyệt</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetDeXuat('${x.id}',false)">Từ chối</button>`;
+        }
+        if(canAdd) action += actionButtons('dexuatmuahang', x.id);
+        return `<tr><td class="mono">${x.ngay}</td><td>${x.noiDung}</td><td>${x.nguoiDeXuat}</td><td>${x.boPhan}</td><td>${x.nhaCungCap||''}</td>
+          <td class="num">${fmt(thanhTien)}</td><td><span class="pill ${pillClass}">${x.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
+      }).join('') || `<tr class="empty-row"><td colspan="8">Chưa có đề xuất mua hàng nào</td></tr>`}</tbody>
+    </table></div>`;
+}
+function submitDeXuat(e){
+  e.preventDefault();
+  const noiDung = document.getElementById('dx-noidung').value;
+  state.dexuatmuahang.push({id:'DX'+(state.nextId++), ngay:document.getElementById('dx-ngay').value,
+    nguoiDeXuat:document.getElementById('dx-nguoi').value, boPhan:document.getElementById('dx-bophan').value,
+    noiDung, donViTinh:document.getElementById('dx-dvt').value, soLuong:parseFloat(document.getElementById('dx-sl').value)||1,
+    donGia:parseFloat(document.getElementById('dx-dg').value)||0, nhaCungCap:document.getElementById('dx-ncc').value,
+    mucDich:document.getElementById('dx-mucdich').value, trangThai:'Chờ duyệt', nguoiDuyet:null});
+  logActivity(`Gửi đề xuất mua hàng "${noiDung}"`);
+  renderM7(); return false;
+}
+function duyetDeXuat(id, dong){
+  const x = state.dexuatmuahang.find(x=>x.id===id); if(!x) return;
+  x.trangThai = dong ? 'Đã duyệt' : 'Từ chối'; x.nguoiDuyet = currentUser.name;
+  logActivity(`${dong?'Duyệt':'Từ chối'} đề xuất mua hàng "${x.noiDung}"`);
+  renderM7();
+}
+
+/* ---- Đề nghị thanh toán ---- */
+function renderDeNghiThanhToan(body){
+  const canAdd = canEnter('M7');
+  body.innerHTML = `
+    <div class="panel-head"><h3>Đề nghị thanh toán</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Áp dụng cho cả thanh toán nội bộ và thanh toán nhà cung cấp. Luồng: Chờ kiểm tra → Kế toán kiểm tra → Ban lãnh đạo duyệt → Kế toán/Thủ quỹ thực hiện chi.</p>
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Lập đề nghị thanh toán</summary>
+      <form class="inline-form" onsubmit="return submitDeNghi(event)">
+        <div class="field"><label>Ngày</label><input type="date" required id="tt-ngay"></div>
+        <div class="field"><label>Loại</label><select id="tt-loai"><option value="Nhà cung cấp">Nhà cung cấp</option><option value="Nội bộ">Nội bộ</option></select></div>
+        <div class="field"><label>Người đề nghị</label><input required id="tt-nguoi" value="${currentUser.name}"></div>
+        <div class="field"><label>Bộ phận</label><input required id="tt-bophan"></div>
+        <div class="field"><label>Nội dung</label><input required id="tt-noidung" placeholder="VD: Mua phụ tùng sửa chữa xe đầu kéo (HĐ số...)"></div>
+        <div class="field"><label>Số tiền (đ)</label><input type="number" required id="tt-sotien"></div>
+        <div class="field"><label>Đối tượng nhận</label><input id="tt-doituong" placeholder="Tên NCC / người nhận"></div>
+        <div class="field"><label>Hình thức</label><select id="tt-hinhthuc"><option value="Chuyển khoản">Chuyển khoản</option><option value="Tiền mặt">Tiền mặt</option></select></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Gửi đề nghị</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngày</th><th>Loại</th><th>Nội dung</th><th>Bộ phận</th><th style="text-align:right">Số tiền</th><th>Hình thức</th><th>Trạng thái</th><th></th></tr></thead>
+      <tbody>${state.denghithanhtoan.map(t => {
+        const pillClass = t.trangThai==='Đã thanh toán' ? 'paid' : t.trangThai==='Đã duyệt' ? 'approved' : t.trangThai==='Đã kiểm tra' ? 'done' : 'pending';
+        let action = '';
+        if(currentUser.id==='TC' && t.trangThai==='Chờ kiểm tra') action += `<button class="mini-btn approve" onclick="kiemTraDeNghi('${t.id}')">Kiểm tra hồ sơ</button>`;
+        if(currentUser.id==='BLD' && t.trangThai==='Đã kiểm tra') action += `<button class="mini-btn approve" onclick="duyetDeNghi('${t.id}')">Phê duyệt</button>`;
+        if(currentUser.id==='TC' && t.trangThai==='Đã duyệt') action += `<button class="mini-btn approve" onclick="thanhToanDeNghi('${t.id}')">Thực hiện thanh toán</button>`;
+        if(canAdd) action += actionButtons('denghithanhtoan', t.id);
+        return `<tr><td class="mono">${t.ngay}</td><td>${t.loai}</td><td>${t.noiDung}</td><td>${t.boPhan}</td>
+          <td class="num">${fmt(t.soTien)}</td><td>${t.hinhThuc}</td><td><span class="pill ${pillClass}">${t.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
+      }).join('') || `<tr class="empty-row"><td colspan="8">Chưa có đề nghị thanh toán nào</td></tr>`}</tbody>
+    </table></div>`;
+}
+function submitDeNghi(e){
+  e.preventDefault();
+  const noiDung = document.getElementById('tt-noidung').value;
+  state.denghithanhtoan.push({id:'TT'+(state.nextId++), ngay:document.getElementById('tt-ngay').value,
+    loai:document.getElementById('tt-loai').value, nguoiDeNghi:document.getElementById('tt-nguoi').value,
+    boPhan:document.getElementById('tt-bophan').value, noiDung, soTien:parseFloat(document.getElementById('tt-sotien').value)||0,
+    doiTuongNhan:document.getElementById('tt-doituong').value, hinhThuc:document.getElementById('tt-hinhthuc').value,
+    trangThai:'Chờ kiểm tra', nguoiKiemTra:null, nguoiDuyet:null});
+  logActivity(`Gửi đề nghị thanh toán "${noiDung}"`);
+  renderM7(); return false;
+}
+function kiemTraDeNghi(id){
+  const t = state.denghithanhtoan.find(t=>t.id===id); if(!t) return;
+  t.trangThai = 'Đã kiểm tra'; t.nguoiKiemTra = currentUser.name;
+  logActivity(`Kế toán kiểm tra hồ sơ đề nghị thanh toán "${t.noiDung}"`);
+  renderM7();
+}
+function duyetDeNghi(id){
+  const t = state.denghithanhtoan.find(t=>t.id===id); if(!t) return;
+  t.trangThai = 'Đã duyệt'; t.nguoiDuyet = currentUser.name;
+  logActivity(`Phê duyệt đề nghị thanh toán "${t.noiDung}" (${fmt(t.soTien)} đ)`);
+  renderM7();
+}
+function thanhToanDeNghi(id){
+  const t = state.denghithanhtoan.find(t=>t.id===id); if(!t) return;
+  t.trangThai = 'Đã thanh toán';
+  themSoQuy('Chi', t.soTien, t.hinhThuc, t.noiDung, `Đề nghị thanh toán ${t.id}`);
+  logActivity(`Thực hiện thanh toán "${t.noiDung}" (${fmt(t.soTien)} đ, ${t.hinhThuc}) — đã ghi sổ quỹ`);
+  renderM7();
+}
+
+/* ---- Tạm ứng ---- */
+function renderTamUng(body){
+  const canAdd = canEnter('M7');
+  body.innerHTML = `
+    <div class="panel-head"><h3>Tạm ứng</h3></div>
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Đề nghị tạm ứng</summary>
+      <form class="inline-form" onsubmit="return submitTamUng(event)">
+        <div class="field"><label>Ngày</label><input type="date" required id="tu-ngay"></div>
+        <div class="field"><label>Người nhận</label><input required id="tu-nguoi" value="${currentUser.name}"></div>
+        <div class="field"><label>Bộ phận</label><input required id="tu-bophan"></div>
+        <div class="field"><label>Nội dung công việc</label><input required id="tu-noidung"></div>
+        <div class="field"><label>Số tiền tạm ứng (đ)</label><input type="number" required id="tu-sotien"></div>
+        <div class="field"><label>Hình thức</label><select id="tu-hinhthuc"><option value="Chuyển khoản">Chuyển khoản</option><option value="Tiền mặt">Tiền mặt</option></select></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Gửi đề nghị</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngày</th><th>Người nhận</th><th>Nội dung</th><th style="text-align:right">Tạm ứng</th><th style="text-align:right">Quyết toán</th><th style="text-align:right">Chênh lệch</th><th>Trạng thái</th><th></th></tr></thead>
+      <tbody>${state.tamung.map(t => {
+        const pillClass = t.trangThai==='Đã quyết toán' ? 'paid' : t.trangThai==='Đã chi' ? 'approved' : t.trangThai==='Đã duyệt' ? 'done' : 'pending';
+        let action = '';
+        if(currentUser.id==='BLD' && t.trangThai==='Chờ duyệt') action += `<button class="mini-btn approve" onclick="duyetTamUng('${t.id}')">Duyệt</button>`;
+        if(currentUser.id==='TC' && t.trangThai==='Đã duyệt') action += `<button class="mini-btn approve" onclick="chiTamUng('${t.id}')">Chi tạm ứng</button>`;
+        if(canAdd && t.trangThai==='Đã chi') action += `<button class="mini-btn" onclick="quyetToanTamUng('${t.id}')">Quyết toán</button>`;
+        if(canAdd) action += actionButtons('tamung', t.id);
+        return `<tr><td class="mono">${t.ngay}</td><td>${t.nguoiNhan}</td><td>${t.noiDung}</td><td class="num">${fmt(t.soTienTamUng)}</td>
+          <td class="num">${t.soTienQuyetToan!=null?fmt(t.soTienQuyetToan):''}</td>
+          <td class="num" style="color:${t.chenhLech>0?'var(--brand)':t.chenhLech<0?'var(--red)':'inherit'}">${t.chenhLech!=null?(t.chenhLech>0?'+':'')+fmt(t.chenhLech):''}</td>
+          <td><span class="pill ${pillClass}">${t.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
+      }).join('') || `<tr class="empty-row"><td colspan="8">Chưa có đề nghị tạm ứng nào</td></tr>`}</tbody>
+    </table></div>`;
+}
+function submitTamUng(e){
+  e.preventDefault();
+  const noiDung = document.getElementById('tu-noidung').value;
+  state.tamung.push({id:'TU'+(state.nextId++), ngay:document.getElementById('tu-ngay').value,
+    nguoiNhan:document.getElementById('tu-nguoi').value, boPhan:document.getElementById('tu-bophan').value, noiDung,
+    soTienTamUng:parseFloat(document.getElementById('tu-sotien').value)||0, hinhThuc:document.getElementById('tu-hinhthuc').value,
+    trangThai:'Chờ duyệt', soTienQuyetToan:null, chenhLech:null, nguoiDuyet:null});
+  logActivity(`Gửi đề nghị tạm ứng "${noiDung}"`);
+  renderM7(); return false;
+}
+function duyetTamUng(id){
+  const t = state.tamung.find(t=>t.id===id); if(!t) return;
+  t.trangThai = 'Đã duyệt'; t.nguoiDuyet = currentUser.name;
+  logActivity(`Phê duyệt tạm ứng "${t.noiDung}" (${fmt(t.soTienTamUng)} đ)`);
+  renderM7();
+}
+function chiTamUng(id){
+  const t = state.tamung.find(t=>t.id===id); if(!t) return;
+  t.trangThai = 'Đã chi';
+  themSoQuy('Chi', t.soTienTamUng, t.hinhThuc, `Tạm ứng: ${t.noiDung}`, `Tạm ứng ${t.id}`);
+  logActivity(`Chi tạm ứng "${t.noiDung}" (${fmt(t.soTienTamUng)} đ) — đã ghi sổ quỹ`);
+  renderM7();
+}
+function quyetToanTamUng(id){
+  const t = state.tamung.find(t=>t.id===id); if(!t) return;
+  const v = prompt('Số tiền thực tế đã sử dụng (đ):', t.soTienTamUng);
+  if(v===null) return;
+  const thucTe = parseFloat(v)||0;
+  const lech = t.soTienTamUng - thucTe;
+  t.soTienQuyetToan = thucTe; t.chenhLech = lech; t.trangThai = 'Đã quyết toán';
+  if(lech > 0) themSoQuy('Thu', lech, t.hinhThuc, `Hoàn tạm ứng thừa: ${t.noiDung}`, `Tạm ứng ${t.id}`);
+  if(lech < 0) themSoQuy('Chi', -lech, t.hinhThuc, `Chi bổ sung tạm ứng thiếu: ${t.noiDung}`, `Tạm ứng ${t.id}`);
+  logActivity(`Quyết toán tạm ứng "${t.noiDung}": dùng ${fmt(thucTe)} đ, chênh lệch ${fmt(lech)} đ`);
+  renderM7();
+}
+
+/* ---- Sổ quỹ ---- */
+function renderSoQuy(body){
+  const canAdd = canEnter('M7');
+  const rows = state.soquy.slice().sort((a,b)=>a.ngay.localeCompare(b.ngay));
+  let running = 0;
+  const withBalance = rows.map(q => { running += (q.loai==='Thu'?q.soTien:-q.soTien); return {...q, running}; }).reverse();
+  body.innerHTML = `
+    <div class="stat-row">
+      <div class="stat-card"><div class="slabel">Tồn quỹ hiện tại</div><div class="sval">${fmt(soDuQuy())} <span class="sunit">đ</span></div></div>
+    </div>
+    <div class="panel-head"><h3>Sổ quỹ (tiền mặt + chuyển khoản)</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Các dòng từ đề nghị thanh toán/tạm ứng được ghi tự động khi thực hiện chi; có thể bổ sung thu/chi khác thủ công.</p>
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Ghi thu/chi khác</summary>
+      <form class="inline-form" onsubmit="return submitSoQuy(event)">
+        <div class="field"><label>Ngày</label><input type="date" required id="sq-ngay"></div>
+        <div class="field"><label>Loại</label><select id="sq-loai"><option value="Thu">Thu</option><option value="Chi">Chi</option></select></div>
+        <div class="field"><label>Số tiền (đ)</label><input type="number" required id="sq-sotien"></div>
+        <div class="field"><label>Hình thức</label><select id="sq-hinhthuc"><option value="Chuyển khoản">Chuyển khoản</option><option value="Tiền mặt">Tiền mặt</option></select></div>
+        <div class="field"><label>Nội dung</label><input required id="sq-noidung"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngày</th><th>Loại</th><th style="text-align:right">Số tiền</th><th>Hình thức</th><th>Nội dung</th><th>Nguồn gốc</th><th style="text-align:right">Tồn sau GD</th><th></th></tr></thead>
+      <tbody>${withBalance.map(q => `<tr><td class="mono">${q.ngay}</td><td><span class="pill ${q.loai==='Thu'?'approved':'rejected'}">${q.loai}</span></td>
+        <td class="num">${fmt(q.soTien)}</td><td>${q.hinhThuc}</td><td>${q.noiDung}</td><td style="font-size:12px;color:var(--ink-soft)">${q.nguon||'Nhập tay'}</td>
+        <td class="num" style="font-weight:700">${fmt(q.running)}</td><td>${canAdd ? `<div class="row-actions">${actionButtons('soquy', q.id)}</div>` : ''}</td></tr>`).join('')
+        || `<tr class="empty-row"><td colspan="8">Chưa có giao dịch nào trong sổ quỹ</td></tr>`}</tbody>
+    </table></div>`;
+}
+function submitSoQuy(e){
+  e.preventDefault();
+  const noiDung = document.getElementById('sq-noidung').value;
+  state.soquy.push({id:'SQ'+(state.nextId++), ngay:document.getElementById('sq-ngay').value,
+    loai:document.getElementById('sq-loai').value, soTien:parseFloat(document.getElementById('sq-sotien').value)||0,
+    hinhThuc:document.getElementById('sq-hinhthuc').value, noiDung, nguon:'Nhập tay'});
+  logActivity(`Ghi sổ quỹ thủ công: "${noiDung}"`);
+  renderM7(); return false;
+}
+
+/* ---- Công nợ phải thu ---- */
+function renderCongNo(body){
+  const canAdd = canEnter('M7'); const canAppr = canApprove('M7');
+  const tongChuaThu = state.congno.filter(c=>c.trangThai==='Chưa thu').reduce((s,c)=>s+c.soTien,0);
+  body.innerHTML = `
+    <div class="stat-row">
+      <div class="stat-card"><div class="slabel">Công nợ chưa thu</div><div class="sval warn">${fmt(tongChuaThu)} <span class="sunit">đ</span></div></div>
+    </div>
+    <div class="panel-head"><h3>Công nợ khách hàng</h3></div>
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm công nợ</summary>
+      <form class="inline-form" onsubmit="return submitCongNo(event)">
+        <div class="field"><label>Chủ hàng</label><input required id="cn-chuhang"></div>
+        <div class="field"><label>Số tiền (đ)</label><input type="number" required id="cn-sotien"></div>
+        <div class="field"><label>Hạn thanh toán</label><input type="date" required id="cn-han"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Chủ hàng</th><th style="text-align:right">Số tiền</th><th>Hạn thanh toán</th><th>Trạng thái</th><th></th></tr></thead>
+      <tbody>${state.congno.map(c => `<tr><td>${c.chuHang}</td><td class="num">${fmt(c.soTien)}</td><td class="mono">${c.hanThanhToan}</td>
+        <td><span class="pill ${c.trangThai==='Đã thu'?'approved':'pending'}">${c.trangThai}</span></td>
+        <td><div class="row-actions">${(canAppr && c.trangThai==='Chưa thu') ? `<button class="mini-btn approve" onclick="danhDauDaThu('${c.id}')">Đánh dấu đã thu</button>` : ''}${canAdd ? actionButtons('congno', c.id) : ''}</div></td></tr>`).join('')
+        || `<tr class="empty-row"><td colspan="5">Chưa có công nợ nào</td></tr>`}</tbody>
+    </table></div>`;
+}
+function submitCongNo(e){
+  e.preventDefault();
+  const chuHang = document.getElementById('cn-chuhang').value;
+  state.congno.push({id:'CN'+(state.nextId++), chuHang, soTien:parseFloat(document.getElementById('cn-sotien').value)||0,
+    hanThanhToan:document.getElementById('cn-han').value, trangThai:'Chưa thu'});
+  logActivity(`Thêm công nợ của "${chuHang}"`);
+  renderM7(); return false;
+}
+function danhDauDaThu(id){
+  const c = state.congno.find(c=>c.id===id); if(!c) return;
+  c.trangThai = 'Đã thu';
+  themSoQuy('Thu', c.soTien, 'Chuyển khoản', `Thu công nợ khách hàng: ${c.chuHang}`, `Công nợ ${c.id}`);
+  logActivity(`Đánh dấu đã thu công nợ "${c.chuHang}" (${fmt(c.soTien)} đ) — đã ghi sổ quỹ`);
+  renderM7();
+}
+
+/* ===================== M8: NHÂN SỰ — HÀNH CHÍNH ===================== */
+function renderM8(){
+  const content = document.getElementById('content');
+  const canAdd = canEnter('M8');
+  content.innerHTML = `
+    <div class="panel-head"><h3>Hồ sơ nhân sự</h3></div>
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm nhân sự</summary>
+      <form class="inline-form" onsubmit="return submitNhanSu(event)">
+        <div class="field"><label>Họ tên</label><input required id="ns-hoten"></div>
+        <div class="field"><label>Chức vụ</label><input required id="ns-chucvu"></div>
+        <div class="field"><label>Phòng ban</label><input required id="ns-phongban"></div>
+        <div class="field"><label>Ngày vào làm</label><input type="date" required id="ns-ngayvao"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Họ tên</th><th>Chức vụ</th><th>Phòng ban</th><th>Ngày vào làm</th><th>Chứng chỉ</th><th></th></tr></thead>
+      <tbody>${state.nhansu.map(n => `<tr><td>${n.hoTen}</td><td>${n.chucVu}</td><td>${n.phongBan}</td><td class="mono">${n.ngayVaoLam}</td><td>${n.chungChi||''}</td>
+        <td>${canAdd ? `<div class="row-actions">${actionButtons('nhansu', n.id)}</div>` : ''}</td></tr>`).join('')
+        || `<tr class="empty-row"><td colspan="6">Chưa có nhân sự nào</td></tr>`}</tbody>
+    </table></div>`;
+}
+function submitNhanSu(e){
+  e.preventDefault();
+  const hoTen = document.getElementById('ns-hoten').value;
+  state.nhansu.push({id:'NV'+(state.nextId++), hoTen, chucVu:document.getElementById('ns-chucvu').value,
+    phongBan:document.getElementById('ns-phongban').value, ngayVaoLam:document.getElementById('ns-ngayvao').value, chungChi:''});
+  logActivity(`Thêm hồ sơ nhân sự "${hoTen}"`);
+  renderM8(); return false;
+}
+
+/* ===================== M9: QUẢN TRỊ HỆ THỐNG ===================== */
+function renderM9(){
+  const content = document.getElementById('content');
+  const isIT = currentUser.id === 'IT';
+  content.innerHTML = `
+    <div class="section-block">
+      <h3>Tài khoản</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Mã</th><th>Tài khoản</th><th>Mô tả</th></tr></thead>
+        <tbody>${ROLES.map(r => `<tr><td class="mono">${r.id}</td><td>${r.name}</td><td style="color:var(--ink-soft)">${r.note}</td></tr>`).join('')}</tbody>
+      </table></div>
+    </div>
+    <div class="section-block">
+      <h3>Ma trận phân quyền</h3>
+      <p class="perm-hint">${isIT ? 'Bấm vào 1 ô để đổi mức quyền (theo vòng: không có → Xem → Nhập liệu → Duyệt). Ô Q của Quản trị hệ thống trên M9 được khóa cứng.' : 'Chỉ tài khoản Quản trị hệ thống mới chỉnh sửa được ma trận này — bạn đang xem ở chế độ chỉ đọc.'}</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Tài khoản</th>${MODULES.map(m=>`<th>${m.code}</th>`).join('')}</tr></thead>
+        <tbody>${ROLES.map(r => `<tr><td>${r.name}</td>${MODULES.map(m => {
+          const p = getPerm(r.id, m.code);
+          const locked = !isIT || (r.id==='IT' && m.code==='M9');
+          const cls = permDotClass(p);
+          return `<td><button class="permcell ${cls}" ${locked?'disabled':''} onclick="cyclePerm('${r.id}','${m.code}')">${p||'–'}</button></td>`;
+        }).join('')}</tr>`).join('')}</tbody>
+      </table></div>
+    </div>
+    <div class="section-block">
+      <h3>Số lượng thiết bị (dùng để kiểm tra thiếu máy khi giao việc ở M1)</h3>
+      <p class="perm-hint">${isIT ? 'Chỉnh số lượng máy sở hữu/khai thác cố định theo từng loại. Số này dùng để cảnh báo thiếu thiết bị khi Điều độ tự động phân công ở module Vận hành bãi.' : 'Chỉ tài khoản Quản trị hệ thống mới chỉnh sửa được — bạn đang xem ở chế độ chỉ đọc.'}</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Loại thiết bị</th><th style="text-align:right">Số lượng hiện có</th></tr></thead>
+        <tbody>${Object.keys(state.thietBiSoLuong).map(loai => `<tr><td>${loai}</td><td class="num">
+          <input type="number" min="0" value="${state.thietBiSoLuong[loai]}" style="width:70px;padding:5px 8px;border:1px solid var(--line);border-radius:4px;text-align:right;background:${isIT?'var(--paper-raised)':'var(--grey-tint)'}"
+            ${isIT?'':'disabled'} onchange="capNhatSoLuongThietBi('${loai}', this.value)">
+        </td></tr>`).join('')}</tbody>
+      </table></div>
+    </div>
+    <div class="section-block">
+      <h3>Trợ lý AI Claude — Bảo trì hệ thống <span class="ai-badge" style="background:var(--amber)">Sắp kích hoạt</span></h3>
+      <div class="info-box">
+        Khi phần mềm được đóng gói hoạt động độc lập, việc <b>Claude chỉnh sửa/tối ưu code vẫn cần một phiên làm việc với Claude Code</b> (agent lập trình) thao tác trực tiếp trên mã nguồn rồi phát hành bản cập nhật — không có cách an toàn để "nhúng" một AI có quyền tự ghi đè code đang chạy vào ngay bên trong file mà người dùng đang thao tác, vì rủi ro làm hỏng ứng dụng hoặc dữ liệu bất kỳ lúc nào.<br><br>
+        Cách vận hành an toàn: <b>mã nguồn và dữ liệu công ty tách biệt nhau</b> — dữ liệu không nằm trong file code, nên mỗi lần Claude Code cập nhật phần mềm sẽ không đụng tới dữ liệu đã có, miễn là bạn sao lưu định kỳ bằng nút bên dưới trước mỗi lần nhờ cập nhật lớn.
+      </div>
+      <div class="panel-head" style="margin-top:16px">
+        <h3 style="font-size:13.5px">Sao lưu &amp; khôi phục dữ liệu</h3>
+      </div>
+      ${isIT ? `
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+        <button class="add-btn" onclick="xuatDuLieu()">⬇ Xuất dữ liệu (sao lưu)</button>
+        <label class="mini-btn" style="cursor:pointer;display:inline-flex;align-items:center;">⬆ Nhập dữ liệu (khôi phục)
+          <input type="file" accept="application/json,.json" style="display:none" onchange="nhapDuLieuFile(this)">
+        </label>
+      </div>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0">Xuất ra 1 file .json chứa toàn bộ dữ liệu hiện tại (tồn kho, chứng từ, phân quyền...). Nhập lại file sẽ ghi đè toàn bộ dữ liệu đang có.</p>
+      ` : `<p style="font-size:12.5px;color:var(--ink-soft)">Chỉ tài khoản Quản trị hệ thống mới sao lưu/khôi phục được.</p>`}
+    </div>
+    <div class="section-block">
+      <h3>Nhật ký hoạt động</h3>
+      <div class="table-wrap" style="padding:4px 18px">
+        <div class="log-list">${state.log.length ? state.log.map(l => `<div class="log-item"><span class="log-time">${l.ts}</span><span class="log-user">${l.user}</span> — ${l.msg}</div>`).join('')
+          : `<div class="log-item" style="font-style:italic;color:var(--ink-soft)">Chưa có hoạt động nào được ghi nhận trong phiên này.</div>`}</div>
+      </div>
+    </div>`;
+}
+function capNhatSoLuongThietBi(loai, val){
+  if(currentUser.id !== 'IT') return;
+  const n = Math.max(0, parseInt(val,10)||0);
+  state.thietBiSoLuong[loai] = n;
+  logActivity(`Cập nhật số lượng thiết bị "${loai}" → ${n} chiếc`);
+  renderM9();
+}
+const PERM_CYCLE = ['', 'X', 'N', 'D'];
+function cyclePerm(roleId, moduleCode){
+  if(currentUser.id !== 'IT') return;
+  if(roleId==='IT' && moduleCode==='M9') return;
+  if(!state.permissions[roleId]) state.permissions[roleId] = {};
+  const cur = state.permissions[roleId][moduleCode] || '';
+  const idx = PERM_CYCLE.indexOf(cur);
+  const next = PERM_CYCLE[(idx+1) % PERM_CYCLE.length];
+  if(next === '') delete state.permissions[roleId][moduleCode];
+  else state.permissions[roleId][moduleCode] = next;
+  const roleName = ROLES.find(r=>r.id===roleId).name;
+  logActivity(`Đổi quyền của "${roleName}" trên ${moduleCode} → ${next || 'không có quyền'}`);
+  renderM9();
+}
+
+function xuatDuLieu(){
+  if(currentUser.id !== 'IT') return;
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `alphapi-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  logActivity('Xuất file sao lưu dữ liệu');
+}
+function nhapDuLieuFile(input){
+  if(currentUser.id !== 'IT') return;
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(!confirm('Nạp file sao lưu này sẽ GHI ĐÈ toàn bộ dữ liệu hiện tại (tồn kho, chứng từ, phân quyền...). Tiếp tục?')) return;
+      state = parsed;
+      saveState();
+      logActivity('Nhập dữ liệu từ file sao lưu');
+      renderM9();
+      alert('Đã khôi phục dữ liệu thành công.');
+    }catch(err){
+      alert('File không hợp lệ, không thể nhập dữ liệu.');
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+/* ===================== TRỢ LÝ AI CLAUDE (BLĐ / Khai thác / Kế toán) ============ */
+let aiMessages = [];
+const AI_ELIGIBLE = ['BLD','KT','TC'];
+const AI_GREETING = {
+  BLD: 'Xin chào Ban lãnh đạo! Đây là bản dùng thử trợ lý dữ liệu. Bấm 1 câu hỏi mẫu bên dưới để xem trả lời bằng số liệu thật trong hệ thống. Hỏi tự do (gõ bất kỳ điều gì) sẽ cần kết nối Claude API thật — tính năng này kích hoạt khi công ty triển khai chính thức (có server + API key riêng).',
+  KT:  'Xin chào! Thử bấm 1 câu hỏi mẫu bên dưới để xem trợ lý đọc dữ liệu vận hành bãi thế nào. Hỏi tự do cần bản Claude API thật, sẽ kích hoạt khi công ty triển khai chính thức.',
+  TC:  'Xin chào! Thử bấm 1 câu hỏi mẫu về tài chính bên dưới. Hỏi tự do cần kết nối Claude API thật, sẽ kích hoạt khi công ty triển khai chính thức.',
+};
+const AI_CHIPS = {
+  BLD: ['Việc gì đang chờ tôi duyệt?','Tồn kho hiện tại từng lô?','Tồn quỹ hiện tại?'],
+  KT:  ['Tồn kho hiện tại?','Có phiếu xuất nào chờ duyệt?','Thiết bị nào sắp hết hạn kiểm định?'],
+  TC:  ['Công nợ chưa thu bao nhiêu?','Phải trả NCC bao nhiêu?','Tồn quỹ hiện tại?','Có gì đang chờ tôi kiểm tra?'],
+};
+function aiEligible(){ return currentUser && AI_ELIGIBLE.includes(currentUser.id); }
+function initAIForUser(){
+  const fab = document.getElementById('ai-fab');
+  if(aiEligible()){
+    fab.style.display = 'flex';
+    aiMessages = [{role:'bot', text: AI_GREETING[currentUser.id]}];
+    document.getElementById('ai-chips').innerHTML = AI_CHIPS[currentUser.id].map(c=>
+      `<button type="button" class="ai-chip" onclick='sendAIQuestion(${JSON.stringify(c)})'>${c}</button>`).join('');
+    renderAIMessages();
+  } else {
+    fab.style.display = 'none';
+    document.getElementById('ai-panel').classList.remove('open');
+  }
+}
+function toggleAI(){ if(aiEligible()) document.getElementById('ai-panel').classList.toggle('open'); }
+function renderAIMessages(){
+  const box = document.getElementById('ai-messages');
+  box.innerHTML = aiMessages.map(m=>`<div class="ai-msg ${m.role}">${m.text}</div>`).join('');
+  box.scrollTop = box.scrollHeight;
+}
+function submitAIQuestion(e){
+  e.preventDefault();
+  const inp = document.getElementById('ai-input');
+  const v = inp.value.trim();
+  if(!v) return false;
+  inp.value = '';
+  sendAIQuestion(v);
+  return false;
+}
+function sendAIQuestion(text){
+  aiMessages.push({role:'user', text});
+  aiMessages.push({role:'bot', text: traLoiAI(text)});
+  renderAIMessages();
+}
+function traLoiAI(q){
+  const low = q.toLowerCase();
+  if(low.includes('tồn kho') || (low.includes('tồn') && low.includes('lô'))){
+    return 'Tồn kho hiện tại theo lô:\n' + state.lots.map(l=>`• ${l.id} (${l.chuHang} — ${l.loaiHang}): ${fmt(tonHienTai(l.id))} tấn`).join('\n');
+  }
+  if(low.includes('thiết bị') && (low.includes('hạn') || low.includes('hết hạn'))){
+    const list = state.thietbi.map(t=>({t, d:daysUntil(t.hanKiemDinh)})).filter(x=>x.d<=30);
+    if(!list.length) return 'Không có thiết bị nào sắp hoặc đã hết hạn kiểm định trong 30 ngày tới.';
+    return 'Thiết bị cần chú ý kiểm định:\n' + list.map(x=>`• ${x.t.ten}: ${x.d<0?'đã hết hạn':'còn '+x.d+' ngày'} (${x.t.hanKiemDinh})`).join('\n');
+  }
+  if(low.includes('công nợ') || low.includes('phải thu')){
+    const cho = state.congno.filter(c=>c.trangThai==='Chưa thu');
+    if(!cho.length) return 'Hiện không còn công nợ phải thu nào.';
+    return `Tổng công nợ phải thu: ${fmt(cho.reduce((s,c)=>s+c.soTien,0))} đ\n` + cho.map(c=>`• ${c.chuHang}: ${fmt(c.soTien)} đ, hạn ${c.hanThanhToan}`).join('\n');
+  }
+  if(low.includes('phải trả') || low.includes('ncc') || low.includes('nhà cung cấp')){
+    const cho = state.denghithanhtoan.filter(t=>t.loai==='Nhà cung cấp' && t.trangThai!=='Đã thanh toán');
+    if(!cho.length) return 'Hiện không còn khoản phải trả nhà cung cấp nào chưa thanh toán.';
+    return `Tổng phải trả NCC (chưa thanh toán): ${fmt(cho.reduce((s,t)=>s+t.soTien,0))} đ\n` + cho.map(t=>`• ${t.noiDung}: ${fmt(t.soTien)} đ (${t.trangThai})`).join('\n');
+  }
+  if(low.includes('tồn quỹ') || (low.includes('quỹ') && !low.includes('công'))){
+    return `Tồn quỹ hiện tại (tiền mặt + chuyển khoản): ${fmt(soDuQuy())} đ`;
+  }
+  if(low.includes('tạm ứng')){
+    const cho = state.tamung.filter(t=>t.trangThai!=='Đã quyết toán');
+    if(!cho.length) return 'Không có khoản tạm ứng nào đang chờ quyết toán.';
+    return `Tạm ứng chưa quyết toán: ${fmt(cho.reduce((s,t)=>s+t.soTienTamUng,0))} đ\n` + cho.map(t=>`• ${t.nguoiNhan}: ${fmt(t.soTienTamUng)} đ — ${t.trangThai}`).join('\n');
+  }
+  if(low.includes('chờ tôi') || low.includes('cần xử lý') || low.includes('kiểm tra')){
+    const items = [];
+    if(currentUser.id==='BLD'){
+      state.dexuatmuahang.filter(x=>x.trangThai==='Chờ duyệt').forEach(x=>items.push(`Duyệt đề xuất mua hàng: ${x.noiDung}`));
+      state.denghithanhtoan.filter(x=>x.trangThai==='Đã kiểm tra').forEach(x=>items.push(`Duyệt đề nghị thanh toán: ${x.noiDung}`));
+      state.tamung.filter(x=>x.trangThai==='Chờ duyệt').forEach(x=>items.push(`Duyệt tạm ứng: ${x.noiDung}`));
+    }
+    if(currentUser.id==='TC'){
+      state.denghithanhtoan.filter(x=>x.trangThai==='Chờ kiểm tra').forEach(x=>items.push(`Kiểm tra hồ sơ: ${x.noiDung}`));
+      state.denghithanhtoan.filter(x=>x.trangThai==='Đã duyệt').forEach(x=>items.push(`Thực hiện thanh toán: ${x.noiDung}`));
+      state.tamung.filter(x=>x.trangThai==='Đã duyệt').forEach(x=>items.push(`Chi tạm ứng: ${x.noiDung}`));
+    }
+    if(currentUser.id==='KT'){
+      state.kiemke.filter(k=>k.trangThai==='Chờ xử lý').forEach(k=>items.push(`Xử lý chênh lệch kiểm kê lô ${k.lotId}`));
+    }
+    if(!items.length) return 'Hiện không có việc gì đang chờ bạn xử lý.';
+    return `Có ${items.length} việc đang chờ bạn:\n` + items.map(i=>'• '+i).join('\n');
+  }
+  return 'Câu hỏi tự do dạng này cần kết nối Claude API thật để hiểu và trả lời chính xác — tính năng sẽ kích hoạt khi công ty triển khai chính thức (có server + API key riêng). Bạn thử bấm 1 trong các câu hỏi mẫu bên dưới xem demo nhé.';
+}
+
+/* ===================== GLOBAL ===================== */
+document.getElementById('logout-btn').addEventListener('click', logout);
+document.getElementById('reset-btn').addEventListener('click', function(){
+  if(confirm('Xóa toàn bộ dữ liệu đã nhập (giữ nguyên phân quyền) và làm lại từ đầu?')){
+    const permGiu = state.permissions;
+    state = seedState();
+    state.permissions = permGiu;
+    saveState();
+    renderContent();
+  }
+});
+
+loadState();
+renderLogin();
+</script>
+</body>
+</html>
