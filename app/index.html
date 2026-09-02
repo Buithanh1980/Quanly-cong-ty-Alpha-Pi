@@ -1789,7 +1789,7 @@ function deleteRecord(collection, id){
 /* ===================== M2: THIẾT BỊ & BẢO TRÌ ===================== */
 function renderM2(){
   const content = document.getElementById('content');
-  const tabs = [{id:'thietbi',label:'Thiết bị'},{id:'baotri',label:'Nhiên liệu & Bảo trì'},{id:'dangkiem',label:'Đăng kiểm'}];
+  const tabs = [{id:'thietbi',label:'Thiết bị'},{id:'baotri',label:'Nhiên liệu/Sửa chữa/Vật tư'},{id:'dangkiem',label:'Kiểm định'}];
   if(!['thietbi','baotri','dangkiem'].includes(currentTab)) currentTab = 'thietbi';
   content.innerHTML = `<div class="tabs">` + tabs.map(t =>
     `<button class="tab-btn ${t.id===currentTab?'active':''}" onclick="currentTab='${t.id}';renderM2()">${t.label}</button>`
