@@ -467,7 +467,7 @@ function loadState(){
     if(!state.congviec) state.congviec = seedState().congviec;
     if(!state.baotrixe) state.baotrixe = seedState().baotrixe;
     if(!state.dangkiem) state.dangkiem = seedState().dangkiem;
-    if(state.thietbi) state.thietbi.forEach(t=>{ if(t.boPhan===undefined) t.boPhan='Khai thác'; if(t.bienSo===undefined) t.bienSo=''; });
+    if(state.thietbi) state.thietbi.forEach(t=>{ if(t.boPhan===undefined) t.boPhan='Khai thác'; if(t.bienSo===undefined) t.bienSo=''; if(t.gioHoatDong===undefined) t.gioHoatDong=0; });
     if(!state.thietBiSoLuong) state.thietBiSoLuong = seedState().thietBiSoLuong;
     if(!state.dexuatmuahang) state.dexuatmuahang = seedState().dexuatmuahang;
     if(!state.denghithanhtoan) state.denghithanhtoan = seedState().denghithanhtoan;
@@ -1650,9 +1650,8 @@ const FIELD_SCHEMAS = {
   ]},
   thietbi: {ten:'thiết bị', fields:[
     {key:'ten', label:'Tên thiết bị', type:'text'},
-    {key:'boPhan', label:'Bộ phận quản lý', type:'select', options:[{v:'Khai thác',t:'Khai thác'},{v:'Vận tải',t:'Vận tải'}]},
     {key:'bienSo', label:'Biển số', type:'text'},
-    {key:'viTri', label:'Vị trí / tuyến hoạt động', type:'select', options:[{v:'Nội bộ bãi',t:'Nội bộ bãi'},{v:'Xe chạy ngoài bãi',t:'Xe chạy ngoài bãi'}]},
+    {key:'gioHoatDong', label:'Giờ hoạt động/số km', type:'number'},
     {key:'hanKiemDinh', label:'Hạn kiểm định', type:'date'},
   ]},
   baotrixe: {ten:'nhật ký nhiên liệu/bảo trì', fields:[
@@ -1799,24 +1798,20 @@ function renderM2(){
   if(currentTab === 'thietbi'){
     body.innerHTML = `
       <div class="panel-head"><h3>Danh mục thiết bị &amp; phương tiện</h3></div>
-      <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Gồm cả máy móc trong bãi (Khai thác quản lý) và xe tải chạy tuyến ngoài (Vận tải quản lý).</p>
+      <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Máy móc, xe/phương tiện hoạt động nội bộ trong bãi — do Phòng Khai thác quản lý. Xe chạy tuyến liên vận theo dõi ở M4 · Vận tải liên vận.</p>
       ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm thiết bị / phương tiện</summary>
         <form class="inline-form" onsubmit="return submitThietBi(event)">
           <div class="field"><label>Tên thiết bị/phương tiện</label><input required id="tb-ten"></div>
-          <div class="field"><label>Bộ phận quản lý</label><select id="tb-bophan"><option value="Khai thác">Khai thác</option><option value="Vận tải">Vận tải</option></select></div>
           <div class="field"><label>Biển số</label><input id="tb-bienso" placeholder="VD: 43H-060.50"></div>
-          <div class="field"><label>Vị trí / tuyến hoạt động</label><select required id="tb-vitri">
-            <option value="Nội bộ bãi">Nội bộ bãi</option>
-            <option value="Xe chạy ngoài bãi">Xe chạy ngoài bãi</option>
-          </select></div>
+          <div class="field"><label>Giờ hoạt động/số km</label><input type="number" id="tb-giohoatdong" placeholder="VD: 1200 giờ hoặc 45000 km"></div>
           <div class="field"><label>Hạn kiểm định</label><input type="date" required id="tb-han"></div>
           <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
         </form></details>` : ''}
       <div class="table-wrap"><table>
-        <thead><tr><th>Thiết bị/phương tiện</th><th>Biển số</th><th>Bộ phận</th><th>Vị trí/tuyến</th><th>Kiểm định</th><th></th></tr></thead>
-        <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td class="mono">${t.bienSo||''}</td><td>${t.boPhan}</td><td>${t.viTri}</td><td>${expiryPill(t.hanKiemDinh)}</td>
+        <thead><tr><th>Thiết bị/phương tiện</th><th>Biển số</th><th style="text-align:right">Giờ hoạt động/số km</th><th>Kiểm định</th><th></th></tr></thead>
+        <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td class="mono">${t.bienSo||''}</td><td class="num">${t.gioHoatDong?fmt(t.gioHoatDong):''}</td><td>${expiryPill(t.hanKiemDinh)}</td>
           <td>${canAdd ? `<div class="row-actions">${actionButtons('thietbi', t.id)}</div>` : ''}</td></tr>`).join('')
-          || `<tr class="empty-row"><td colspan="6">Chưa có thiết bị nào</td></tr>`}</tbody>
+          || `<tr class="empty-row"><td colspan="5">Chưa có thiết bị nào</td></tr>`}</tbody>
       </table></div>`;
   } else if(currentTab === 'baotri'){
     const tongChiPhi = state.baotrixe.reduce((s,b)=>s+b.chiPhi,0);
@@ -1874,9 +1869,10 @@ function renderM2(){
 function submitThietBi(e){
   e.preventDefault();
   const ten = document.getElementById('tb-ten').value;
-  state.thietbi.push({id:'TB'+(state.nextId++), ten, loai:'',
-    boPhan:document.getElementById('tb-bophan').value, bienSo:document.getElementById('tb-bienso').value,
-    viTri:document.getElementById('tb-vitri').value, hanKiemDinh:document.getElementById('tb-han').value});
+  state.thietbi.push({id:'TB'+(state.nextId++), ten, loai:'', boPhan:'Khai thác',
+    bienSo:document.getElementById('tb-bienso').value,
+    gioHoatDong:parseFloat(document.getElementById('tb-giohoatdong').value)||0,
+    viTri:'Nội bộ bãi', hanKiemDinh:document.getElementById('tb-han').value});
   logActivity(`Thêm thiết bị/phương tiện "${ten}"`);
   renderM2(); return false;
 }
