@@ -1649,7 +1649,7 @@ const FIELD_SCHEMAS = {
     {key:'ghiChu', label:'Ghi chú', type:'text'},
   ]},
   thietbi: {ten:'thiết bị', fields:[
-    {key:'ten', label:'Tên thiết bị', type:'text'}, {key:'loai', label:'Loại', type:'text'},
+    {key:'ten', label:'Tên thiết bị', type:'text'},
     {key:'boPhan', label:'Bộ phận quản lý', type:'select', options:[{v:'Khai thác',t:'Khai thác'},{v:'Vận tải',t:'Vận tải'}]},
     {key:'bienSo', label:'Biển số', type:'text'},
     {key:'viTri', label:'Vị trí / tuyến hoạt động', type:'select', options:[{v:'Nội bộ bãi',t:'Nội bộ bãi'},{v:'Xe chạy ngoài bãi',t:'Xe chạy ngoài bãi'}]},
@@ -1813,10 +1813,10 @@ function renderM2(){
           <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
         </form></details>` : ''}
       <div class="table-wrap"><table>
-        <thead><tr><th>Thiết bị/phương tiện</th><th>Loại</th><th>Biển số</th><th>Bộ phận</th><th>Vị trí/tuyến</th><th>Kiểm định</th><th></th></tr></thead>
-        <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td>${t.loai}</td><td class="mono">${t.bienSo||''}</td><td>${t.boPhan}</td><td>${t.viTri}</td><td>${expiryPill(t.hanKiemDinh)}</td>
+        <thead><tr><th>Thiết bị/phương tiện</th><th>Biển số</th><th>Bộ phận</th><th>Vị trí/tuyến</th><th>Kiểm định</th><th></th></tr></thead>
+        <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td class="mono">${t.bienSo||''}</td><td>${t.boPhan}</td><td>${t.viTri}</td><td>${expiryPill(t.hanKiemDinh)}</td>
           <td>${canAdd ? `<div class="row-actions">${actionButtons('thietbi', t.id)}</div>` : ''}</td></tr>`).join('')
-          || `<tr class="empty-row"><td colspan="7">Chưa có thiết bị nào</td></tr>`}</tbody>
+          || `<tr class="empty-row"><td colspan="6">Chưa có thiết bị nào</td></tr>`}</tbody>
       </table></div>`;
   } else if(currentTab === 'baotri'){
     const tongChiPhi = state.baotrixe.reduce((s,b)=>s+b.chiPhi,0);
