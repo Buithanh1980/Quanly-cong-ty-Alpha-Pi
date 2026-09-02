@@ -1161,6 +1161,7 @@ function renderNhap(body){
   const lots = visibleLots(); const lotIds = lots.map(l=>l.id);
   const rows = state.nhap.filter(n=>lotIds.includes(n.lotId)).sort((a,b)=>b.ngay.localeCompare(a.ngay));
   body.innerHTML = `
+    ${renderBaoCaoChiTietNhap()}
     <div class="panel-head"><h3>Phiếu nhập hàng</h3></div>
     ${renderWeighImportBlock('nhap')}
     <div class="table-wrap"><table>
@@ -1171,8 +1172,7 @@ function renderNhap(body){
             <td>${canEnter('M1') ? `<div class="row-actions">${actionButtons('nhap', n.id)}</div>` : ''}</td></tr>`;
         }).join('') || `<tr class="empty-row"><td colspan="10">Chưa có phiếu nhập nào</td></tr>`}
       </tbody>
-    </table></div>
-    ${renderBaoCaoChiTietNhap()}`;
+    </table></div>`;
   initWeighDropzone('nhap');
 }
 function renderBaoCaoChiTietNhap(){
@@ -1296,6 +1296,7 @@ function renderXuat(body){
   const lots = visibleLots(); const lotIds = lots.map(l=>l.id);
   const rows = state.xuat.filter(x=>lotIds.includes(x.lotId)).sort((a,b)=>b.ngay.localeCompare(a.ngay));
   body.innerHTML = `
+    ${renderBaoCaoChiTietXuat()}
     <div class="panel-head"><h3>Phiếu xuất hàng</h3></div>
     ${renderWeighImportBlock('xuat')}
     <div class="table-wrap"><table>
@@ -1306,8 +1307,7 @@ function renderXuat(body){
             <td>${canEnter('M1') ? `<div class="row-actions">${actionButtons('xuat', x.id)}</div>` : ''}</td></tr>`;
         }).join('') || `<tr class="empty-row"><td colspan="10">Chưa có phiếu xuất nào</td></tr>`}
       </tbody>
-    </table></div>
-    ${renderBaoCaoChiTietXuat()}`;
+    </table></div>`;
   initWeighDropzone('xuat');
 }
 
