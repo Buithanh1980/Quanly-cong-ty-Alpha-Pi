@@ -1657,7 +1657,6 @@ const FIELD_SCHEMAS = {
   thietbi: {ten:'thiết bị', fields:[
     {key:'ten', label:'Tên thiết bị', type:'text'},
     {key:'bienSo', label:'Biển số', type:'text'},
-    {key:'hanKiemDinh', label:'Hạn kiểm định', type:'date'},
   ]},
   nhienlieu: {ten:'nhật ký nhiên liệu', fields:[
     {key:'ngay', label:'Ngày', type:'date'},
@@ -1879,14 +1878,13 @@ function renderM2(){
         <form class="inline-form" onsubmit="return submitThietBi(event)">
           <div class="field"><label>Tên thiết bị/phương tiện</label><input required id="tb-ten"></div>
           <div class="field"><label>Biển số</label><input id="tb-bienso" placeholder="VD: 43H-060.50"></div>
-          <div class="field"><label>Hạn kiểm định</label><input type="date" required id="tb-han"></div>
           <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
         </form></details>` : ''}
       <div class="table-wrap"><table>
-        <thead><tr><th>Thiết bị/phương tiện</th><th>Biển số</th><th>Bảo dưỡng theo hạng mục (hiện tại/mốc tiếp theo)</th><th>Nhiên liệu</th><th>Kiểm định</th><th></th></tr></thead>
-        <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td class="mono">${t.bienSo||''}</td><td>${baoDuongPill(t.id)}</td><td>${tieuHaoPill(t.id)}</td><td>${expiryPill(t.hanKiemDinh)}</td>
+        <thead><tr><th>Thiết bị/phương tiện</th><th>Biển số</th><th>Bảo dưỡng theo hạng mục (hiện tại/mốc tiếp theo)</th><th>Nhiên liệu</th><th></th></tr></thead>
+        <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td class="mono">${t.bienSo||''}</td><td>${baoDuongPill(t.id)}</td><td>${tieuHaoPill(t.id)}</td>
           <td>${canAdd ? `<div class="row-actions">${actionButtons('thietbi', t.id)}</div>` : ''}</td></tr>`).join('')
-          || `<tr class="empty-row"><td colspan="6">Chưa có thiết bị nào</td></tr>`}</tbody>
+          || `<tr class="empty-row"><td colspan="5">Chưa có thiết bị nào</td></tr>`}</tbody>
       </table></div>
       <p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px">Giờ hoạt động/số km, hạng mục bảo dưỡng và mức tiêu hao nhiên liệu được cập nhật từ các tab Nhiên liệu/Sửa chữa/Vật tư mỗi lần ghi nhận.</p>`;
   } else if(['nhienlieu','suachua','vattu'].includes(currentTab)){
@@ -1919,7 +1917,7 @@ function submitThietBi(e){
   const ten = document.getElementById('tb-ten').value;
   state.thietbi.push({id:'TB'+(state.nextId++), ten, loai:'', boPhan:'Khai thác',
     bienSo:document.getElementById('tb-bienso').value,
-    viTri:'Nội bộ bãi', hanKiemDinh:document.getElementById('tb-han').value});
+    viTri:'Nội bộ bãi'});
   logActivity(`Thêm thiết bị/phương tiện "${ten}"`);
   renderM2(); return false;
 }
@@ -2703,9 +2701,9 @@ function traLoiAI(q){
     return 'Tồn kho hiện tại theo lô:\n' + state.lots.map(l=>`• ${l.id} (${l.chuHang} — ${l.loaiHang}): ${fmt(tonHienTai(l.id))} tấn`).join('\n');
   }
   if(low.includes('thiết bị') && (low.includes('hạn') || low.includes('hết hạn'))){
-    const list = state.thietbi.map(t=>({t, d:daysUntil(t.hanKiemDinh)})).filter(x=>x.d<=30);
-    if(!list.length) return 'Không có thiết bị nào sắp hoặc đã hết hạn kiểm định trong 30 ngày tới.';
-    return 'Thiết bị cần chú ý kiểm định:\n' + list.map(x=>`• ${x.t.ten}: ${x.d<0?'đã hết hạn':'còn '+x.d+' ngày'} (${x.t.hanKiemDinh})`).join('\n');
+    const list = state.dangkiem.map(d=>({d, t:state.thietbi.find(t=>t.id===d.phuongTienId), days:daysUntil(d.hanDangKiem)})).filter(x=>x.t && x.days<=30);
+    if(!list.length) return 'Không có thiết bị nào sắp hoặc đã hết hạn đăng kiểm trong 30 ngày tới.';
+    return 'Thiết bị cần chú ý đăng kiểm:\n' + list.map(x=>`• ${x.t.ten}: ${x.days<0?'đã hết hạn':'còn '+x.days+' ngày'} (${x.d.hanDangKiem})`).join('\n');
   }
   if(low.includes('công nợ') || low.includes('phải thu')){
     const cho = state.congno.filter(c=>c.trangThai==='Chưa thu');
