@@ -1664,6 +1664,8 @@ const FIELD_SCHEMAS = {
     {key:'noiDung', label:'Nội dung', type:'text'}, {key:'donViThucHien', label:'Đơn vị thực hiện/NCC', type:'text'},
     {key:'chiPhi', label:'Chi phí (đ)', type:'number'},
     {key:'gioHoatDong', label:'Giờ hoạt động/số km hiện tại', type:'number'},
+    {key:'soLit', label:'Số lít', type:'number'},
+    {key:'hangMucBaoDuong', label:'Hạng mục bảo dưỡng (để trống nếu không phải lần bảo dưỡng)', type:'text'},
     {key:'hanBaoDuongTiep', label:'Mốc giờ/km cần bảo dưỡng tiếp theo (để trống nếu không phải lần bảo dưỡng)', type:'number'},
   ]},
   suachua: {ten:'nhật ký sửa chữa', fields:[
@@ -1671,6 +1673,7 @@ const FIELD_SCHEMAS = {
     {key:'noiDung', label:'Nội dung', type:'text'}, {key:'donViThucHien', label:'Đơn vị thực hiện/NCC', type:'text'},
     {key:'chiPhi', label:'Chi phí (đ)', type:'number'},
     {key:'gioHoatDong', label:'Giờ hoạt động/số km hiện tại', type:'number'},
+    {key:'hangMucBaoDuong', label:'Hạng mục bảo dưỡng (để trống nếu không phải lần bảo dưỡng)', type:'text'},
     {key:'hanBaoDuongTiep', label:'Mốc giờ/km cần bảo dưỡng tiếp theo (để trống nếu không phải lần bảo dưỡng)', type:'number'},
   ]},
   vattu: {ten:'nhật ký vật tư', fields:[
@@ -1678,6 +1681,7 @@ const FIELD_SCHEMAS = {
     {key:'noiDung', label:'Nội dung', type:'text'}, {key:'donViThucHien', label:'Đơn vị thực hiện/NCC', type:'text'},
     {key:'chiPhi', label:'Chi phí (đ)', type:'number'},
     {key:'gioHoatDong', label:'Giờ hoạt động/số km hiện tại', type:'number'},
+    {key:'hangMucBaoDuong', label:'Hạng mục bảo dưỡng (để trống nếu không phải lần bảo dưỡng)', type:'text'},
     {key:'hanBaoDuongTiep', label:'Mốc giờ/km cần bảo dưỡng tiếp theo (để trống nếu không phải lần bảo dưỡng)', type:'number'},
   ]},
   dangkiem: {ten:'đăng kiểm', fields:[
@@ -1821,18 +1825,41 @@ function gioHoatDongHienTai(phuongTienId){
   const logs = nhatKyCuaThietBi(phuongTienId);
   return logs.length ? logs[logs.length-1].gioHoatDong : null;
 }
-function hanBaoDuongTiepTheo(phuongTienId){
-  const logs = nhatKyCuaThietBi(phuongTienId).filter(b=>b.hanBaoDuongTiep);
-  return logs.length ? logs[logs.length-1].hanBaoDuongTiep : null;
+function baoDuongTheoHangMuc(phuongTienId){
+  const logs = nhatKyCuaThietBi(phuongTienId).filter(b=>b.hanBaoDuongTiep && b.hangMucBaoDuong);
+  const map = {};
+  logs.forEach(b=>{ map[b.hangMucBaoDuong] = b.hanBaoDuongTiep; }); // logs already sorted ascending — last write wins
+  return map;
 }
 function baoDuongPill(phuongTienId){
   const hienTai = gioHoatDongHienTai(phuongTienId);
-  const han = hanBaoDuongTiepTheo(phuongTienId);
   if(hienTai===null) return '<span style="color:var(--ink-soft);font-size:12px">Chưa có dữ liệu</span>';
-  if(!han) return `<span class="mono">${fmt(hienTai)}</span>`;
-  const pct = hienTai/han;
-  const cls = pct>=1 ? 'rejected' : pct>=0.9 ? 'pending' : 'approved';
-  return `<span class="pill ${cls}">${fmt(hienTai)} / ${fmt(han)}</span>`;
+  const items = Object.entries(baoDuongTheoHangMuc(phuongTienId));
+  if(!items.length) return `<span class="mono">${fmt(hienTai)}</span>`;
+  return items.map(([hangMuc, han])=>{
+    const pct = hienTai/han;
+    const cls = pct>=1 ? 'rejected' : pct>=0.9 ? 'pending' : 'approved';
+    return `<span class="pill ${cls}" style="margin:2px 4px 2px 0;display:inline-block">${hangMuc}: ${fmt(hienTai)}/${fmt(han)}</span>`;
+  }).join('');
+}
+function canhBaoTieuHaoNhienLieu(phuongTienId){
+  const logs = state.nhienlieu.filter(b=>b.phuongTienId===phuongTienId && b.soLit && b.gioHoatDong).sort((a,b)=>a.ngay.localeCompare(b.ngay));
+  const rates = [];
+  for(let i=1;i<logs.length;i++){
+    const delta = logs[i].gioHoatDong - logs[i-1].gioHoatDong;
+    if(delta>0) rates.push(logs[i].soLit/delta);
+  }
+  if(rates.length < 2) return null;
+  const latest = rates[rates.length-1];
+  const avgTruoc = rates.slice(0,-1).reduce((s,r)=>s+r,0)/(rates.length-1);
+  if(avgTruoc<=0) return null;
+  const pctTang = (latest-avgTruoc)/avgTruoc;
+  return pctTang >= 0.2 ? {latest, avgTruoc, pctTang} : null;
+}
+function tieuHaoPill(phuongTienId){
+  const canhBao = canhBaoTieuHaoNhienLieu(phuongTienId);
+  if(!canhBao) return '';
+  return `<span class="pill pending" title="Trung bình trước đó: ${fmt(canhBao.avgTruoc)} lít/đơn vị">⚠ Tiêu hao tăng ${Math.round(canhBao.pctTang*100)}% (${fmt(canhBao.latest)} lít/đơn vị)</span>`;
 }
 function renderM2(){
   const content = document.getElementById('content');
@@ -1856,12 +1883,12 @@ function renderM2(){
           <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
         </form></details>` : ''}
       <div class="table-wrap"><table>
-        <thead><tr><th>Thiết bị/phương tiện</th><th>Biển số</th><th style="text-align:right">Giờ hoạt động/km (hiện tại / mốc bảo dưỡng)</th><th>Kiểm định</th><th></th></tr></thead>
-        <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td class="mono">${t.bienSo||''}</td><td class="num">${baoDuongPill(t.id)}</td><td>${expiryPill(t.hanKiemDinh)}</td>
+        <thead><tr><th>Thiết bị/phương tiện</th><th>Biển số</th><th>Bảo dưỡng theo hạng mục (hiện tại/mốc tiếp theo)</th><th>Nhiên liệu</th><th>Kiểm định</th><th></th></tr></thead>
+        <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td class="mono">${t.bienSo||''}</td><td>${baoDuongPill(t.id)}</td><td>${tieuHaoPill(t.id)}</td><td>${expiryPill(t.hanKiemDinh)}</td>
           <td>${canAdd ? `<div class="row-actions">${actionButtons('thietbi', t.id)}</div>` : ''}</td></tr>`).join('')
-          || `<tr class="empty-row"><td colspan="5">Chưa có thiết bị nào</td></tr>`}</tbody>
+          || `<tr class="empty-row"><td colspan="6">Chưa có thiết bị nào</td></tr>`}</tbody>
       </table></div>
-      <p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px">Giờ hoạt động/số km và mốc bảo dưỡng được cập nhật từ tab "Nhiên liệu/Sửa chữa/Vật tư" mỗi lần ghi nhận.</p>`;
+      <p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px">Giờ hoạt động/số km, hạng mục bảo dưỡng và mức tiêu hao nhiên liệu được cập nhật từ các tab Nhiên liệu/Sửa chữa/Vật tư mỗi lần ghi nhận.</p>`;
   } else if(['nhienlieu','suachua','vattu'].includes(currentTab)){
     renderNhatKy(body, currentTab, canAdd);
   } else {
@@ -1920,12 +1947,18 @@ function renderNhatKy(body, key, canAdd){
         <div class="field"><label>Đơn vị thực hiện/NCC</label><input id="nk-donvi"></div>
         <div class="field"><label>Chi phí (đ)</label><input type="number" required id="nk-chiphi"></div>
         <div class="field"><label>Giờ hoạt động/số km hiện tại</label><input type="number" id="nk-giohoatdong" placeholder="VD: 1200 hoặc 45000"></div>
-        <div class="field" style="grid-column:1/-1"><label style="display:inline-flex;align-items:center;gap:8px;font-weight:400;font-size:13px;padding:8px 12px;border:1px solid var(--line);border-radius:4px;background:var(--paper-raised);cursor:pointer"><input type="checkbox" id="nk-baoduong" onchange="toggleBaoDuongField()"> Đây là lần bảo dưỡng định kỳ (thay nhớt, lọc dầu...)</label></div>
-        <div class="field" id="nk-baoduongfield" style="display:none;grid-column:1/-1"><label>Mốc giờ/km cần bảo dưỡng tiếp theo</label><input type="number" id="nk-hanbaoduong" placeholder="VD: 1450 hoặc 50000"></div>
+        ${key==='nhienlieu' ? `<div class="field"><label>Số lít</label><input type="number" id="nk-solit" placeholder="VD: 120"></div>` : ''}
+        <div class="field" style="grid-column:1/-1"><label style="display:inline-flex;align-items:center;gap:8px;font-weight:400;font-size:13px;padding:8px 12px;border:1px solid var(--line);border-radius:4px;background:var(--paper-raised);cursor:pointer"><input type="checkbox" id="nk-baoduong" onchange="toggleBaoDuongField()"> Đây là lần bảo dưỡng định kỳ (thay nhớt, lọc dầu, thay vật tư định kỳ...)</label></div>
+        <div id="nk-baoduongfield" style="display:none;grid-column:1/-1">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="field"><label>Hạng mục bảo dưỡng</label><input id="nk-hangmuc" placeholder="VD: Thay nhớt máy"></div>
+            <div class="field"><label>Mốc giờ/km cần bảo dưỡng tiếp theo</label><input type="number" id="nk-hanbaoduong" placeholder="VD: 1450 hoặc 50000"></div>
+          </div>
+        </div>
         <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
       </form></details>` : ''}
     <div class="table-wrap"><table>
-      <thead><tr><th>Ngày</th><th>Thiết bị/phương tiện</th><th>Nội dung</th><th style="text-align:right">Chi phí</th><th style="text-align:right">Giờ HĐ/km</th><th>Bảo dưỡng tiếp theo</th><th>Trạng thái</th><th></th></tr></thead>
+      <thead><tr><th>Ngày</th><th>Thiết bị/phương tiện</th><th>Nội dung</th><th style="text-align:right">Chi phí</th><th style="text-align:right">Giờ HĐ/km</th>${key==='nhienlieu'?'<th style="text-align:right">Số lít</th>':''}<th>Hạng mục bảo dưỡng</th><th>Mốc tiếp theo</th><th>Trạng thái</th><th></th></tr></thead>
       <tbody>${list.map(b => {
         const pt = state.thietbi.find(t=>t.id===b.phuongTienId);
         const pillClass = b.trangThai==='Đã duyệt' ? 'approved' : 'pending';
@@ -1933,8 +1966,8 @@ function renderNhatKy(body, key, canAdd){
         let action = (coDuyet && b.trangThai==='Chờ duyệt') ? `<button class="mini-btn approve" onclick="duyetNhatKy('${key}','${b.id}')">Duyệt</button>` : '';
         if(canAdd) action += actionButtons(key, b.id);
         return `<tr><td class="mono">${b.ngay}</td><td>${pt?pt.ten+(pt.bienSo?' — '+pt.bienSo:''):''}</td><td>${b.noiDung}</td>
-          <td class="num">${fmt(b.chiPhi)}</td><td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td>${b.hanBaoDuongTiep?fmt(b.hanBaoDuongTiep):''}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
-      }).join('') || `<tr class="empty-row"><td colspan="8">Chưa có ghi nhận nào</td></tr>`}</tbody>
+          <td class="num">${fmt(b.chiPhi)}</td><td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td>${key==='nhienlieu'?`<td class="num">${b.soLit?fmt(b.soLit):''}</td>`:''}<td>${b.hangMucBaoDuong||''}</td><td>${b.hanBaoDuongTiep?fmt(b.hanBaoDuongTiep):''}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
+      }).join('') || `<tr class="empty-row"><td colspan="9">Chưa có ghi nhận nào</td></tr>`}</tbody>
     </table></div>`;
 }
 function toggleBaoDuongField(){
@@ -1944,10 +1977,13 @@ function submitNhatKy(e, key){
   e.preventDefault();
   const noiDung = document.getElementById('nk-noidung').value;
   const laBaoDuong = document.getElementById('nk-baoduong').checked;
+  const soLitEl = document.getElementById('nk-solit');
   state[key].push({id:key.slice(0,2).toUpperCase()+(state.nextId++), ngay:document.getElementById('nk-ngay').value,
     phuongTienId:document.getElementById('nk-phuongtien').value,
     noiDung, donViThucHien:document.getElementById('nk-donvi').value, chiPhi:parseFloat(document.getElementById('nk-chiphi').value)||0,
     gioHoatDong:parseFloat(document.getElementById('nk-giohoatdong').value)||0,
+    soLit: soLitEl ? (parseFloat(soLitEl.value)||0) : null,
+    hangMucBaoDuong: laBaoDuong ? document.getElementById('nk-hangmuc').value : null,
     hanBaoDuongTiep: laBaoDuong ? (parseFloat(document.getElementById('nk-hanbaoduong').value)||0) : null,
     trangThai:'Chờ duyệt', nguoiGhiNhan:currentUser.name, nguoiDuyet:null});
   logActivity(`Ghi nhận "${noiDung}" — chờ duyệt`);
