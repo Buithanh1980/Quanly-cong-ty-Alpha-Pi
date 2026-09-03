@@ -440,6 +440,7 @@ function seedState(){
     vattu: [],
     kiemke: [],
     vantai: [],
+    xevantai: [],
     goithau: [],
     congno: [],
     dexuatmuahang: [],
@@ -470,6 +471,7 @@ function loadState(){
     if(!state.nhienlieu) state.nhienlieu = seedState().nhienlieu;
     if(!state.suachua) state.suachua = seedState().suachua;
     if(!state.vattu) state.vattu = seedState().vattu;
+    if(!state.xevantai) state.xevantai = seedState().xevantai;
     if(!state.dangkiem) state.dangkiem = seedState().dangkiem;
     if(state.thietbi) state.thietbi.forEach(t=>{ if(t.boPhan===undefined) t.boPhan='Khai thác'; if(t.bienSo===undefined) t.bienSo=''; });
     if(!state.thietBiSoLuong) state.thietBiSoLuong = seedState().thietBiSoLuong;
@@ -1693,6 +1695,13 @@ const FIELD_SCHEMAS = {
     {key:'tuyen', label:'Tuyến', type:'text'}, {key:'cuocThu', label:'Cước thu (đ)', type:'number'},
     {key:'cuocTra', label:'Cước trả (đ)', type:'number'}, {key:'ghiChu', label:'Ghi chú', type:'text'},
   ]},
+  xevantai: {ten:'xe đầu kéo & giấy tờ', fields:[
+    {key:'bienSoDauKeo', label:'Biển số đầu kéo', type:'text'},
+    {key:'bienSoRoMoc', label:'Biển số rơ moóc', type:'text'},
+    {key:'hanDangKiemDauKeo', label:'Hạn đăng kiểm đầu kéo', type:'date'},
+    {key:'hanDangKiemRoMoc', label:'Hạn đăng kiểm rơ moóc', type:'date'},
+    {key:'hanPhuHieuLienVan', label:'Hạn phù hiệu/giấy phép liên vận Việt-Lào', type:'date'},
+  ]},
   goithau: {ten:'gói thầu', fields:[
     {key:'ten', label:'Tên gói thầu', type:'text'}, {key:'congTrinh', label:'Công trình', type:'text'},
     {key:'donVi', label:'Đơn vị thi công', type:'text'}, {key:'tienDo', label:'Tiến độ (%)', type:'number'},
@@ -2016,31 +2025,76 @@ function xuLyKiemKe(id){
 function renderM4(){
   const content = document.getElementById('content');
   const canAdd = canEnter('M4');
-  const tongLoiNhuan = state.vantai.reduce((s,v)=>s+(v.cuocThu-v.cuocTra),0);
-  content.innerHTML = `
-    <div class="stat-row">
-      <div class="stat-card"><div class="slabel">Số chuyến ghi nhận</div><div class="sval">${state.vantai.length}</div></div>
-      <div class="stat-card"><div class="slabel">Chênh lệch cước lũy kế</div><div class="sval">${fmt(tongLoiNhuan)} <span class="sunit">đ</span></div></div>
-    </div>
-    <div class="panel-head"><h3>Chuyến vận chuyển</h3></div>
-    ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm chuyến</summary>
-      <form class="inline-form" onsubmit="return submitVanTai(event)">
-        <div class="field"><label>Ngày</label><input type="date" required id="vt-ngay"></div>
-        <div class="field"><label>Loại xe</label><select id="vt-loai"><option>Tự có</option><option>Thuê ngoài</option></select></div>
-        <div class="field"><label>Tuyến</label><input required id="vt-tuyen" placeholder="VD: Lào → Chân Mây"></div>
-        <div class="field"><label>Cước thu (đ)</label><input type="number" required id="vt-thu"></div>
-        <div class="field"><label>Cước trả (đ, nếu thuê ngoài)</label><input type="number" id="vt-tra" value="0"></div>
-        <div class="field"><label>Ghi chú</label><input id="vt-ghichu"></div>
-        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
-      </form></details>` : ''}
-    <div class="table-wrap"><table>
-      <thead><tr><th>Ngày</th><th>Loại xe</th><th>Tuyến</th><th style="text-align:right">Cước thu</th><th style="text-align:right">Cước trả</th><th style="text-align:right">Chênh lệch</th><th>Ghi chú</th><th></th></tr></thead>
-      <tbody>${state.vantai.map(v => `<tr><td class="mono">${v.ngay}</td><td>${v.loaiXe}</td><td>${v.tuyen}</td>
-        <td class="num">${fmt(v.cuocThu)}</td><td class="num">${fmt(v.cuocTra)}</td>
-        <td class="num" style="font-weight:700">${fmt(v.cuocThu-v.cuocTra)}</td><td>${v.ghiChu||''}</td>
-        <td>${canAdd ? `<div class="row-actions">${actionButtons('vantai', v.id)}</div>` : ''}</td></tr>`).join('')
-        || `<tr class="empty-row"><td colspan="8">Chưa có chuyến nào</td></tr>`}</tbody>
-    </table></div>`;
+  const tabs = [{id:'chuyen',label:'Chuyến vận chuyển'},{id:'xe',label:'Xe & Giấy tờ'}];
+  if(!['chuyen','xe'].includes(currentTab)) currentTab = 'chuyen';
+  content.innerHTML = `<div class="tabs">` + tabs.map(t =>
+    `<button class="tab-btn ${t.id===currentTab?'active':''}" onclick="currentTab='${t.id}';renderM4()">${t.label}</button>`
+  ).join('') + `</div><div id="tab-body"></div>`;
+  const body = document.getElementById('tab-body');
+
+  if(currentTab === 'chuyen'){
+    const tongLoiNhuan = state.vantai.reduce((s,v)=>s+(v.cuocThu-v.cuocTra),0);
+    body.innerHTML = `
+      <div class="stat-row">
+        <div class="stat-card"><div class="slabel">Số chuyến ghi nhận</div><div class="sval">${state.vantai.length}</div></div>
+        <div class="stat-card"><div class="slabel">Chênh lệch cước lũy kế</div><div class="sval">${fmt(tongLoiNhuan)} <span class="sunit">đ</span></div></div>
+      </div>
+      <div class="panel-head"><h3>Chuyến vận chuyển</h3></div>
+      ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm chuyến</summary>
+        <form class="inline-form" onsubmit="return submitVanTai(event)">
+          <div class="field"><label>Ngày</label><input type="date" required id="vt-ngay"></div>
+          <div class="field"><label>Loại xe</label><select id="vt-loai"><option>Tự có</option><option>Thuê ngoài</option></select></div>
+          <div class="field"><label>Tuyến</label><input required id="vt-tuyen" placeholder="VD: Lào → Chân Mây" value="Lào → Chân Mây"></div>
+          <div class="field"><label>Cước thu (đ)</label><input type="number" required id="vt-thu"></div>
+          <div class="field"><label>Cước trả (đ, nếu thuê ngoài)</label><input type="number" id="vt-tra" value="0"></div>
+          <div class="field"><label>Ghi chú</label><input id="vt-ghichu"></div>
+          <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+        </form></details>` : ''}
+      <div class="table-wrap"><table>
+        <thead><tr><th>Ngày</th><th>Loại xe</th><th>Tuyến</th><th style="text-align:right">Cước thu</th><th style="text-align:right">Cước trả</th><th style="text-align:right">Chênh lệch</th><th>Ghi chú</th><th></th></tr></thead>
+        <tbody>${state.vantai.map(v => `<tr><td class="mono">${v.ngay}</td><td>${v.loaiXe}</td><td>${v.tuyen}</td>
+          <td class="num">${fmt(v.cuocThu)}</td><td class="num">${fmt(v.cuocTra)}</td>
+          <td class="num" style="font-weight:700">${fmt(v.cuocThu-v.cuocTra)}</td><td>${v.ghiChu||''}</td>
+          <td>${canAdd ? `<div class="row-actions">${actionButtons('vantai', v.id)}</div>` : ''}</td></tr>`).join('')
+          || `<tr class="empty-row"><td colspan="8">Chưa có chuyến nào</td></tr>`}</tbody>
+      </table></div>`;
+  } else {
+    const sapHetHan = state.xevantai.filter(x=>[x.hanDangKiemDauKeo,x.hanDangKiemRoMoc,x.hanPhuHieuLienVan].some(d=>d && daysUntil(d)<=30));
+    body.innerHTML = `
+      <div class="stat-row">
+        <div class="stat-card"><div class="slabel">Xe đang theo dõi</div><div class="sval">${state.xevantai.length}</div></div>
+        <div class="stat-card"><div class="slabel">Sắp/đã hết hạn giấy tờ</div><div class="sval ${sapHetHan.length>0?'warn':''}">${sapHetHan.length}</div></div>
+      </div>
+      <div class="panel-head"><h3>Xe đầu kéo &amp; giấy tờ liên vận</h3></div>
+      <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Chỉ theo dõi xe tự có của công ty. Đăng kiểm đầu kéo, đăng kiểm rơ moóc và phù hiệu/giấy phép liên vận Việt-Lào — cảnh báo trước 30 ngày.</p>
+      ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm xe</summary>
+        <form class="inline-form" onsubmit="return submitXeVanTai(event)">
+          <div class="field"><label>Biển số đầu kéo</label><input required id="xv-daukeo" placeholder="VD: 43H-060.50"></div>
+          <div class="field"><label>Biển số rơ moóc</label><input id="xv-romoc" placeholder="VD: 43R-012.34"></div>
+          <div class="field"><label>Hạn đăng kiểm đầu kéo</label><input type="date" required id="xv-handaukeo"></div>
+          <div class="field"><label>Hạn đăng kiểm rơ moóc</label><input type="date" id="xv-hanromoc"></div>
+          <div class="field"><label>Hạn phù hiệu/giấy phép liên vận</label><input type="date" required id="xv-hanphuhieu"></div>
+          <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+        </form></details>` : ''}
+      <div class="table-wrap"><table>
+        <thead><tr><th>Đầu kéo</th><th>Rơ moóc</th><th>Đăng kiểm đầu kéo</th><th>Đăng kiểm rơ moóc</th><th>Phù hiệu liên vận</th><th></th></tr></thead>
+        <tbody>${state.xevantai.map(x => `<tr><td class="mono">${x.bienSoDauKeo}</td><td class="mono">${x.bienSoRoMoc||'—'}</td>
+          <td>${expiryPill(x.hanDangKiemDauKeo)}</td><td>${x.hanDangKiemRoMoc?expiryPill(x.hanDangKiemRoMoc):'—'}</td><td>${expiryPill(x.hanPhuHieuLienVan)}</td>
+          <td>${canAdd ? `<div class="row-actions">${actionButtons('xevantai', x.id)}</div>` : ''}</td></tr>`).join('')
+          || `<tr class="empty-row"><td colspan="6">Chưa có xe nào</td></tr>`}</tbody>
+      </table></div>`;
+  }
+}
+function submitXeVanTai(e){
+  e.preventDefault();
+  const bienSoDauKeo = document.getElementById('xv-daukeo').value;
+  state.xevantai.push({id:'XV'+(state.nextId++), bienSoDauKeo,
+    bienSoRoMoc:document.getElementById('xv-romoc').value,
+    hanDangKiemDauKeo:document.getElementById('xv-handaukeo').value,
+    hanDangKiemRoMoc:document.getElementById('xv-hanromoc').value||null,
+    hanPhuHieuLienVan:document.getElementById('xv-hanphuhieu').value});
+  logActivity(`Thêm xe đầu kéo "${bienSoDauKeo}"`);
+  renderM4(); return false;
 }
 function submitVanTai(e){
   e.preventDefault();
