@@ -1924,19 +1924,55 @@ const NHATKY_CONFIG = {
   suachua:   {ten:'sửa chữa',   placeholder:'VD: Thay lốp, sửa hệ thống thủy lực'},
   vattu:     {ten:'vật tư',     placeholder:'VD: Mua lọc dầu, dây curoa'},
 };
+let nlBaoCao = {loai:'', bienSo:'', tuNgay:'', denNgay:''};
+function capNhatBaoCaoNhienLieu(field, value){
+  nlBaoCao[field] = value;
+  if(field==='loai') nlBaoCao.bienSo = '';
+  renderM2();
+}
+function baoCaoNhienLieuHtml(){
+  const xeChoLoc = state.thietbi.filter(t=>(!nlBaoCao.loai || t.ten===nlBaoCao.loai) && t.bienSo);
+  const bienSoOptions = xeChoLoc.map(t=>`<option value="${t.bienSo}" ${nlBaoCao.bienSo===t.bienSo?'selected':''}>${t.bienSo}</option>`).join('');
+  const filtered = state.nhienlieu.filter(b=>{
+    if(nlBaoCao.loai && b.phuongTienId!==nlBaoCao.loai) return false;
+    if(nlBaoCao.bienSo && b.bienSo!==nlBaoCao.bienSo) return false;
+    if(nlBaoCao.tuNgay && b.ngay < nlBaoCao.tuNgay) return false;
+    if(nlBaoCao.denNgay && b.ngay > nlBaoCao.denNgay) return false;
+    return true;
+  }).sort((a,b)=>a.ngay.localeCompare(b.ngay));
+  const tongLit = filtered.reduce((s,b)=>s+(b.soLit||0),0);
+  return `
+    <div class="panel-head"><h3>Báo cáo tiêu hao nhiên liệu</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Lọc theo loại xe, biển số và khoảng thời gian để xem lịch sử đổ nhiên liệu.</p>
+    <form class="inline-form" onsubmit="return false">
+      <div class="field"><label>Loại xe</label><select onchange="capNhatBaoCaoNhienLieu('loai', this.value)">
+        <option value="" ${nlBaoCao.loai===''?'selected':''}>Tất cả</option>
+        ${THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}" ${nlBaoCao.loai===o.v?'selected':''}>${o.t}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>Biển số xe</label><select onchange="capNhatBaoCaoNhienLieu('bienSo', this.value)">
+        <option value="" ${nlBaoCao.bienSo===''?'selected':''}>Tất cả</option>
+        ${bienSoOptions}
+      </select></div>
+      <div class="field"><label>Từ ngày</label><input type="date" value="${nlBaoCao.tuNgay}" onchange="capNhatBaoCaoNhienLieu('tuNgay', this.value)"></div>
+      <div class="field"><label>Đến ngày</label><input type="date" value="${nlBaoCao.denNgay}" onchange="capNhatBaoCaoNhienLieu('denNgay', this.value)"></div>
+    </form>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngày</th><th>Loại xe</th><th>Biển số xe</th><th style="text-align:right">Giờ HĐ/km</th><th style="text-align:right">Số lít</th></tr></thead>
+      <tbody>${filtered.map(b=>`<tr><td class="mono">${b.ngay}</td><td>${b.phuongTienId}</td><td class="mono">${b.bienSo||''}</td><td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td class="num">${b.soLit?fmt(b.soLit):''}</td></tr>`).join('')
+        || `<tr class="empty-row"><td colspan="5">Không có dữ liệu phù hợp</td></tr>`}</tbody>
+    </table></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin-top:8px">Tổng số lít trong khoảng lọc: <strong>${fmt(tongLit)} lít</strong></p>`;
+}
 function renderNhatKy(body, key, canAdd){
   const cfg = NHATKY_CONFIG[key];
   const list = state[key];
   const isFuel = key === 'nhienlieu';
   const tongChiPhi = list.reduce((s,b)=>s+b.chiPhi,0);
-  const tongSoLit = list.reduce((s,b)=>s+(b.soLit||0),0);
   const phuongTienOptions = THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('');
   body.innerHTML = `
-    <div class="stat-row">
-      ${isFuel
-        ? `<div class="stat-card"><div class="slabel">Tổng số lít nhiên liệu lũy kế</div><div class="sval">${fmt(tongSoLit)} <span class="sunit">lít</span></div></div>`
-        : `<div class="stat-card"><div class="slabel">Chi phí ${cfg.ten} lũy kế</div><div class="sval">${fmt(tongChiPhi)} <span class="sunit">đ</span></div></div>`}
-    </div>
+    ${isFuel ? baoCaoNhienLieuHtml() : `<div class="stat-row">
+      <div class="stat-card"><div class="slabel">Chi phí ${cfg.ten} lũy kế</div><div class="sval">${fmt(tongChiPhi)} <span class="sunit">đ</span></div></div>
+    </div>`}
     <div class="panel-head"><h3>Nhật ký ${cfg.ten}</h3></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Ai có quyền trên module này đều ghi nhận được (kể cả Kế toán — chỉ ghi nhận chi phí, không duyệt). Người duyệt là Phòng Khai thác.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Ghi nhận ${cfg.ten}</summary>
