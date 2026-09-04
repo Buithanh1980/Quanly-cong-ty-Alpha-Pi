@@ -642,20 +642,24 @@ function renderContent(){
 /* ===================== M1: VẬN HÀNH BÃI ===================== */
 function renderM1(){
   const content = document.getElementById('content');
+  const laDieuDo = currentUser.id === 'DD';
   const tabs = [
     {id:'tongquan', label:'Tổng quan'},
-    ...(currentUser.id === 'DD' ? [{id:'giaoviec', label:'Giao việc'}] : []),
-    {id:'nhap', label:'Nhập hàng'},
-    {id:'xuat', label:'Xuất hàng'},
-    {id:'dichvu', label:'Dịch vụ tại bãi'},
+    ...(laDieuDo ? [{id:'giaoviec', label:'Giao việc'}] : []),
+    ...(laDieuDo ? [] : [
+      {id:'nhap', label:'Nhập hàng'},
+      {id:'xuat', label:'Xuất hàng'},
+      {id:'dichvu', label:'Dịch vụ tại bãi'},
+    ]),
   ];
-  if(currentTab === 'giaoviec' && currentUser.id !== 'DD') currentTab = 'tongquan';
+  if(currentTab === 'giaoviec' && !laDieuDo) currentTab = 'tongquan';
+  if(['nhap','xuat','dichvu'].includes(currentTab) && laDieuDo) currentTab = 'tongquan';
   content.innerHTML = `<div class="tabs">` + tabs.map(t =>
     `<button class="tab-btn ${t.id===currentTab?'active':''}" onclick="currentTab='${t.id}';renderM1()">${t.label}</button>`
   ).join('') + `</div><div id="tab-body"></div>`;
   const body = document.getElementById('tab-body');
   if(currentTab === 'tongquan') return renderTongQuan(body);
-  if(currentTab === 'giaoviec' && currentUser.id === 'DD') return renderGiaoViec(body);
+  if(currentTab === 'giaoviec' && laDieuDo) return renderGiaoViec(body);
   if(currentTab === 'nhap') return renderNhap(body);
   if(currentTab === 'xuat') return renderXuat(body);
   if(currentTab === 'dichvu') return renderDichVu(body);
