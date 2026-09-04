@@ -1994,7 +1994,7 @@ function baoCaoSuaChuaVatTuHtml(){
     <div class="panel-head"><h3>Báo cáo sửa chữa/vật tư</h3></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Lọc theo loại ghi nhận, loại xe, biển số và khoảng thời gian.</p>
     <form class="inline-form" onsubmit="return false">
-      <div class="field"><label>Loại</label><select onchange="capNhatBaoCaoSuaChuaVatTu('loaiGhiNhan', this.value)">
+      <div class="field"><label>Sửa chữa/Vật tư</label><select onchange="capNhatBaoCaoSuaChuaVatTu('loaiGhiNhan', this.value)">
         <option value="" ${scvtBaoCao.loaiGhiNhan===''?'selected':''}>Tất cả</option>
         <option value="vattu" ${scvtBaoCao.loaiGhiNhan==='vattu'?'selected':''}>Vật tư</option>
         <option value="suachua" ${scvtBaoCao.loaiGhiNhan==='suachua'?'selected':''}>Sửa chữa</option>
@@ -2011,7 +2011,7 @@ function baoCaoSuaChuaVatTuHtml(){
       <div class="field"><label>Đến ngày</label><input type="date" value="${scvtBaoCao.denNgay}" onchange="capNhatBaoCaoSuaChuaVatTu('denNgay', this.value)"></div>
     </form>
     <div class="table-wrap"><table>
-      <thead><tr><th>Ngày</th><th>Loại</th><th>Thiết bị/phương tiện</th><th>Biển số xe</th><th>Nội dung</th><th style="text-align:right">Chi phí</th><th>Nhà CC</th><th style="text-align:right">Giờ HĐ/km</th><th>Hạng mục bảo dưỡng</th><th>Mốc tiếp theo</th><th>Trạng thái</th></tr></thead>
+      <thead><tr><th>Ngày</th><th>Sửa chữa/Vật tư</th><th>Thiết bị/phương tiện</th><th>Biển số xe</th><th>Nội dung</th><th style="text-align:right">Chi phí</th><th>Nhà CC</th><th style="text-align:right">Giờ HĐ/km</th><th>Hạng mục bảo dưỡng</th><th>Mốc tiếp theo</th><th>Trạng thái</th></tr></thead>
       <tbody>${filtered.map(b=>`<tr><td class="mono">${b.ngay}</td><td>${b._loai==='suachua'?'Sửa chữa':'Vật tư'}</td><td>${b.phuongTienId}</td><td class="mono">${b.bienSo||''}</td><td>${b.noiDung}</td><td class="num">${fmt(b.chiPhi)}</td><td>${b.donViThucHien||''}</td><td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td>${b.hangMucBaoDuong||''}</td><td>${b.hanBaoDuongTiep?fmt(b.hanBaoDuongTiep):''}</td><td><span class="pill ${b.trangThai==='Đã duyệt'?'approved':'pending'}">${b.trangThai}</span></td></tr>`).join('')
         || `<tr class="empty-row"><td colspan="11">Không có dữ liệu phù hợp</td></tr>`}</tbody>
     </table></div>
@@ -2027,7 +2027,7 @@ function renderSuaChuaVatTu(body, canAdd){
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Ghi nhận sửa chữa/vật tư</summary>
       <form class="inline-form" onsubmit="return submitNhatKy(event, document.getElementById('nk-loai').value)">
         <div class="field"><label>Ngày</label><input type="date" required id="nk-ngay"></div>
-        <div class="field"><label>Loại</label><select required id="nk-loai">${loaiOptions}</select></div>
+        <div class="field"><label>Sửa chữa/Vật tư</label><select required id="nk-loai">${loaiOptions}</select></div>
         <div class="field"><label>Thiết bị/phương tiện</label><select required id="nk-phuongtien" onchange="capNhatBienSoOptions()">${phuongTienOptions}</select></div>
         <div class="field"><label>Biển số xe</label><select required id="nk-bienso"></select></div>
         <div class="field"><label>Nội dung</label><input required id="nk-noidung" placeholder="VD: Thay lốp / Mua lọc dầu, dây curoa"></div>
@@ -2044,7 +2044,7 @@ function renderSuaChuaVatTu(body, canAdd){
         <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
       </form></details>` : ''}
     <div class="table-wrap"><table>
-      <thead><tr><th>Ngày</th><th>Loại</th><th>Thiết bị/phương tiện</th><th>Biển số xe</th><th>Nội dung</th><th style="text-align:right">Chi phí</th><th style="text-align:right">Giờ HĐ/km</th><th>Hạng mục bảo dưỡng</th><th>Mốc tiếp theo</th><th>Trạng thái</th><th></th></tr></thead>
+      <thead><tr><th>Ngày</th><th>Sửa chữa/Vật tư</th><th>Thiết bị/phương tiện</th><th>Biển số xe</th><th>Nội dung</th><th style="text-align:right">Chi phí</th><th style="text-align:right">Giờ HĐ/km</th><th>Hạng mục bảo dưỡng</th><th>Mốc tiếp theo</th><th>Trạng thái</th><th></th></tr></thead>
       <tbody>${list.map(b => {
         const pillClass = b.trangThai==='Đã duyệt' ? 'approved' : 'pending';
         const coDuyet = currentUser.id==='KT';
