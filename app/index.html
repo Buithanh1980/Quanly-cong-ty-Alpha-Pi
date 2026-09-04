@@ -1615,6 +1615,7 @@ function closeModal(id){ document.getElementById(id).classList.remove('active');
 
 /* ===================== SỬA / XÓA BẢN GHI (DÙNG CHUNG) ===================== */
 const LOAI_XE_OPTIONS = ['Xe ben','Xe thùng','Xe container','Tàu'].map(v=>({v,t:v}));
+const THIETBI_TEN_OPTIONS = ['Xe múc','Xe xúc lật','Xe tải','Cẩu điện'].map(v=>({v,t:v}));
 const LOAI_XE_BANG_CHUNG = ['Xe thùng','Xe ben','Xe container'];
 const FIELD_SCHEMAS = {
   doixe: {ten:'tài xế / người vận hành máy', fields:[
@@ -1655,7 +1656,7 @@ const FIELD_SCHEMAS = {
     {key:'ghiChu', label:'Ghi chú', type:'text'},
   ]},
   thietbi: {ten:'thiết bị', fields:[
-    {key:'ten', label:'Tên thiết bị', type:'text'},
+    {key:'ten', label:'Tên thiết bị', type:'select', options:THIETBI_TEN_OPTIONS},
     {key:'bienSo', label:'Biển số', type:'text'},
   ]},
   nhienlieu: {ten:'nhật ký nhiên liệu', fields:[
@@ -1876,7 +1877,7 @@ function renderM2(){
       <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Máy móc, xe/phương tiện hoạt động nội bộ trong bãi — do Phòng Khai thác quản lý. Xe chạy tuyến liên vận theo dõi ở M4 · Vận tải liên vận.</p>
       ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm thiết bị / phương tiện</summary>
         <form class="inline-form" onsubmit="return submitThietBi(event)">
-          <div class="field"><label>Tên thiết bị/phương tiện</label><input required id="tb-ten"></div>
+          <div class="field"><label>Tên thiết bị/phương tiện</label><select required id="tb-ten">${THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('')}</select></div>
           <div class="field"><label>Biển số</label><input id="tb-bienso" placeholder="VD: 43H-060.50"></div>
           <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
         </form></details>` : ''}
