@@ -1667,6 +1667,7 @@ const FIELD_SCHEMAS = {
   ]},
   suachua: {ten:'nhật ký sửa chữa', fields:[
     {key:'ngay', label:'Ngày', type:'date'},
+    {key:'bienSo', label:'Biển số xe', type:'text'},
     {key:'noiDung', label:'Nội dung', type:'text'}, {key:'donViThucHien', label:'Đơn vị thực hiện/NCC', type:'text'},
     {key:'chiPhi', label:'Chi phí (đ)', type:'number'},
     {key:'gioHoatDong', label:'Giờ hoạt động/số km hiện tại', type:'number'},
@@ -1675,6 +1676,7 @@ const FIELD_SCHEMAS = {
   ]},
   vattu: {ten:'nhật ký vật tư', fields:[
     {key:'ngay', label:'Ngày', type:'date'},
+    {key:'bienSo', label:'Biển số xe', type:'text'},
     {key:'noiDung', label:'Nội dung', type:'text'}, {key:'donViThucHien', label:'Đơn vị thực hiện/NCC', type:'text'},
     {key:'chiPhi', label:'Chi phí (đ)', type:'number'},
     {key:'gioHoatDong', label:'Giờ hoạt động/số km hiện tại', type:'number'},
@@ -1814,24 +1816,24 @@ function deleteRecord(collection, id){
 
 
 /* ===================== M2: THIẾT BỊ & BẢO TRÌ ===================== */
-function nhatKyCuaThietBi(phuongTienId){
+function nhatKyCuaThietBi(bienSo){
   const all = [...state.nhienlieu, ...state.suachua, ...state.vattu];
-  return all.filter(b=>b.phuongTienId===phuongTienId && b.gioHoatDong).sort((a,b)=>a.ngay.localeCompare(b.ngay));
+  return all.filter(b=>b.bienSo===bienSo && b.gioHoatDong).sort((a,b)=>a.ngay.localeCompare(b.ngay));
 }
-function gioHoatDongHienTai(phuongTienId){
-  const logs = nhatKyCuaThietBi(phuongTienId);
+function gioHoatDongHienTai(bienSo){
+  const logs = nhatKyCuaThietBi(bienSo);
   return logs.length ? logs[logs.length-1].gioHoatDong : null;
 }
-function baoDuongTheoHangMuc(phuongTienId){
-  const logs = nhatKyCuaThietBi(phuongTienId).filter(b=>b.hanBaoDuongTiep && b.hangMucBaoDuong);
+function baoDuongTheoHangMuc(bienSo){
+  const logs = nhatKyCuaThietBi(bienSo).filter(b=>b.hanBaoDuongTiep && b.hangMucBaoDuong);
   const map = {};
   logs.forEach(b=>{ map[b.hangMucBaoDuong] = b.hanBaoDuongTiep; }); // logs already sorted ascending — last write wins
   return map;
 }
-function baoDuongPill(phuongTienId){
-  const hienTai = gioHoatDongHienTai(phuongTienId);
+function baoDuongPill(bienSo){
+  const hienTai = gioHoatDongHienTai(bienSo);
   if(hienTai===null) return '<span style="color:var(--ink-soft);font-size:12px">Chưa có dữ liệu</span>';
-  const items = Object.entries(baoDuongTheoHangMuc(phuongTienId));
+  const items = Object.entries(baoDuongTheoHangMuc(bienSo));
   if(!items.length) return `<span class="mono">${fmt(hienTai)}</span>`;
   return items.map(([hangMuc, han])=>{
     const pct = hienTai/han;
@@ -1839,8 +1841,8 @@ function baoDuongPill(phuongTienId){
     return `<span class="pill ${cls}" style="margin:2px 4px 2px 0;display:inline-block">${hangMuc}: ${fmt(hienTai)}/${fmt(han)}</span>`;
   }).join('');
 }
-function canhBaoTieuHaoNhienLieu(phuongTienId){
-  const logs = state.nhienlieu.filter(b=>b.phuongTienId===phuongTienId && b.soLit && b.gioHoatDong).sort((a,b)=>a.ngay.localeCompare(b.ngay));
+function canhBaoTieuHaoNhienLieu(bienSo){
+  const logs = state.nhienlieu.filter(b=>b.bienSo===bienSo && b.soLit && b.gioHoatDong).sort((a,b)=>a.ngay.localeCompare(b.ngay));
   const rates = [];
   for(let i=1;i<logs.length;i++){
     const delta = logs[i].gioHoatDong - logs[i-1].gioHoatDong;
@@ -1853,8 +1855,8 @@ function canhBaoTieuHaoNhienLieu(phuongTienId){
   const pctTang = (latest-avgTruoc)/avgTruoc;
   return pctTang >= 0.2 ? {latest, avgTruoc, pctTang} : null;
 }
-function tieuHaoPill(phuongTienId){
-  const canhBao = canhBaoTieuHaoNhienLieu(phuongTienId);
+function tieuHaoPill(bienSo){
+  const canhBao = canhBaoTieuHaoNhienLieu(bienSo);
   if(!canhBao) return '';
   return `<span class="pill pending" title="Trung bình trước đó: ${fmt(canhBao.avgTruoc)} lít/đơn vị">⚠ Tiêu hao tăng ${Math.round(canhBao.pctTang*100)}% (${fmt(canhBao.latest)} lít/đơn vị)</span>`;
 }
@@ -1880,7 +1882,7 @@ function renderM2(){
         </form></details>` : ''}
       <div class="table-wrap"><table>
         <thead><tr><th>Thiết bị/phương tiện</th><th>Biển số</th><th>Bảo dưỡng theo hạng mục (hiện tại/mốc tiếp theo)</th><th>Nhiên liệu</th><th></th></tr></thead>
-        <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td class="mono">${t.bienSo||''}</td><td>${baoDuongPill(t.ten)}</td><td>${tieuHaoPill(t.ten)}</td>
+        <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td class="mono">${t.bienSo||''}</td><td>${baoDuongPill(t.bienSo)}</td><td>${tieuHaoPill(t.bienSo)}</td>
           <td>${canAdd ? `<div class="row-actions">${actionButtons('thietbi', t.id)}</div>` : ''}</td></tr>`).join('')
           || `<tr class="empty-row"><td colspan="5">Chưa có thiết bị nào</td></tr>`}</tbody>
       </table></div>
@@ -1975,8 +1977,8 @@ function renderNhatKy(body, key, canAdd){
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Ghi nhận ${cfg.ten}</summary>
       <form class="inline-form" onsubmit="return submitNhatKy(event,'${key}')">
         <div class="field"><label>Ngày</label><input type="date" required id="nk-ngay"></div>
-        <div class="field"><label>Thiết bị/phương tiện</label><select required id="nk-phuongtien" ${isFuel?'onchange="capNhatBienSoOptions()"':''}>${phuongTienOptions}</select></div>
-        ${isFuel ? `<div class="field"><label>Biển số xe</label><select required id="nk-bienso"></select></div>` : ''}
+        <div class="field"><label>Thiết bị/phương tiện</label><select required id="nk-phuongtien" onchange="capNhatBienSoOptions()">${phuongTienOptions}</select></div>
+        <div class="field"><label>Biển số xe</label><select required id="nk-bienso"></select></div>
         ${!isFuel ? `<div class="field"><label>Nội dung</label><input required id="nk-noidung" placeholder="${cfg.placeholder}"></div>` : ''}
         ${!isFuel ? `<div class="field"><label>Đơn vị thực hiện/NCC</label><input id="nk-donvi"></div>` : ''}
         ${!isFuel ? `<div class="field"><label>Chi phí (đ)</label><input type="number" required id="nk-chiphi"></div>` : ''}
@@ -2002,8 +2004,7 @@ function renderNhatKy(body, key, canAdd){
           return `<tr><td class="mono">${b.ngay}</td><td>${b.bienSo||''}</td>
             <td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td class="num">${b.soLit?fmt(b.soLit):''}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
         }
-        const pt = state.thietbi.find(t=>t.ten===b.phuongTienId);
-        return `<tr><td class="mono">${b.ngay}</td><td>${b.phuongTienId}${pt&&pt.bienSo?' — '+pt.bienSo:''}</td><td>${b.noiDung}</td>
+        return `<tr><td class="mono">${b.ngay}</td><td>${b.phuongTienId}${b.bienSo?' — '+b.bienSo:''}</td><td>${b.noiDung}</td>
           <td class="num">${fmt(b.chiPhi)}</td><td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td>${b.hangMucBaoDuong||''}</td><td>${b.hanBaoDuongTiep?fmt(b.hanBaoDuongTiep):''}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
       }).join('') || `<tr class="empty-row"><td colspan="${isFuel?6:9}">Chưa có ghi nhận nào</td></tr>`}</tbody>
     </table></div>`;
@@ -2012,7 +2013,7 @@ function renderNhatKy(body, key, canAdd){
     : `<div class="stat-row">
       <div class="stat-card"><div class="slabel">Chi phí ${cfg.ten} lũy kế</div><div class="sval">${fmt(tongChiPhi)} <span class="sunit">đ</span></div></div>
     </div>${logSectionHtml}`;
-  if(isFuel) capNhatBienSoOptions();
+  capNhatBienSoOptions();
 }
 function capNhatBienSoOptions(){
   const sel = document.getElementById('nk-phuongtien');
