@@ -1686,7 +1686,6 @@ const FIELD_SCHEMAS = {
   dangkiem: {ten:'đăng kiểm', fields:[
     {key:'soDangKiem', label:'Số đăng kiểm', type:'text'},
     {key:'hanDangKiem', label:'Hạn đăng kiểm', type:'date'},
-    {key:'hanDangKiemRoMoc', label:'Hạn đăng kiểm rơ moóc (nếu có)', type:'date'},
   ]},
   kiemke: {ten:'biên bản kiểm kê', fields:[
     {key:'ngay', label:'Ngày kiểm kê', type:'date'},
@@ -1895,22 +1894,21 @@ function renderM2(){
     const phuongTienOptions = state.thietbi.map(t=>`<option value="${t.id}">${t.ten}${t.bienSo?' — '+t.bienSo:''}</option>`).join('');
     body.innerHTML = `
       <div class="panel-head"><h3>Đăng kiểm thiết bị / phương tiện</h3></div>
-      <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Theo dõi hạn đăng kiểm của các thiết bị/xe có đăng kiểm. Với xe đầu kéo, điền thêm hạn đăng kiểm rơ moóc.</p>
+      <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Theo dõi hạn đăng kiểm của các thiết bị/xe có đăng kiểm.</p>
       ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm đăng kiểm</summary>
         <form class="inline-form" onsubmit="return submitDangKiem(event)">
           <div class="field"><label>Thiết bị/phương tiện</label><select required id="dk-phuongtien">${phuongTienOptions}</select></div>
           <div class="field"><label>Số đăng kiểm</label><input required id="dk-so"></div>
           <div class="field"><label>Hạn đăng kiểm</label><input type="date" required id="dk-han"></div>
-          <div class="field"><label>Hạn đăng kiểm rơ moóc (nếu là xe đầu kéo)</label><input type="date" id="dk-hanromoc"></div>
           <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
         </form></details>` : ''}
       <div class="table-wrap"><table>
-        <thead><tr><th>Thiết bị/phương tiện</th><th>Số đăng kiểm</th><th>Hạn đăng kiểm</th><th>Hạn đăng kiểm rơ moóc</th><th></th></tr></thead>
+        <thead><tr><th>Thiết bị/phương tiện</th><th>Số đăng kiểm</th><th>Hạn đăng kiểm</th><th></th></tr></thead>
         <tbody>${state.dangkiem.map(d => { const pt = state.thietbi.find(t=>t.id===d.phuongTienId);
-          return `<tr><td>${pt?pt.ten+(pt.bienSo?' — '+pt.bienSo:''):''}</td><td class="mono">${d.soDangKiem}</td><td>${expiryPill(d.hanDangKiem)}</td><td>${d.hanDangKiemRoMoc?expiryPill(d.hanDangKiemRoMoc):'—'}</td>
+          return `<tr><td>${pt?pt.ten+(pt.bienSo?' — '+pt.bienSo:''):''}</td><td class="mono">${d.soDangKiem}</td><td>${expiryPill(d.hanDangKiem)}</td>
           <td>${canAdd ? `<div class="row-actions">${actionButtons('dangkiem', d.id)}</div>` : ''}</td></tr>`;
         }).join('')
-          || `<tr class="empty-row"><td colspan="5">Chưa có dữ liệu đăng kiểm nào</td></tr>`}</tbody>
+          || `<tr class="empty-row"><td colspan="4">Chưa có dữ liệu đăng kiểm nào</td></tr>`}</tbody>
       </table></div>`;
   }
 }
@@ -2131,8 +2129,7 @@ function submitDangKiem(e){
   const phuongTienId = document.getElementById('dk-phuongtien').value;
   const pt = state.thietbi.find(t=>t.id===phuongTienId);
   state.dangkiem.push({id:'DK'+(state.nextId++), phuongTienId,
-    soDangKiem:document.getElementById('dk-so').value, hanDangKiem:document.getElementById('dk-han').value,
-    hanDangKiemRoMoc:document.getElementById('dk-hanromoc').value||null});
+    soDangKiem:document.getElementById('dk-so').value, hanDangKiem:document.getElementById('dk-han').value});
   logActivity(`Thêm đăng kiểm cho "${pt?pt.ten:phuongTienId}"`);
   renderM2(); return false;
 }
