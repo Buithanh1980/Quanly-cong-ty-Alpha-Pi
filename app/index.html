@@ -1965,6 +1965,45 @@ function baoCaoNhienLieuHtml(){
     </table></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin-top:8px">Tổng số lít trong khoảng lọc: <strong>${fmt(tongLit)} lít</strong></p>`;
 }
+let scBaoCao = {loai:'', bienSo:'', tuNgay:'', denNgay:''};
+function capNhatBaoCaoSuaChua(field, value){
+  scBaoCao[field] = value;
+  if(field==='loai') scBaoCao.bienSo = '';
+  renderM2();
+}
+function baoCaoSuaChuaHtml(){
+  const xeChoLoc = state.thietbi.filter(t=>(!scBaoCao.loai || t.ten===scBaoCao.loai) && t.bienSo);
+  const bienSoOptions = xeChoLoc.map(t=>`<option value="${t.bienSo}" ${scBaoCao.bienSo===t.bienSo?'selected':''}>${t.bienSo}</option>`).join('');
+  const filtered = state.suachua.filter(b=>{
+    if(scBaoCao.loai && b.phuongTienId!==scBaoCao.loai) return false;
+    if(scBaoCao.bienSo && b.bienSo!==scBaoCao.bienSo) return false;
+    if(scBaoCao.tuNgay && b.ngay < scBaoCao.tuNgay) return false;
+    if(scBaoCao.denNgay && b.ngay > scBaoCao.denNgay) return false;
+    return true;
+  }).sort((a,b)=>a.ngay.localeCompare(b.ngay));
+  const tongChiPhiLoc = filtered.reduce((s,b)=>s+(b.chiPhi||0),0);
+  return `
+    <div class="panel-head"><h3>Báo cáo sửa chữa</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Lọc theo loại xe, biển số và khoảng thời gian để xem lịch sử sửa chữa.</p>
+    <form class="inline-form" onsubmit="return false">
+      <div class="field"><label>Loại xe</label><select onchange="capNhatBaoCaoSuaChua('loai', this.value)">
+        <option value="" ${scBaoCao.loai===''?'selected':''}>Tất cả</option>
+        ${THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}" ${scBaoCao.loai===o.v?'selected':''}>${o.t}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>Biển số xe</label><select onchange="capNhatBaoCaoSuaChua('bienSo', this.value)">
+        <option value="" ${scBaoCao.bienSo===''?'selected':''}>Tất cả</option>
+        ${bienSoOptions}
+      </select></div>
+      <div class="field"><label>Từ ngày</label><input type="date" value="${scBaoCao.tuNgay}" onchange="capNhatBaoCaoSuaChua('tuNgay', this.value)"></div>
+      <div class="field"><label>Đến ngày</label><input type="date" value="${scBaoCao.denNgay}" onchange="capNhatBaoCaoSuaChua('denNgay', this.value)"></div>
+    </form>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngày</th><th>Thiết bị/phương tiện</th><th>Biển số xe</th><th>Nội dung</th><th style="text-align:right">Chi phí</th><th>Nhà CC</th><th style="text-align:right">Giờ HĐ/km</th><th>Hạng mục bảo dưỡng</th><th>Mốc tiếp theo</th><th>Trạng thái</th></tr></thead>
+      <tbody>${filtered.map(b=>`<tr><td class="mono">${b.ngay}</td><td>${b.phuongTienId}</td><td class="mono">${b.bienSo||''}</td><td>${b.noiDung}</td><td class="num">${fmt(b.chiPhi)}</td><td>${b.donViThucHien||''}</td><td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td>${b.hangMucBaoDuong||''}</td><td>${b.hanBaoDuongTiep?fmt(b.hanBaoDuongTiep):''}</td><td><span class="pill ${b.trangThai==='Đã duyệt'?'approved':'pending'}">${b.trangThai}</span></td></tr>`).join('')
+        || `<tr class="empty-row"><td colspan="10">Không có dữ liệu phù hợp</td></tr>`}</tbody>
+    </table></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin-top:8px">Tổng chi phí trong khoảng lọc: <strong>${fmt(tongChiPhiLoc)} đ</strong></p>`;
+}
 function renderNhatKy(body, key, canAdd){
   const cfg = NHATKY_CONFIG[key];
   const list = state[key];
@@ -2008,11 +2047,14 @@ function renderNhatKy(body, key, canAdd){
           <td class="num">${fmt(b.chiPhi)}</td><td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td>${b.hangMucBaoDuong||''}</td><td>${b.hanBaoDuongTiep?fmt(b.hanBaoDuongTiep):''}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
       }).join('') || `<tr class="empty-row"><td colspan="${isFuel?6:9}">Chưa có ghi nhận nào</td></tr>`}</tbody>
     </table></div>`;
+  const statRowHtml = `<div class="stat-row">
+      <div class="stat-card"><div class="slabel">Chi phí ${cfg.ten} lũy kế</div><div class="sval">${fmt(tongChiPhi)} <span class="sunit">đ</span></div></div>
+    </div>`;
   body.innerHTML = isFuel
     ? `${logSectionHtml}${baoCaoNhienLieuHtml()}`
-    : `<div class="stat-row">
-      <div class="stat-card"><div class="slabel">Chi phí ${cfg.ten} lũy kế</div><div class="sval">${fmt(tongChiPhi)} <span class="sunit">đ</span></div></div>
-    </div>${logSectionHtml}`;
+    : key === 'suachua'
+      ? `${statRowHtml}${logSectionHtml}${baoCaoSuaChuaHtml()}`
+      : `${statRowHtml}${logSectionHtml}`;
   capNhatBienSoOptions();
 }
 function capNhatBienSoOptions(){
