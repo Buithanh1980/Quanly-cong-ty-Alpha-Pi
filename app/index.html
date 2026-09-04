@@ -1965,7 +1965,7 @@ function baoCaoNhienLieuHtml(){
     </table></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin-top:8px">Tổng số lít trong khoảng lọc: <strong>${fmt(tongLit)} lít</strong></p>`;
 }
-const LOAI_BAO_TRI_OPTIONS = [{v:'suachua',t:'Sửa chữa'},{v:'vattu',t:'Vật tư'}];
+const LOAI_BAO_TRI_OPTIONS = [{v:'vattu',t:'Vật tư'},{v:'suachua',t:'Sửa chữa'}];
 function suaChuaVatTuList(){
   return [
     ...state.suachua.map(b=>({...b, _loai:'suachua'})),
@@ -1996,8 +1996,8 @@ function baoCaoSuaChuaVatTuHtml(){
     <form class="inline-form" onsubmit="return false">
       <div class="field"><label>Loại</label><select onchange="capNhatBaoCaoSuaChuaVatTu('loaiGhiNhan', this.value)">
         <option value="" ${scvtBaoCao.loaiGhiNhan===''?'selected':''}>Tất cả</option>
-        <option value="suachua" ${scvtBaoCao.loaiGhiNhan==='suachua'?'selected':''}>Sửa chữa</option>
         <option value="vattu" ${scvtBaoCao.loaiGhiNhan==='vattu'?'selected':''}>Vật tư</option>
+        <option value="suachua" ${scvtBaoCao.loaiGhiNhan==='suachua'?'selected':''}>Sửa chữa</option>
       </select></div>
       <div class="field"><label>Loại xe</label><select onchange="capNhatBaoCaoSuaChuaVatTu('loaiXe', this.value)">
         <option value="" ${scvtBaoCao.loaiXe===''?'selected':''}>Tất cả</option>
