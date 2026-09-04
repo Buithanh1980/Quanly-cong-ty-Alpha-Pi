@@ -475,7 +475,7 @@ function loadState(){
     if(!state.vattu) state.vattu = seedState().vattu;
     if(!state.xevantai) state.xevantai = seedState().xevantai;
     if(!state.dangkiem) state.dangkiem = seedState().dangkiem;
-    if(state.thietbi) state.thietbi.forEach(t=>{ if(t.boPhan===undefined) t.boPhan='Khai thác'; if(t.bienSo===undefined) t.bienSo=''; });
+    if(state.thietbi) state.thietbi.forEach(t=>{ if(t.boPhan===undefined) t.boPhan='Khai thác'; if(t.bienSo===undefined) t.bienSo=''; if(!t.trangThaiHoatDong) t.trangThaiHoatDong='Đang hoạt động'; });
     if(!state.thietBiSoLuong) state.thietBiSoLuong = seedState().thietBiSoLuong;
     if(!state.dexuatmuahang) state.dexuatmuahang = seedState().dexuatmuahang;
     if(!state.denghithanhtoan) state.denghithanhtoan = seedState().denghithanhtoan;
@@ -1618,6 +1618,7 @@ function closeModal(id){ document.getElementById(id).classList.remove('active');
 /* ===================== SỬA / XÓA BẢN GHI (DÙNG CHUNG) ===================== */
 const LOAI_XE_OPTIONS = ['Xe ben','Xe thùng','Xe container','Tàu'].map(v=>({v,t:v}));
 const THIETBI_TEN_OPTIONS = ['Xe múc','Xe xúc lật','Xe tải','Cẩu điện'].map(v=>({v,t:v}));
+const TRANG_THAI_HOAT_DONG_OPTIONS = [{v:'Đang hoạt động',t:'Đang hoạt động'},{v:'Đang sửa chữa',t:'Đang sửa chữa'},{v:'Ngừng hoạt động',t:'Ngừng hoạt động'}];
 const LOAI_XE_BANG_CHUNG = ['Xe thùng','Xe ben','Xe container'];
 const FIELD_SCHEMAS = {
   doixe: {ten:'tài xế / người vận hành máy', fields:[
@@ -1660,6 +1661,7 @@ const FIELD_SCHEMAS = {
   thietbi: {ten:'thiết bị', fields:[
     {key:'ten', label:'Tên thiết bị', type:'select', options:THIETBI_TEN_OPTIONS},
     {key:'bienSo', label:'Biển số', type:'text'},
+    {key:'trangThaiHoatDong', label:'Trạng thái hoạt động', type:'select', options:TRANG_THAI_HOAT_DONG_OPTIONS},
   ]},
   nhienlieu: {ten:'nhật ký nhiên liệu', fields:[
     {key:'ngay', label:'Ngày', type:'date'},
@@ -1861,6 +1863,45 @@ function tieuHaoPill(bienSo){
   if(!canhBao) return '';
   return `<span class="pill pending" title="Trung bình trước đó: ${fmt(canhBao.avgTruoc)} lít/đơn vị">⚠ Tiêu hao tăng ${Math.round(canhBao.pctTang*100)}% (${fmt(canhBao.latest)} lít/đơn vị)</span>`;
 }
+function coCanhBaoBaoDuong(bienSo){
+  const hienTai = gioHoatDongHienTai(bienSo);
+  if(hienTai===null) return false;
+  return Object.values(baoDuongTheoHangMuc(bienSo)).some(han=>hienTai/han >= 0.9);
+}
+function kiemDinhSapToiChoThietBi(thietBiId){
+  const list = state.dangkiem.filter(d=>d.phuongTienId===thietBiId);
+  if(!list.length) return null;
+  return list.reduce((a,b)=> daysUntil(a.hanDangKiem) <= daysUntil(b.hanDangKiem) ? a : b);
+}
+function kiemDinhPill(thietBiId){
+  const soonest = kiemDinhSapToiChoThietBi(thietBiId);
+  if(!soonest) return '<span style="color:var(--ink-soft);font-size:12px">Chưa có dữ liệu</span>';
+  return expiryPill(soonest.hanDangKiem);
+}
+function tomTatCanhBaoThietBi(){
+  let soBaoDuong=0, soTieuHao=0, soKiemDinh=0;
+  state.thietbi.forEach(t=>{
+    if(coCanhBaoBaoDuong(t.bienSo)) soBaoDuong++;
+    if(canhBaoTieuHaoNhienLieu(t.bienSo)) soTieuHao++;
+    const kd = kiemDinhSapToiChoThietBi(t.id);
+    if(kd && daysUntil(kd.hanDangKiem)<=30) soKiemDinh++;
+  });
+  return {soBaoDuong, soTieuHao, soKiemDinh};
+}
+function trangThaiHoatDongPill(trangThai){
+  const cls = trangThai==='Đang hoạt động' ? 'approved' : trangThai==='Đang sửa chữa' ? 'pending' : 'rejected';
+  return `<span class="pill ${cls}">${trangThai}</span>`;
+}
+function xepHangXeHayHong(){
+  const counts = {};
+  state.suachua.forEach(b=>{
+    if(!b.bienSo) return;
+    if(!counts[b.bienSo]) counts[b.bienSo] = {soLan:0, tongChiPhi:0};
+    counts[b.bienSo].soLan++;
+    counts[b.bienSo].tongChiPhi += (b.chiPhi||0);
+  });
+  return Object.entries(counts).sort((a,b)=>b[1].soLan-a[1].soLan).slice(0,5);
+}
 function renderM2(){
   const content = document.getElementById('content');
   const tabs = [{id:'thietbi',label:'Thiết bị'},{id:'nhienlieu',label:'Nhiên liệu'},{id:'suachuavattu',label:'Sửa chữa/Vật tư'},{id:'dangkiem',label:'Kiểm định'}];
@@ -1872,9 +1913,15 @@ function renderM2(){
   const canAdd = canEnter('M2');
 
   if(currentTab === 'thietbi'){
+    const tk = tomTatCanhBaoThietBi();
     body.innerHTML = `
       <div class="panel-head"><h3>Danh mục thiết bị &amp; phương tiện</h3></div>
       <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Máy móc, xe/phương tiện hoạt động nội bộ trong bãi — do Phòng Khai thác quản lý. Xe chạy tuyến liên vận theo dõi ở M4 · Vận tải liên vận.</p>
+      <div class="stat-row">
+        <div class="stat-card"><div class="slabel">Xe sắp/đã đến hạn bảo dưỡng</div><div class="sval">${tk.soBaoDuong} <span class="sunit">xe</span></div></div>
+        <div class="stat-card"><div class="slabel">Xe tiêu hao nhiên liệu bất thường</div><div class="sval">${tk.soTieuHao} <span class="sunit">xe</span></div></div>
+        <div class="stat-card"><div class="slabel">Xe sắp/đã hết hạn kiểm định</div><div class="sval">${tk.soKiemDinh} <span class="sunit">xe</span></div></div>
+      </div>
       ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm thiết bị / phương tiện</summary>
         <form class="inline-form" onsubmit="return submitThietBi(event)">
           <div class="field"><label>Tên thiết bị/phương tiện</label><select required id="tb-ten">${THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('')}</select></div>
@@ -1882,12 +1929,12 @@ function renderM2(){
           <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
         </form></details>` : ''}
       <div class="table-wrap"><table>
-        <thead><tr><th>Thiết bị/phương tiện</th><th>Biển số</th><th>Bảo dưỡng theo hạng mục (hiện tại/mốc tiếp theo)</th><th>Nhiên liệu</th><th></th></tr></thead>
-        <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td class="mono">${t.bienSo||''}</td><td>${baoDuongPill(t.bienSo)}</td><td>${tieuHaoPill(t.bienSo)}</td>
+        <thead><tr><th>Thiết bị/phương tiện</th><th>Biển số</th><th>Trạng thái</th><th>Bảo dưỡng theo hạng mục (hiện tại/mốc tiếp theo)</th><th>Nhiên liệu</th><th>Kiểm định</th><th></th></tr></thead>
+        <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td class="mono">${t.bienSo||''}</td><td>${trangThaiHoatDongPill(t.trangThaiHoatDong)}</td><td>${baoDuongPill(t.bienSo)}</td><td>${tieuHaoPill(t.bienSo)}</td><td>${kiemDinhPill(t.id)}</td>
           <td>${canAdd ? `<div class="row-actions">${actionButtons('thietbi', t.id)}</div>` : ''}</td></tr>`).join('')
-          || `<tr class="empty-row"><td colspan="5">Chưa có thiết bị nào</td></tr>`}</tbody>
+          || `<tr class="empty-row"><td colspan="7">Chưa có thiết bị nào</td></tr>`}</tbody>
       </table></div>
-      <p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px">Giờ hoạt động/số km, hạng mục bảo dưỡng và mức tiêu hao nhiên liệu được cập nhật từ tab Nhiên liệu và tab Sửa chữa/Vật tư mỗi lần ghi nhận.</p>`;
+      <p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px">Giờ hoạt động/số km, hạng mục bảo dưỡng và mức tiêu hao nhiên liệu được cập nhật từ tab Nhiên liệu và tab Sửa chữa/Vật tư mỗi lần ghi nhận. Hạn kiểm định lấy từ tab Kiểm định. Bấm Sửa để đổi trạng thái hoạt động.</p>`;
   } else if(currentTab === 'nhienlieu'){
     renderNhatKy(body, 'nhienlieu', canAdd);
   } else if(currentTab === 'suachuavattu'){
@@ -1919,6 +1966,7 @@ function submitThietBi(e){
   const ten = document.getElementById('tb-ten').value;
   state.thietbi.push({id:'TB'+(state.nextId++), ten, loai:'', boPhan:'Khai thác',
     bienSo:document.getElementById('tb-bienso').value,
+    trangThaiHoatDong:'Đang hoạt động',
     viTri:'Nội bộ bãi'});
   logActivity(`Thêm thiết bị/phương tiện "${ten}"`);
   renderM2(); return false;
@@ -2054,8 +2102,22 @@ function renderSuaChuaVatTu(body, canAdd){
           <td class="num">${fmt(b.chiPhi)}</td><td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td>${b.hangMucBaoDuong||''}</td><td>${b.hanBaoDuongTiep?fmt(b.hanBaoDuongTiep):''}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
       }).join('') || `<tr class="empty-row"><td colspan="11">Chưa có ghi nhận nào</td></tr>`}</tbody>
     </table></div>`;
-  body.innerHTML = `${logSectionHtml}${baoCaoSuaChuaVatTuHtml()}`;
+  body.innerHTML = `${logSectionHtml}${xepHangXeHayHongHtml()}${baoCaoSuaChuaVatTuHtml()}`;
   capNhatBienSoOptions();
+}
+function xepHangXeHayHongHtml(){
+  const top = xepHangXeHayHong();
+  if(!top.length) return '';
+  return `
+    <div class="panel-head"><h3>Xe sửa chữa nhiều nhất</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Xếp hạng theo số lần ghi nhận sửa chữa — giúp phát hiện xe hay hỏng cần chú ý.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Biển số xe</th><th>Loại xe</th><th style="text-align:right">Số lần sửa chữa</th><th style="text-align:right">Tổng chi phí</th></tr></thead>
+      <tbody>${top.map(([bienSo, info])=>{
+        const pt = state.thietbi.find(t=>t.bienSo===bienSo);
+        return `<tr><td class="mono">${bienSo}</td><td>${pt?pt.ten:''}</td><td class="num">${info.soLan}</td><td class="num">${fmt(info.tongChiPhi)}</td></tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
 }
 function renderNhatKy(body, key, canAdd){
   const cfg = NHATKY_CONFIG[key];
