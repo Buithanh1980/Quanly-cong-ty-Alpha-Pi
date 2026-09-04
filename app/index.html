@@ -1661,12 +1661,9 @@ const FIELD_SCHEMAS = {
   ]},
   nhienlieu: {ten:'nhật ký nhiên liệu', fields:[
     {key:'ngay', label:'Ngày', type:'date'},
-    {key:'noiDung', label:'Nội dung', type:'text'}, {key:'donViThucHien', label:'Đơn vị thực hiện/NCC', type:'text'},
-    {key:'chiPhi', label:'Chi phí (đ)', type:'number'},
+    {key:'bienSo', label:'Biển số xe', type:'text'},
     {key:'gioHoatDong', label:'Giờ hoạt động/số km hiện tại', type:'number'},
     {key:'soLit', label:'Số lít', type:'number'},
-    {key:'hangMucBaoDuong', label:'Hạng mục bảo dưỡng (để trống nếu không phải lần bảo dưỡng)', type:'text'},
-    {key:'hanBaoDuongTiep', label:'Mốc giờ/km cần bảo dưỡng tiếp theo (để trống nếu không phải lần bảo dưỡng)', type:'number'},
   ]},
   suachua: {ten:'nhật ký sửa chữa', fields:[
     {key:'ngay', label:'Ngày', type:'date'},
@@ -1930,56 +1927,79 @@ const NHATKY_CONFIG = {
 function renderNhatKy(body, key, canAdd){
   const cfg = NHATKY_CONFIG[key];
   const list = state[key];
+  const isFuel = key === 'nhienlieu';
   const tongChiPhi = list.reduce((s,b)=>s+b.chiPhi,0);
+  const tongSoLit = list.reduce((s,b)=>s+(b.soLit||0),0);
   const phuongTienOptions = THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('');
   body.innerHTML = `
     <div class="stat-row">
-      <div class="stat-card"><div class="slabel">Chi phí ${cfg.ten} lũy kế</div><div class="sval">${fmt(tongChiPhi)} <span class="sunit">đ</span></div></div>
+      ${isFuel
+        ? `<div class="stat-card"><div class="slabel">Tổng số lít nhiên liệu lũy kế</div><div class="sval">${fmt(tongSoLit)} <span class="sunit">lít</span></div></div>`
+        : `<div class="stat-card"><div class="slabel">Chi phí ${cfg.ten} lũy kế</div><div class="sval">${fmt(tongChiPhi)} <span class="sunit">đ</span></div></div>`}
     </div>
     <div class="panel-head"><h3>Nhật ký ${cfg.ten}</h3></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Ai có quyền trên module này đều ghi nhận được (kể cả Kế toán — chỉ ghi nhận chi phí, không duyệt). Người duyệt là Phòng Khai thác.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Ghi nhận ${cfg.ten}</summary>
       <form class="inline-form" onsubmit="return submitNhatKy(event,'${key}')">
         <div class="field"><label>Ngày</label><input type="date" required id="nk-ngay"></div>
-        <div class="field"><label>Thiết bị/phương tiện</label><select required id="nk-phuongtien">${phuongTienOptions}</select></div>
-        <div class="field"><label>Nội dung</label><input required id="nk-noidung" placeholder="${cfg.placeholder}"></div>
-        <div class="field"><label>Đơn vị thực hiện/NCC</label><input id="nk-donvi"></div>
-        <div class="field"><label>Chi phí (đ)</label><input type="number" required id="nk-chiphi"></div>
-        <div class="field"><label>Giờ hoạt động/số km hiện tại</label><input type="number" id="nk-giohoatdong" placeholder="VD: 1200 hoặc 45000"></div>
-        ${key==='nhienlieu' ? `<div class="field"><label>Số lít</label><input type="number" id="nk-solit" placeholder="VD: 120"></div>` : ''}
-        <div class="field" style="grid-column:1/-1"><label style="display:inline-flex;align-items:center;gap:8px;font-weight:400;font-size:13px;padding:8px 12px;border:1px solid var(--line);border-radius:4px;background:var(--paper-raised);cursor:pointer"><input type="checkbox" id="nk-baoduong" onchange="toggleBaoDuongField()"> Đây là lần bảo dưỡng định kỳ (thay nhớt, lọc dầu, thay vật tư định kỳ...)</label></div>
+        <div class="field"><label>Thiết bị/phương tiện</label><select required id="nk-phuongtien" ${isFuel?'onchange="capNhatBienSoOptions()"':''}>${phuongTienOptions}</select></div>
+        ${isFuel ? `<div class="field"><label>Biển số xe</label><select required id="nk-bienso"></select></div>` : ''}
+        ${!isFuel ? `<div class="field"><label>Nội dung</label><input required id="nk-noidung" placeholder="${cfg.placeholder}"></div>` : ''}
+        ${!isFuel ? `<div class="field"><label>Đơn vị thực hiện/NCC</label><input id="nk-donvi"></div>` : ''}
+        ${!isFuel ? `<div class="field"><label>Chi phí (đ)</label><input type="number" required id="nk-chiphi"></div>` : ''}
+        <div class="field"><label>Giờ hoạt động/số km hiện tại</label><input type="number" id="nk-giohoatdong" placeholder="${isFuel?'Không cần nhập mỗi lần, vài lần đổ dầu ghi 1 lần cũng được':'VD: 1200 hoặc 45000'}"></div>
+        ${isFuel ? `<div class="field"><label>Số lít</label><input type="number" required id="nk-solit" placeholder="VD: 120"></div>` : ''}
+        ${!isFuel ? `<div class="field" style="grid-column:1/-1"><label style="display:inline-flex;align-items:center;gap:8px;font-weight:400;font-size:13px;padding:8px 12px;border:1px solid var(--line);border-radius:4px;background:var(--paper-raised);cursor:pointer"><input type="checkbox" id="nk-baoduong" onchange="toggleBaoDuongField()"> Đây là lần bảo dưỡng định kỳ (thay nhớt, lọc dầu, thay vật tư định kỳ...)</label></div>
         <div id="nk-baoduongfield" style="display:none;grid-column:1/-1">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
             <div class="field"><label>Hạng mục bảo dưỡng</label><input id="nk-hangmuc" placeholder="VD: Thay nhớt máy"></div>
             <div class="field"><label>Mốc giờ/km cần bảo dưỡng tiếp theo</label><input type="number" id="nk-hanbaoduong" placeholder="VD: 1450 hoặc 50000"></div>
           </div>
-        </div>
+        </div>` : ''}
         <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
       </form></details>` : ''}
     <div class="table-wrap"><table>
-      <thead><tr><th>Ngày</th><th>Thiết bị/phương tiện</th><th>Nội dung</th><th style="text-align:right">Chi phí</th><th style="text-align:right">Giờ HĐ/km</th>${key==='nhienlieu'?'<th style="text-align:right">Số lít</th>':''}<th>Hạng mục bảo dưỡng</th><th>Mốc tiếp theo</th><th>Trạng thái</th><th></th></tr></thead>
+      <thead><tr><th>Ngày</th>${isFuel ? '<th>Biển số xe</th>' : '<th>Thiết bị/phương tiện</th><th>Nội dung</th><th style="text-align:right">Chi phí</th>'}<th style="text-align:right">Giờ HĐ/km</th>${isFuel ? '<th style="text-align:right">Số lít</th>' : '<th>Hạng mục bảo dưỡng</th><th>Mốc tiếp theo</th>'}<th>Trạng thái</th><th></th></tr></thead>
       <tbody>${list.map(b => {
-        const pt = state.thietbi.find(t=>t.ten===b.phuongTienId);
         const pillClass = b.trangThai==='Đã duyệt' ? 'approved' : 'pending';
         const coDuyet = currentUser.id==='KT';
         let action = (coDuyet && b.trangThai==='Chờ duyệt') ? `<button class="mini-btn approve" onclick="duyetNhatKy('${key}','${b.id}')">Duyệt</button>` : '';
         if(canAdd) action += actionButtons(key, b.id);
+        if(isFuel){
+          return `<tr><td class="mono">${b.ngay}</td><td>${b.bienSo||''}</td>
+            <td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td class="num">${b.soLit?fmt(b.soLit):''}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
+        }
+        const pt = state.thietbi.find(t=>t.ten===b.phuongTienId);
         return `<tr><td class="mono">${b.ngay}</td><td>${b.phuongTienId}${pt&&pt.bienSo?' — '+pt.bienSo:''}</td><td>${b.noiDung}</td>
-          <td class="num">${fmt(b.chiPhi)}</td><td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td>${key==='nhienlieu'?`<td class="num">${b.soLit?fmt(b.soLit):''}</td>`:''}<td>${b.hangMucBaoDuong||''}</td><td>${b.hanBaoDuongTiep?fmt(b.hanBaoDuongTiep):''}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
-      }).join('') || `<tr class="empty-row"><td colspan="9">Chưa có ghi nhận nào</td></tr>`}</tbody>
+          <td class="num">${fmt(b.chiPhi)}</td><td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td>${b.hangMucBaoDuong||''}</td><td>${b.hanBaoDuongTiep?fmt(b.hanBaoDuongTiep):''}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
+      }).join('') || `<tr class="empty-row"><td colspan="${isFuel?6:9}">Chưa có ghi nhận nào</td></tr>`}</tbody>
     </table></div>`;
+  if(isFuel) capNhatBienSoOptions();
+}
+function capNhatBienSoOptions(){
+  const sel = document.getElementById('nk-phuongtien');
+  const bsSel = document.getElementById('nk-bienso');
+  if(!sel || !bsSel) return;
+  const xe = state.thietbi.filter(t=>t.ten===sel.value && t.bienSo);
+  bsSel.innerHTML = xe.length
+    ? xe.map(t=>`<option value="${t.bienSo}">${t.bienSo}</option>`).join('')
+    : `<option value="">— Chưa có xe đã lưu cho loại này (thêm ở tab Thiết bị) —</option>`;
 }
 function toggleBaoDuongField(){
   document.getElementById('nk-baoduongfield').style.display = document.getElementById('nk-baoduong').checked ? '' : 'none';
 }
 function submitNhatKy(e, key){
   e.preventDefault();
-  const noiDung = document.getElementById('nk-noidung').value;
-  const laBaoDuong = document.getElementById('nk-baoduong').checked;
+  const isFuel = key === 'nhienlieu';
+  const noiDung = isFuel ? 'Đổ nhiên liệu' : document.getElementById('nk-noidung').value;
+  const laBaoDuong = !isFuel && document.getElementById('nk-baoduong').checked;
   const soLitEl = document.getElementById('nk-solit');
+  const bienSoEl = document.getElementById('nk-bienso');
   state[key].push({id:key.slice(0,2).toUpperCase()+(state.nextId++), ngay:document.getElementById('nk-ngay').value,
     phuongTienId:document.getElementById('nk-phuongtien').value,
-    noiDung, donViThucHien:document.getElementById('nk-donvi').value, chiPhi:parseFloat(document.getElementById('nk-chiphi').value)||0,
+    bienSo: bienSoEl ? bienSoEl.value : undefined,
+    noiDung, donViThucHien: isFuel ? '' : document.getElementById('nk-donvi').value,
+    chiPhi: isFuel ? 0 : (parseFloat(document.getElementById('nk-chiphi').value)||0),
     gioHoatDong:parseFloat(document.getElementById('nk-giohoatdong').value)||0,
     soLit: soLitEl ? (parseFloat(soLitEl.value)||0) : null,
     hangMucBaoDuong: laBaoDuong ? document.getElementById('nk-hangmuc').value : null,
