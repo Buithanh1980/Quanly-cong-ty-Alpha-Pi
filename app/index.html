@@ -465,6 +465,8 @@ function loadState(){
     const raw = localStorage.getItem(STORAGE_KEY);
     state = raw ? JSON.parse(raw) : seedState();
     if(!state.permissions) state.permissions = defaultPermissions();
+    if(state.permissions.KT) delete state.permissions.KT.M4;
+    if(state.permissions.VT) delete state.permissions.VT.M2;
     if(!state.log) state.log = [];
     if(!state.doixe) state.doixe = seedState().doixe;
     if(!state.congviec) state.congviec = seedState().congviec;
