@@ -1862,8 +1862,8 @@ function tieuHaoPill(bienSo){
 }
 function renderM2(){
   const content = document.getElementById('content');
-  const tabs = [{id:'thietbi',label:'Thiết bị'},{id:'nhienlieu',label:'Nhiên liệu'},{id:'suachua',label:'Sửa chữa'},{id:'vattu',label:'Vật tư'},{id:'dangkiem',label:'Kiểm định'}];
-  if(!['thietbi','nhienlieu','suachua','vattu','dangkiem'].includes(currentTab)) currentTab = 'thietbi';
+  const tabs = [{id:'thietbi',label:'Thiết bị'},{id:'nhienlieu',label:'Nhiên liệu'},{id:'suachuavattu',label:'Sửa chữa/Vật tư'},{id:'dangkiem',label:'Kiểm định'}];
+  if(!['thietbi','nhienlieu','suachuavattu','dangkiem'].includes(currentTab)) currentTab = 'thietbi';
   content.innerHTML = `<div class="tabs">` + tabs.map(t =>
     `<button class="tab-btn ${t.id===currentTab?'active':''}" onclick="currentTab='${t.id}';renderM2()">${t.label}</button>`
   ).join('') + `</div><div id="tab-body"></div>`;
@@ -1886,9 +1886,11 @@ function renderM2(){
           <td>${canAdd ? `<div class="row-actions">${actionButtons('thietbi', t.id)}</div>` : ''}</td></tr>`).join('')
           || `<tr class="empty-row"><td colspan="5">Chưa có thiết bị nào</td></tr>`}</tbody>
       </table></div>
-      <p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px">Giờ hoạt động/số km, hạng mục bảo dưỡng và mức tiêu hao nhiên liệu được cập nhật từ các tab Nhiên liệu/Sửa chữa/Vật tư mỗi lần ghi nhận.</p>`;
-  } else if(['nhienlieu','suachua','vattu'].includes(currentTab)){
-    renderNhatKy(body, currentTab, canAdd);
+      <p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px">Giờ hoạt động/số km, hạng mục bảo dưỡng và mức tiêu hao nhiên liệu được cập nhật từ tab Nhiên liệu và tab Sửa chữa/Vật tư mỗi lần ghi nhận.</p>`;
+  } else if(currentTab === 'nhienlieu'){
+    renderNhatKy(body, 'nhienlieu', canAdd);
+  } else if(currentTab === 'suachuavattu'){
+    renderSuaChuaVatTu(body, canAdd);
   } else {
     const phuongTienOptions = state.thietbi.map(t=>`<option value="${t.id}">${t.ten}${t.bienSo?' — '+t.bienSo:''}</option>`).join('');
     body.innerHTML = `
@@ -1923,8 +1925,6 @@ function submitThietBi(e){
 }
 const NHATKY_CONFIG = {
   nhienlieu: {ten:'nhiên liệu', placeholder:'VD: Đổ dầu diesel 120 lít'},
-  suachua:   {ten:'sửa chữa',   placeholder:'VD: Thay lốp, sửa hệ thống thủy lực'},
-  vattu:     {ten:'vật tư',     placeholder:'VD: Mua lọc dầu, dây curoa'},
 };
 let nlBaoCao = {loai:'', bienSo:'', tuNgay:'', denNgay:''};
 function capNhatBaoCaoNhienLieu(field, value){
@@ -1965,50 +1965,101 @@ function baoCaoNhienLieuHtml(){
     </table></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin-top:8px">Tổng số lít trong khoảng lọc: <strong>${fmt(tongLit)} lít</strong></p>`;
 }
-let scBaoCao = {loai:'', bienSo:'', tuNgay:'', denNgay:''};
-function capNhatBaoCaoSuaChua(field, value){
-  scBaoCao[field] = value;
-  if(field==='loai') scBaoCao.bienSo = '';
+const LOAI_BAO_TRI_OPTIONS = [{v:'suachua',t:'Sửa chữa'},{v:'vattu',t:'Vật tư'}];
+function suaChuaVatTuList(){
+  return [
+    ...state.suachua.map(b=>({...b, _loai:'suachua'})),
+    ...state.vattu.map(b=>({...b, _loai:'vattu'})),
+  ];
+}
+let scvtBaoCao = {loaiGhiNhan:'', loaiXe:'', bienSo:'', tuNgay:'', denNgay:''};
+function capNhatBaoCaoSuaChuaVatTu(field, value){
+  scvtBaoCao[field] = value;
+  if(field==='loaiXe') scvtBaoCao.bienSo = '';
   renderM2();
 }
-function baoCaoSuaChuaHtml(){
-  const xeChoLoc = state.thietbi.filter(t=>(!scBaoCao.loai || t.ten===scBaoCao.loai) && t.bienSo);
-  const bienSoOptions = xeChoLoc.map(t=>`<option value="${t.bienSo}" ${scBaoCao.bienSo===t.bienSo?'selected':''}>${t.bienSo}</option>`).join('');
-  const filtered = state.suachua.filter(b=>{
-    if(scBaoCao.loai && b.phuongTienId!==scBaoCao.loai) return false;
-    if(scBaoCao.bienSo && b.bienSo!==scBaoCao.bienSo) return false;
-    if(scBaoCao.tuNgay && b.ngay < scBaoCao.tuNgay) return false;
-    if(scBaoCao.denNgay && b.ngay > scBaoCao.denNgay) return false;
+function baoCaoSuaChuaVatTuHtml(){
+  const xeChoLoc = state.thietbi.filter(t=>(!scvtBaoCao.loaiXe || t.ten===scvtBaoCao.loaiXe) && t.bienSo);
+  const bienSoOptions = xeChoLoc.map(t=>`<option value="${t.bienSo}" ${scvtBaoCao.bienSo===t.bienSo?'selected':''}>${t.bienSo}</option>`).join('');
+  const filtered = suaChuaVatTuList().filter(b=>{
+    if(scvtBaoCao.loaiGhiNhan && b._loai!==scvtBaoCao.loaiGhiNhan) return false;
+    if(scvtBaoCao.loaiXe && b.phuongTienId!==scvtBaoCao.loaiXe) return false;
+    if(scvtBaoCao.bienSo && b.bienSo!==scvtBaoCao.bienSo) return false;
+    if(scvtBaoCao.tuNgay && b.ngay < scvtBaoCao.tuNgay) return false;
+    if(scvtBaoCao.denNgay && b.ngay > scvtBaoCao.denNgay) return false;
     return true;
   }).sort((a,b)=>a.ngay.localeCompare(b.ngay));
   const tongChiPhiLoc = filtered.reduce((s,b)=>s+(b.chiPhi||0),0);
   return `
-    <div class="panel-head"><h3>Báo cáo sửa chữa</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Lọc theo loại xe, biển số và khoảng thời gian để xem lịch sử sửa chữa.</p>
+    <div class="panel-head"><h3>Báo cáo sửa chữa/vật tư</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Lọc theo loại ghi nhận, loại xe, biển số và khoảng thời gian.</p>
     <form class="inline-form" onsubmit="return false">
-      <div class="field"><label>Loại xe</label><select onchange="capNhatBaoCaoSuaChua('loai', this.value)">
-        <option value="" ${scBaoCao.loai===''?'selected':''}>Tất cả</option>
-        ${THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}" ${scBaoCao.loai===o.v?'selected':''}>${o.t}</option>`).join('')}
+      <div class="field"><label>Loại</label><select onchange="capNhatBaoCaoSuaChuaVatTu('loaiGhiNhan', this.value)">
+        <option value="" ${scvtBaoCao.loaiGhiNhan===''?'selected':''}>Tất cả</option>
+        <option value="suachua" ${scvtBaoCao.loaiGhiNhan==='suachua'?'selected':''}>Sửa chữa</option>
+        <option value="vattu" ${scvtBaoCao.loaiGhiNhan==='vattu'?'selected':''}>Vật tư</option>
       </select></div>
-      <div class="field"><label>Biển số xe</label><select onchange="capNhatBaoCaoSuaChua('bienSo', this.value)">
-        <option value="" ${scBaoCao.bienSo===''?'selected':''}>Tất cả</option>
+      <div class="field"><label>Loại xe</label><select onchange="capNhatBaoCaoSuaChuaVatTu('loaiXe', this.value)">
+        <option value="" ${scvtBaoCao.loaiXe===''?'selected':''}>Tất cả</option>
+        ${THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}" ${scvtBaoCao.loaiXe===o.v?'selected':''}>${o.t}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>Biển số xe</label><select onchange="capNhatBaoCaoSuaChuaVatTu('bienSo', this.value)">
+        <option value="" ${scvtBaoCao.bienSo===''?'selected':''}>Tất cả</option>
         ${bienSoOptions}
       </select></div>
-      <div class="field"><label>Từ ngày</label><input type="date" value="${scBaoCao.tuNgay}" onchange="capNhatBaoCaoSuaChua('tuNgay', this.value)"></div>
-      <div class="field"><label>Đến ngày</label><input type="date" value="${scBaoCao.denNgay}" onchange="capNhatBaoCaoSuaChua('denNgay', this.value)"></div>
+      <div class="field"><label>Từ ngày</label><input type="date" value="${scvtBaoCao.tuNgay}" onchange="capNhatBaoCaoSuaChuaVatTu('tuNgay', this.value)"></div>
+      <div class="field"><label>Đến ngày</label><input type="date" value="${scvtBaoCao.denNgay}" onchange="capNhatBaoCaoSuaChuaVatTu('denNgay', this.value)"></div>
     </form>
     <div class="table-wrap"><table>
-      <thead><tr><th>Ngày</th><th>Thiết bị/phương tiện</th><th>Biển số xe</th><th>Nội dung</th><th style="text-align:right">Chi phí</th><th>Nhà CC</th><th style="text-align:right">Giờ HĐ/km</th><th>Hạng mục bảo dưỡng</th><th>Mốc tiếp theo</th><th>Trạng thái</th></tr></thead>
-      <tbody>${filtered.map(b=>`<tr><td class="mono">${b.ngay}</td><td>${b.phuongTienId}</td><td class="mono">${b.bienSo||''}</td><td>${b.noiDung}</td><td class="num">${fmt(b.chiPhi)}</td><td>${b.donViThucHien||''}</td><td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td>${b.hangMucBaoDuong||''}</td><td>${b.hanBaoDuongTiep?fmt(b.hanBaoDuongTiep):''}</td><td><span class="pill ${b.trangThai==='Đã duyệt'?'approved':'pending'}">${b.trangThai}</span></td></tr>`).join('')
-        || `<tr class="empty-row"><td colspan="10">Không có dữ liệu phù hợp</td></tr>`}</tbody>
+      <thead><tr><th>Ngày</th><th>Loại</th><th>Thiết bị/phương tiện</th><th>Biển số xe</th><th>Nội dung</th><th style="text-align:right">Chi phí</th><th>Nhà CC</th><th style="text-align:right">Giờ HĐ/km</th><th>Hạng mục bảo dưỡng</th><th>Mốc tiếp theo</th><th>Trạng thái</th></tr></thead>
+      <tbody>${filtered.map(b=>`<tr><td class="mono">${b.ngay}</td><td>${b._loai==='suachua'?'Sửa chữa':'Vật tư'}</td><td>${b.phuongTienId}</td><td class="mono">${b.bienSo||''}</td><td>${b.noiDung}</td><td class="num">${fmt(b.chiPhi)}</td><td>${b.donViThucHien||''}</td><td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td>${b.hangMucBaoDuong||''}</td><td>${b.hanBaoDuongTiep?fmt(b.hanBaoDuongTiep):''}</td><td><span class="pill ${b.trangThai==='Đã duyệt'?'approved':'pending'}">${b.trangThai}</span></td></tr>`).join('')
+        || `<tr class="empty-row"><td colspan="11">Không có dữ liệu phù hợp</td></tr>`}</tbody>
     </table></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin-top:8px">Tổng chi phí trong khoảng lọc: <strong>${fmt(tongChiPhiLoc)} đ</strong></p>`;
+}
+function renderSuaChuaVatTu(body, canAdd){
+  const list = suaChuaVatTuList();
+  const phuongTienOptions = THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('');
+  const loaiOptions = LOAI_BAO_TRI_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('');
+  const logSectionHtml = `
+    <div class="panel-head"><h3>Nhật ký sửa chữa/vật tư</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Ai có quyền trên module này đều ghi nhận được (kể cả Kế toán — chỉ ghi nhận chi phí, không duyệt). Người duyệt là Phòng Khai thác.</p>
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Ghi nhận sửa chữa/vật tư</summary>
+      <form class="inline-form" onsubmit="return submitNhatKy(event, document.getElementById('nk-loai').value)">
+        <div class="field"><label>Ngày</label><input type="date" required id="nk-ngay"></div>
+        <div class="field"><label>Loại</label><select required id="nk-loai">${loaiOptions}</select></div>
+        <div class="field"><label>Thiết bị/phương tiện</label><select required id="nk-phuongtien" onchange="capNhatBienSoOptions()">${phuongTienOptions}</select></div>
+        <div class="field"><label>Biển số xe</label><select required id="nk-bienso"></select></div>
+        <div class="field"><label>Nội dung</label><input required id="nk-noidung" placeholder="VD: Thay lốp / Mua lọc dầu, dây curoa"></div>
+        <div class="field"><label>Đơn vị thực hiện/NCC</label><input id="nk-donvi"></div>
+        <div class="field"><label>Chi phí (đ)</label><input type="number" required id="nk-chiphi"></div>
+        <div class="field"><label>Giờ hoạt động/số km hiện tại</label><input type="number" id="nk-giohoatdong" placeholder="VD: 1200 hoặc 45000"></div>
+        <div class="field" style="grid-column:1/-1"><label style="display:inline-flex;align-items:center;gap:8px;font-weight:400;font-size:13px;padding:8px 12px;border:1px solid var(--line);border-radius:4px;background:var(--paper-raised);cursor:pointer"><input type="checkbox" id="nk-baoduong" onchange="toggleBaoDuongField()"> Đây là lần bảo dưỡng định kỳ (thay nhớt, lọc dầu, thay vật tư định kỳ...)</label></div>
+        <div id="nk-baoduongfield" style="display:none;grid-column:1/-1">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="field"><label>Hạng mục bảo dưỡng</label><input id="nk-hangmuc" placeholder="VD: Thay nhớt máy"></div>
+            <div class="field"><label>Mốc giờ/km cần bảo dưỡng tiếp theo</label><input type="number" id="nk-hanbaoduong" placeholder="VD: 1450 hoặc 50000"></div>
+          </div>
+        </div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngày</th><th>Loại</th><th>Thiết bị/phương tiện</th><th>Biển số xe</th><th>Nội dung</th><th style="text-align:right">Chi phí</th><th style="text-align:right">Giờ HĐ/km</th><th>Hạng mục bảo dưỡng</th><th>Mốc tiếp theo</th><th>Trạng thái</th><th></th></tr></thead>
+      <tbody>${list.map(b => {
+        const pillClass = b.trangThai==='Đã duyệt' ? 'approved' : 'pending';
+        const coDuyet = currentUser.id==='KT';
+        let action = (coDuyet && b.trangThai==='Chờ duyệt') ? `<button class="mini-btn approve" onclick="duyetNhatKy('${b._loai}','${b.id}')">Duyệt</button>` : '';
+        if(canAdd) action += actionButtons(b._loai, b.id);
+        return `<tr><td class="mono">${b.ngay}</td><td>${b._loai==='suachua'?'Sửa chữa':'Vật tư'}</td><td>${b.phuongTienId}</td><td class="mono">${b.bienSo||''}</td><td>${b.noiDung}</td>
+          <td class="num">${fmt(b.chiPhi)}</td><td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td>${b.hangMucBaoDuong||''}</td><td>${b.hanBaoDuongTiep?fmt(b.hanBaoDuongTiep):''}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
+      }).join('') || `<tr class="empty-row"><td colspan="11">Chưa có ghi nhận nào</td></tr>`}</tbody>
+    </table></div>`;
+  body.innerHTML = `${logSectionHtml}${baoCaoSuaChuaVatTuHtml()}`;
+  capNhatBienSoOptions();
 }
 function renderNhatKy(body, key, canAdd){
   const cfg = NHATKY_CONFIG[key];
   const list = state[key];
-  const isFuel = key === 'nhienlieu';
-  const tongChiPhi = list.reduce((s,b)=>s+b.chiPhi,0);
   const phuongTienOptions = THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('');
   const logSectionHtml = `
     <div class="panel-head"><h3>Nhật ký ${cfg.ten}</h3></div>
@@ -2018,43 +2069,22 @@ function renderNhatKy(body, key, canAdd){
         <div class="field"><label>Ngày</label><input type="date" required id="nk-ngay"></div>
         <div class="field"><label>Thiết bị/phương tiện</label><select required id="nk-phuongtien" onchange="capNhatBienSoOptions()">${phuongTienOptions}</select></div>
         <div class="field"><label>Biển số xe</label><select required id="nk-bienso"></select></div>
-        ${!isFuel ? `<div class="field"><label>Nội dung</label><input required id="nk-noidung" placeholder="${cfg.placeholder}"></div>` : ''}
-        ${!isFuel ? `<div class="field"><label>Đơn vị thực hiện/NCC</label><input id="nk-donvi"></div>` : ''}
-        ${!isFuel ? `<div class="field"><label>Chi phí (đ)</label><input type="number" required id="nk-chiphi"></div>` : ''}
-        <div class="field"><label>Giờ hoạt động/số km hiện tại</label><input type="number" id="nk-giohoatdong" placeholder="${isFuel?'Không cần nhập mỗi lần, vài lần đổ dầu ghi 1 lần cũng được':'VD: 1200 hoặc 45000'}"></div>
-        ${isFuel ? `<div class="field"><label>Số lít</label><input type="number" required id="nk-solit" placeholder="VD: 120"></div>` : ''}
-        ${!isFuel ? `<div class="field" style="grid-column:1/-1"><label style="display:inline-flex;align-items:center;gap:8px;font-weight:400;font-size:13px;padding:8px 12px;border:1px solid var(--line);border-radius:4px;background:var(--paper-raised);cursor:pointer"><input type="checkbox" id="nk-baoduong" onchange="toggleBaoDuongField()"> Đây là lần bảo dưỡng định kỳ (thay nhớt, lọc dầu, thay vật tư định kỳ...)</label></div>
-        <div id="nk-baoduongfield" style="display:none;grid-column:1/-1">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-            <div class="field"><label>Hạng mục bảo dưỡng</label><input id="nk-hangmuc" placeholder="VD: Thay nhớt máy"></div>
-            <div class="field"><label>Mốc giờ/km cần bảo dưỡng tiếp theo</label><input type="number" id="nk-hanbaoduong" placeholder="VD: 1450 hoặc 50000"></div>
-          </div>
-        </div>` : ''}
+        <div class="field"><label>Giờ hoạt động/số km hiện tại</label><input type="number" id="nk-giohoatdong" placeholder="Không cần nhập mỗi lần, vài lần đổ dầu ghi 1 lần cũng được"></div>
+        <div class="field"><label>Số lít</label><input type="number" required id="nk-solit" placeholder="VD: 120"></div>
         <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
       </form></details>` : ''}
     <div class="table-wrap"><table>
-      <thead><tr><th>Ngày</th>${isFuel ? '<th>Biển số xe</th>' : '<th>Thiết bị/phương tiện</th><th>Nội dung</th><th style="text-align:right">Chi phí</th>'}<th style="text-align:right">Giờ HĐ/km</th>${isFuel ? '<th style="text-align:right">Số lít</th>' : '<th>Hạng mục bảo dưỡng</th><th>Mốc tiếp theo</th>'}<th>Trạng thái</th><th></th></tr></thead>
+      <thead><tr><th>Ngày</th><th>Biển số xe</th><th style="text-align:right">Giờ HĐ/km</th><th style="text-align:right">Số lít</th><th>Trạng thái</th><th></th></tr></thead>
       <tbody>${list.map(b => {
         const pillClass = b.trangThai==='Đã duyệt' ? 'approved' : 'pending';
         const coDuyet = currentUser.id==='KT';
         let action = (coDuyet && b.trangThai==='Chờ duyệt') ? `<button class="mini-btn approve" onclick="duyetNhatKy('${key}','${b.id}')">Duyệt</button>` : '';
         if(canAdd) action += actionButtons(key, b.id);
-        if(isFuel){
-          return `<tr><td class="mono">${b.ngay}</td><td>${b.bienSo||''}</td>
-            <td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td class="num">${b.soLit?fmt(b.soLit):''}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
-        }
-        return `<tr><td class="mono">${b.ngay}</td><td>${b.phuongTienId}${b.bienSo?' — '+b.bienSo:''}</td><td>${b.noiDung}</td>
-          <td class="num">${fmt(b.chiPhi)}</td><td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td>${b.hangMucBaoDuong||''}</td><td>${b.hanBaoDuongTiep?fmt(b.hanBaoDuongTiep):''}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
-      }).join('') || `<tr class="empty-row"><td colspan="${isFuel?6:9}">Chưa có ghi nhận nào</td></tr>`}</tbody>
+        return `<tr><td class="mono">${b.ngay}</td><td>${b.bienSo||''}</td>
+          <td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td class="num">${b.soLit?fmt(b.soLit):''}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
+      }).join('') || `<tr class="empty-row"><td colspan="6">Chưa có ghi nhận nào</td></tr>`}</tbody>
     </table></div>`;
-  const statRowHtml = `<div class="stat-row">
-      <div class="stat-card"><div class="slabel">Chi phí ${cfg.ten} lũy kế</div><div class="sval">${fmt(tongChiPhi)} <span class="sunit">đ</span></div></div>
-    </div>`;
-  body.innerHTML = isFuel
-    ? `${logSectionHtml}${baoCaoNhienLieuHtml()}`
-    : key === 'suachua'
-      ? `${logSectionHtml}${baoCaoSuaChuaHtml()}`
-      : `${statRowHtml}${logSectionHtml}`;
+  body.innerHTML = `${logSectionHtml}${baoCaoNhienLieuHtml()}`;
   capNhatBienSoOptions();
 }
 function capNhatBienSoOptions(){
