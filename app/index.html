@@ -1883,7 +1883,7 @@ function renderM2(){
         </form></details>` : ''}
       <div class="table-wrap"><table>
         <thead><tr><th>Thiết bị/phương tiện</th><th>Biển số</th><th>Bảo dưỡng theo hạng mục (hiện tại/mốc tiếp theo)</th><th>Nhiên liệu</th><th></th></tr></thead>
-        <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td class="mono">${t.bienSo||''}</td><td>${baoDuongPill(t.id)}</td><td>${tieuHaoPill(t.id)}</td>
+        <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td class="mono">${t.bienSo||''}</td><td>${baoDuongPill(t.ten)}</td><td>${tieuHaoPill(t.ten)}</td>
           <td>${canAdd ? `<div class="row-actions">${actionButtons('thietbi', t.id)}</div>` : ''}</td></tr>`).join('')
           || `<tr class="empty-row"><td colspan="5">Chưa có thiết bị nào</td></tr>`}</tbody>
       </table></div>
@@ -1931,7 +1931,7 @@ function renderNhatKy(body, key, canAdd){
   const cfg = NHATKY_CONFIG[key];
   const list = state[key];
   const tongChiPhi = list.reduce((s,b)=>s+b.chiPhi,0);
-  const phuongTienOptions = state.thietbi.map(t=>`<option value="${t.id}">${t.ten}${t.bienSo?' — '+t.bienSo:''}</option>`).join('');
+  const phuongTienOptions = THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('');
   body.innerHTML = `
     <div class="stat-row">
       <div class="stat-card"><div class="slabel">Chi phí ${cfg.ten} lũy kế</div><div class="sval">${fmt(tongChiPhi)} <span class="sunit">đ</span></div></div>
@@ -1959,12 +1959,12 @@ function renderNhatKy(body, key, canAdd){
     <div class="table-wrap"><table>
       <thead><tr><th>Ngày</th><th>Thiết bị/phương tiện</th><th>Nội dung</th><th style="text-align:right">Chi phí</th><th style="text-align:right">Giờ HĐ/km</th>${key==='nhienlieu'?'<th style="text-align:right">Số lít</th>':''}<th>Hạng mục bảo dưỡng</th><th>Mốc tiếp theo</th><th>Trạng thái</th><th></th></tr></thead>
       <tbody>${list.map(b => {
-        const pt = state.thietbi.find(t=>t.id===b.phuongTienId);
+        const pt = state.thietbi.find(t=>t.ten===b.phuongTienId);
         const pillClass = b.trangThai==='Đã duyệt' ? 'approved' : 'pending';
         const coDuyet = currentUser.id==='KT';
         let action = (coDuyet && b.trangThai==='Chờ duyệt') ? `<button class="mini-btn approve" onclick="duyetNhatKy('${key}','${b.id}')">Duyệt</button>` : '';
         if(canAdd) action += actionButtons(key, b.id);
-        return `<tr><td class="mono">${b.ngay}</td><td>${pt?pt.ten+(pt.bienSo?' — '+pt.bienSo:''):''}</td><td>${b.noiDung}</td>
+        return `<tr><td class="mono">${b.ngay}</td><td>${b.phuongTienId}${pt&&pt.bienSo?' — '+pt.bienSo:''}</td><td>${b.noiDung}</td>
           <td class="num">${fmt(b.chiPhi)}</td><td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td>${key==='nhienlieu'?`<td class="num">${b.soLit?fmt(b.soLit):''}</td>`:''}<td>${b.hangMucBaoDuong||''}</td><td>${b.hanBaoDuongTiep?fmt(b.hanBaoDuongTiep):''}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
       }).join('') || `<tr class="empty-row"><td colspan="9">Chưa có ghi nhận nào</td></tr>`}</tbody>
     </table></div>`;
