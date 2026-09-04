@@ -1969,10 +1969,7 @@ function renderNhatKy(body, key, canAdd){
   const isFuel = key === 'nhienlieu';
   const tongChiPhi = list.reduce((s,b)=>s+b.chiPhi,0);
   const phuongTienOptions = THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('');
-  body.innerHTML = `
-    ${isFuel ? baoCaoNhienLieuHtml() : `<div class="stat-row">
-      <div class="stat-card"><div class="slabel">Chi phí ${cfg.ten} lũy kế</div><div class="sval">${fmt(tongChiPhi)} <span class="sunit">đ</span></div></div>
-    </div>`}
+  const logSectionHtml = `
     <div class="panel-head"><h3>Nhật ký ${cfg.ten}</h3></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Ai có quyền trên module này đều ghi nhận được (kể cả Kế toán — chỉ ghi nhận chi phí, không duyệt). Người duyệt là Phòng Khai thác.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Ghi nhận ${cfg.ten}</summary>
@@ -2010,6 +2007,11 @@ function renderNhatKy(body, key, canAdd){
           <td class="num">${fmt(b.chiPhi)}</td><td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td>${b.hangMucBaoDuong||''}</td><td>${b.hanBaoDuongTiep?fmt(b.hanBaoDuongTiep):''}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
       }).join('') || `<tr class="empty-row"><td colspan="${isFuel?6:9}">Chưa có ghi nhận nào</td></tr>`}</tbody>
     </table></div>`;
+  body.innerHTML = isFuel
+    ? `${logSectionHtml}${baoCaoNhienLieuHtml()}`
+    : `<div class="stat-row">
+      <div class="stat-card"><div class="slabel">Chi phí ${cfg.ten} lũy kế</div><div class="sval">${fmt(tongChiPhi)} <span class="sunit">đ</span></div></div>
+    </div>${logSectionHtml}`;
   if(isFuel) capNhatBienSoOptions();
 }
 function capNhatBienSoOptions(){
