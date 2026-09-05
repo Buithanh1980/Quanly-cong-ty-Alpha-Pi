@@ -891,8 +891,9 @@ function parseKeHoach(text){
     let loaiViec = '';
     if(low.includes('vun')) loaiViec = 'Vun hàng';
     else if(low.includes('sàng')) loaiViec = 'Sàng than';
-    else if(low.includes('phối trộn')) loaiViec = 'Phối trộn';
-    else if(low.includes('sửa chữa')) loaiViec = 'Sửa chữa thiết bị';
+    else if(low.includes('trộn')) loaiViec = 'Trộn than';
+    else if(low.includes('bảo dưỡng') || low.includes('sửa chữa')) loaiViec = 'Bảo dưỡng sửa chữa';
+    else if(low.includes('gom')) loaiViec = 'Gom hàng nhập';
     else if(low.includes('nhập')) loaiViec = 'Xuống hàng nhập';
     else if(low.includes('xuất')) loaiViec = 'Xuất hàng';
     const baiMatch = rest.match(/bãi\s+([^\.]+)/i);
@@ -1008,7 +1009,7 @@ function renderGiaoViec(body){
   const lotOptions = state.lots.map(l=>`<option value="${l.id}">${l.id} · ${l.chuHang} — ${l.loaiHang}</option>`).join('');
   const jobs = state.congviec.slice().sort((a,b)=>b.ngay.localeCompare(a.ngay));
   const eqOpts = `<option value="Xúc lật">Xúc lật</option><option value="Máy múc">Máy múc</option><option value="Cẩu điện">Cẩu điện</option>`;
-  const viecOpts = ['Xuống hàng nhập','Xuất hàng','Vun hàng','Sàng than','Phối trộn','Sửa chữa thiết bị'].map(v=>`<option value="${v}">${v}</option>`).join('');
+  const viecOpts = LOAI_VIEC_LIST.map(v=>`<option value="${v}">${v}</option>`).join('');
   const caOpts = ['','Ca nhập 7h-11h','Ca nhập 13h-17h','Ca xuất 6h-18h','Ca xuất 18h-6h'].map(v=>`<option value="${v}">${v||'— chọn ca —'}</option>`).join('');
 
   const batchSection = !canAdd ? '' : (pendingBatch.length===0 ? `
@@ -1030,7 +1031,7 @@ function renderGiaoViec(body){
           <td style="font-size:11.5px;color:var(--ink-soft);max-width:180px">${r.raw||'(dòng thêm tay)'}</td>
           <td><input type="number" min="1" id="br-sl-${i}" value="${r.soLuong}" style="width:50px;padding:4px"></td>
           <td><select id="br-tb-${i}">${optsFor(['Xúc lật','Máy múc','Cẩu điện'], r.thietBi||'Xúc lật')}</select></td>
-          <td><select id="br-lv-${i}">${optsFor(['Xuống hàng nhập','Xuất hàng','Vun hàng','Sàng than','Phối trộn','Sửa chữa thiết bị'], r.loaiViec||'Xuống hàng nhập')}</select></td>
+          <td><select id="br-lv-${i}">${optsFor(LOAI_VIEC_LIST, r.loaiViec||'Xuống hàng nhập')}</select></td>
           <td><input id="br-kv-${i}" value="${r.khuVuc}" style="width:110px;padding:4px"></td>
           <td><select id="br-ca-${i}">${optsFor(['','Ca nhập 7h-11h','Ca nhập 13h-17h','Ca xuất 6h-18h','Ca xuất 18h-6h'], r.ca||'', true)}</select></td>
           <td><button type="button" class="mini-btn" onclick="removeBatchRow(${i})">Xóa</button></td>
@@ -1623,6 +1624,7 @@ function closeModal(id){ document.getElementById(id).classList.remove('active');
 const LOAI_XE_OPTIONS = ['Xe ben','Xe thùng','Xe container','Tàu'].map(v=>({v,t:v}));
 const THIETBI_TEN_OPTIONS = ['Xe múc','Xe xúc lật','Xe tải','Cẩu điện'].map(v=>({v,t:v}));
 const TRANG_THAI_HOAT_DONG_OPTIONS = [{v:'Đang hoạt động',t:'Đang hoạt động'},{v:'Đang sửa chữa',t:'Đang sửa chữa'},{v:'Ngừng hoạt động',t:'Ngừng hoạt động'}];
+const LOAI_VIEC_LIST = ['Xuống hàng nhập','Gom hàng nhập','Xuất hàng','Vun hàng','Sàng than','Trộn than','Bảo dưỡng sửa chữa'];
 const LOAI_XE_BANG_CHUNG = ['Xe thùng','Xe ben','Xe container'];
 const FIELD_SCHEMAS = {
   doixe: {ten:'tài xế / người vận hành máy', fields:[
@@ -1656,7 +1658,7 @@ const FIELD_SCHEMAS = {
   ]},
   congviec: {ten:'công việc', fields:[
     {key:'ngay', label:'Ngày', type:'date'},
-    {key:'loaiViec', label:'Loại việc', type:'select', options:['Xuống hàng nhập','Xuất hàng','Vun hàng','Sàng than','Phối trộn','Sửa chữa thiết bị'].map(v=>({v,t:v}))},
+    {key:'loaiViec', label:'Loại việc', type:'select', options:LOAI_VIEC_LIST.map(v=>({v,t:v}))},
     {key:'thietBiCan', label:'Thiết bị cần', type:'select', options:['Xúc lật','Máy múc','Cẩu điện'].map(v=>({v,t:v}))},
     {key:'ca', label:'Ca làm việc', type:'select', options:['Ca nhập 7h-11h','Ca nhập 13h-17h','Ca xuất 6h-18h','Ca xuất 18h-6h'].map(v=>({v,t:v}))},
     {key:'khuVuc', label:'Khu vực/bãi', type:'text'},
