@@ -1112,15 +1112,7 @@ function renderGiaoViec(body){
           </div>
           <div class="field" style="grid-column:1/-1"><label>Ghi chú</label><input id="dx-ghichu" placeholder="VD: Ưu tiên sửa chữa thiết bị"></div>
           <div class="form-actions" style="grid-column:1/-1"><button type="submit" class="add-btn">Lưu</button></div>
-        </form></details>
-      <details class="add-details"><summary class="add-summary">Nhập nhanh danh sách (mỗi người 1 dòng)</summary>
-        <div class="inline-form" style="grid-template-columns:1fr;">
-          <div class="field"><label>Họ tên (mỗi người 1 dòng) — mặc định gán "Xúc lật", vào Sửa để đổi sau</label>
-            <textarea id="dx-bulk" rows="8">${DANH_SACH_LAI_MAY_MAC_DINH.join('\n')}</textarea>
-          </div>
-          <div class="form-actions"><button type="button" class="add-btn" onclick="submitBulkDoiXe()">Thêm tất cả</button></div>
-        </div>
-      </details>` : ''}
+        </form></details>` : ''}
       <div class="table-wrap"><table>
         <thead><tr><th>Họ tên</th><th>Vận hành được</th><th>Ghi chú</th><th></th></tr></thead>
         <tbody>${state.doixe.map(d => `<tr><td>${d.hoTen}</td><td>${d.thietBi.map(t=>`<span class="eq-tag">${t}</span>`).join('')}</td><td>${d.ghiChu||''}</td>
@@ -1145,17 +1137,6 @@ function submitDoiXe(e){
     uuTien:document.getElementById('dx-uutien').value, ghiChu:document.getElementById('dx-ghichu').value});
   logActivity(`Thêm tài xế "${hoTen}"`);
   renderM1(); return false;
-}
-function submitBulkDoiXe(){
-  const ten = document.getElementById('dx-bulk').value
-    .split('\n').map(s=>s.trim()).filter(Boolean)
-    .filter(hoTen=>!state.doixe.some(d=>d.hoTen===hoTen));
-  if(!ten.length){ alert('Không có tên mới nào để thêm (có thể đã thêm hết rồi).'); return; }
-  ten.forEach(hoTen=>{
-    state.doixe.push({id:'DX'+(state.nextId++), hoTen, thietBi:['Xúc lật'], uuTien:'', ghiChu:''});
-  });
-  logActivity(`Thêm nhanh ${ten.length} tài xế/người vận hành máy`);
-  renderM1();
 }
 function submitCongViec(e){
   e.preventDefault();
@@ -1653,7 +1634,6 @@ const LOAI_XE_OPTIONS = ['Xe ben','Xe thùng','Xe container','Tàu'].map(v=>({v,
 const THIETBI_TEN_OPTIONS = ['Xe múc','Xe xúc lật','Xe tải','Cẩu điện'].map(v=>({v,t:v}));
 const TRANG_THAI_HOAT_DONG_OPTIONS = [{v:'Đang hoạt động',t:'Đang hoạt động'},{v:'Đang sửa chữa',t:'Đang sửa chữa'},{v:'Ngừng hoạt động',t:'Ngừng hoạt động'}];
 const LOAI_VIEC_LIST = ['Xuống hàng nhập','Gom hàng nhập','Xuất hàng','Vun hàng','Sàng than','Trộn than','Bảo dưỡng sửa chữa'];
-const DANH_SACH_LAI_MAY_MAC_DINH = ['Đào Xuân Hướng','Đào Xuân Triêm','Dương Văn Viên','Dương Văn Viết','Lê Công Nghĩa','Lê Hồng Rin','Lê Xuân Gia','Lê Xuân Quốc','Nguyễn Cơ Thạch','Nguyễn Huệ','Nguyễn Hữu Tý','Nguyễn Pháp','Nguyễn Văn Đức','Phạm Văn Tây','Phạm Văn Xuân Hoàng','Phan Doãn Phương'];
 const CA_NHAP_CA_NGAY = 'Ca nhập cả ngày (7h-11h & 13h-17h)';
 const CA_LIST = [CA_NHAP_CA_NGAY,'Ca nhập 7h-11h','Ca nhập 13h-17h','Ca xuất 6h-18h','Ca xuất 18h-6h'];
 const LOAI_VIEC_HANG_NHAP = ['Xuống hàng nhập','Gom hàng nhập'];
