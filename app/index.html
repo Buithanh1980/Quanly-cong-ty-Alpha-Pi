@@ -841,8 +841,8 @@ function renderTongQuan(body){
     ${tatCaBai.some(b=>locKhoang(state.nhap,b.lotId).some(r=>r.tuyen==='Đường bộ' && !r.loaiXe)) ? `<div class="info-box" style="margin-top:10px">Ô "Tổng khối lượng" (Nhập) tính toàn bộ phiếu nhập đường bộ + đường thủy, còn 3 ô xe thùng / xe ben / xe container chỉ tính riêng phiếu đường bộ đã xác định loại xe — vì vậy tổng các ô chi tiết có thể nhỏ hơn ô Tổng khối lượng. Vào tab Nhập hàng, bấm <b>Sửa</b> để gán loại xe cho phiếu còn thiếu.</div>` : ''}`;
 }
 
-function optsFor(values, selected, emptyAsChoose){
-  return values.map(v => `<option value="${v}" ${v===selected?'selected':''}>${v || (emptyAsChoose?'— chọn ca —':v)}</option>`).join('');
+function optsFor(values, selected, emptyLabel){
+  return values.map(v => `<option value="${v}" ${v===selected?'selected':''}>${v || (emptyLabel===true?'— chọn ca —':emptyLabel||v)}</option>`).join('');
 }
 function sortDrivers(list, loaiViec){
   return list.slice().sort((a,b)=>{
@@ -897,9 +897,10 @@ function parseKeHoach(text){
     else if(low.includes('nhập')) loaiViec = 'Xuống hàng nhập';
     else if(low.includes('xuất')) loaiViec = 'Xuất hàng';
     const baiMatch = rest.match(/bãi\s+([^\.]+)/i);
-    const khuVuc = baiMatch ? baiMatch[1].trim() : '';
+    const baiRaw = baiMatch ? baiMatch[1].trim().toLowerCase() : '';
+    const khuVuc = baiRaw ? (danhSachBaiPhang().find(b=>b.toLowerCase().includes(baiRaw)) || '') : '';
     let ca = '';
-    if(low.includes('nhập')) ca = 'Ca nhập 7h-11h';
+    if(low.includes('nhập')) ca = CA_NHAP_CA_NGAY;
     else if(low.includes('xuất')) ca = 'Ca xuất 6h-18h';
     return {soLuong, thietBi, loaiViec, khuVuc, ca, raw, ok: !!(thietBi && loaiViec)};
   });
@@ -912,8 +913,12 @@ function parseBatch(){
   pendingBatch = parseKeHoach(text);
   renderM1();
 }
+function capNhatCaTheoLoaiViec(){
+  const loai = document.getElementById('cv-loai').value;
+  if(LOAI_VIEC_HANG_NHAP.includes(loai)) document.getElementById('cv-ca').value = CA_NHAP_CA_NGAY;
+}
 function addBatchRow(){
-  pendingBatch.push({soLuong:1, thietBi:'Xúc lật', loaiViec:'Xuống hàng nhập', khuVuc:'', ca:'', raw:'', ok:true});
+  pendingBatch.push({soLuong:1, thietBi:'Xúc lật', loaiViec:'Xuống hàng nhập', khuVuc:'', ca:CA_NHAP_CA_NGAY, raw:'', ok:true});
   renderM1();
 }
 function removeBatchRow(i){ pendingBatch.splice(i,1); renderM1(); }
@@ -1010,7 +1015,8 @@ function renderGiaoViec(body){
   const jobs = state.congviec.slice().sort((a,b)=>b.ngay.localeCompare(a.ngay));
   const eqOpts = `<option value="Xúc lật">Xúc lật</option><option value="Máy múc">Máy múc</option><option value="Cẩu điện">Cẩu điện</option>`;
   const viecOpts = LOAI_VIEC_LIST.map(v=>`<option value="${v}">${v}</option>`).join('');
-  const caOpts = ['','Ca nhập 7h-11h','Ca nhập 13h-17h','Ca xuất 6h-18h','Ca xuất 18h-6h'].map(v=>`<option value="${v}">${v||'— chọn ca —'}</option>`).join('');
+  const caOpts = ['',...CA_LIST].map(v=>`<option value="${v}">${v||'— chọn ca —'}</option>`).join('');
+  const baiOpts = danhSachBaiPhang();
 
   const batchSection = !canAdd ? '' : (pendingBatch.length===0 ? `
     <details class="add-details"><summary class="add-summary">Mô tả kế hoạch nhiều việc trong ngày (tự động phân công)</summary>
@@ -1032,8 +1038,8 @@ function renderGiaoViec(body){
           <td><input type="number" min="1" id="br-sl-${i}" value="${r.soLuong}" style="width:50px;padding:4px"></td>
           <td><select id="br-tb-${i}">${optsFor(['Xúc lật','Máy múc','Cẩu điện'], r.thietBi||'Xúc lật')}</select></td>
           <td><select id="br-lv-${i}">${optsFor(LOAI_VIEC_LIST, r.loaiViec||'Xuống hàng nhập')}</select></td>
-          <td><input id="br-kv-${i}" value="${r.khuVuc}" style="width:110px;padding:4px"></td>
-          <td><select id="br-ca-${i}">${optsFor(['','Ca nhập 7h-11h','Ca nhập 13h-17h','Ca xuất 6h-18h','Ca xuất 18h-6h'], r.ca||'', true)}</select></td>
+          <td><select id="br-kv-${i}">${optsFor(['',...baiOpts], r.khuVuc||'', '— chọn bãi —')}</select></td>
+          <td><select id="br-ca-${i}">${optsFor(['',...CA_LIST], r.ca||'', true)}</select></td>
           <td><button type="button" class="mini-btn" onclick="removeBatchRow(${i})">Xóa</button></td>
         </tr>`).join('')}</tbody></table>
       </div>
@@ -1058,10 +1064,10 @@ function renderGiaoViec(body){
     ${batchSection}
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm 1 công việc (giao tay)</summary>
       <form class="inline-form" onsubmit="return submitCongViec(event)">
-        <div class="field"><label>Loại việc</label><select id="cv-loai">${viecOpts}</select></div>
+        <div class="field"><label>Loại việc</label><select id="cv-loai" onchange="capNhatCaTheoLoaiViec()">${viecOpts}</select></div>
         <div class="field"><label>Thiết bị cần</label><select id="cv-thietbi">${eqOpts}</select></div>
         <div class="field"><label>Ca làm việc</label><select id="cv-ca">${caOpts.replace('<option value="">— chọn ca —</option>','')}</select></div>
-        <div class="field"><label>Khu vực/bãi</label><input id="cv-khuvuc" placeholder="VD: Bãi Phú Thái"></div>
+        <div class="field"><label>Khu vực/bãi</label><select id="cv-khuvuc">${optsFor(['',...baiOpts], '', '— chọn bãi —')}</select></div>
         <div class="field"><label>Lô hàng liên quan (nếu có)</label><select id="cv-lot"><option value="">— không gắn lô —</option>${lotOptions}</select></div>
         <div class="field"><label>Ghi chú (nguồn kế hoạch)</label><input id="cv-ghichu" placeholder="VD: Chủ hàng báo qua Zalo nhóm Điều độ"></div>
         <div class="form-actions"><button type="submit" class="add-btn">Lưu công việc</button></div>
@@ -1330,6 +1336,9 @@ let pendingWeigh = null; // {huong, lotId, tuyen, tenTau, khachHang, bai, ticket
 const BAI_THEO_KHACH = {'Nam Tiến':['Bãi Alpha Pi','Bãi Phú Thái','Bãi Vinalift'], 'Coalimex':['Bãi Coalimex']};
 function baiOptionsHtml(khachHang, selected){
   return (BAI_THEO_KHACH[khachHang]||[]).map(b=>`<option value="${b}" ${b===selected?'selected':''}>${b}</option>`).join('');
+}
+function danhSachBaiPhang(){
+  return [...new Set(Object.values(BAI_THEO_KHACH).flat())];
 }
 function findOrCreateLot(chuHang, viTri, goiYLoaiHang){
   let lot = state.lots.find(l=>l.chuHang===chuHang && l.viTri===viTri);
@@ -1625,6 +1634,9 @@ const LOAI_XE_OPTIONS = ['Xe ben','Xe thùng','Xe container','Tàu'].map(v=>({v,
 const THIETBI_TEN_OPTIONS = ['Xe múc','Xe xúc lật','Xe tải','Cẩu điện'].map(v=>({v,t:v}));
 const TRANG_THAI_HOAT_DONG_OPTIONS = [{v:'Đang hoạt động',t:'Đang hoạt động'},{v:'Đang sửa chữa',t:'Đang sửa chữa'},{v:'Ngừng hoạt động',t:'Ngừng hoạt động'}];
 const LOAI_VIEC_LIST = ['Xuống hàng nhập','Gom hàng nhập','Xuất hàng','Vun hàng','Sàng than','Trộn than','Bảo dưỡng sửa chữa'];
+const CA_NHAP_CA_NGAY = 'Ca nhập cả ngày (7h-11h & 13h-17h)';
+const CA_LIST = [CA_NHAP_CA_NGAY,'Ca nhập 7h-11h','Ca nhập 13h-17h','Ca xuất 6h-18h','Ca xuất 18h-6h'];
+const LOAI_VIEC_HANG_NHAP = ['Xuống hàng nhập','Gom hàng nhập'];
 const LOAI_XE_BANG_CHUNG = ['Xe thùng','Xe ben','Xe container'];
 const FIELD_SCHEMAS = {
   doixe: {ten:'tài xế / người vận hành máy', fields:[
@@ -1660,8 +1672,8 @@ const FIELD_SCHEMAS = {
     {key:'ngay', label:'Ngày', type:'date'},
     {key:'loaiViec', label:'Loại việc', type:'select', options:LOAI_VIEC_LIST.map(v=>({v,t:v}))},
     {key:'thietBiCan', label:'Thiết bị cần', type:'select', options:['Xúc lật','Máy múc','Cẩu điện'].map(v=>({v,t:v}))},
-    {key:'ca', label:'Ca làm việc', type:'select', options:['Ca nhập 7h-11h','Ca nhập 13h-17h','Ca xuất 6h-18h','Ca xuất 18h-6h'].map(v=>({v,t:v}))},
-    {key:'khuVuc', label:'Khu vực/bãi', type:'text'},
+    {key:'ca', label:'Ca làm việc', type:'select', options:CA_LIST.map(v=>({v,t:v}))},
+    {key:'khuVuc', label:'Khu vực/bãi', type:'select', options:danhSachBaiPhang().map(v=>({v,t:v}))},
     {key:'ghiChu', label:'Ghi chú', type:'text'},
   ]},
   thietbi: {ten:'thiết bị', fields:[
