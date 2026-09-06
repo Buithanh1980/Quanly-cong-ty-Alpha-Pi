@@ -896,6 +896,7 @@ function parseKeHoach(text){
     else if(low.includes('gom')) loaiViec = 'Gom hàng nhập';
     else if(low.includes('nhập')) loaiViec = 'Xuống hàng nhập';
     else if(low.includes('xuất')) loaiViec = 'Xuất hàng';
+    if(thietBi==='Cẩu điện' && !loaiViec) loaiViec = 'Xuất hàng'; // cẩu điện chỉ dùng cho xuất hàng hoặc bảo dưỡng sửa chữa
     const baiMatch = rest.match(/bãi\s+([^\.]+)/i);
     const baiRaw = baiMatch ? baiMatch[1].trim().toLowerCase() : '';
     const khuVuc = baiRaw ? (danhSachBaiPhang().find(b=>b.toLowerCase().includes(baiRaw)) || '') : '';
