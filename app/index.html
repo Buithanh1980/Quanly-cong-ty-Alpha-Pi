@@ -1044,9 +1044,16 @@ function tatCaCanhBaoThieuThietBi(){
   return out;
 }
 
+function trungBinhCongThang(ngay){
+  if(!state.doixe.length) return 0;
+  const tong = state.doixe.reduce((s,d)=>s+congThangCuaTaiXe(d.hoTen, ngay), 0);
+  return tong / state.doixe.length;
+}
 function autoAssignBatch(slots, ngay){
   const assignedToday = {};
   const machineUsed = nhuCauTheoNgay(ngay); // số lượng đã dùng trước batch này (nếu có)
+  const ngayThang = parseInt((ngay||'').split('-')[2], 10) || 1;
+  const congTrungBinh = trungBinhCongThang(ngay);
   return slots.map(slot => {
     const limit = state.thietBiSoLuong[slot.thietBi];
     const daDung = machineUsed[slot.thietBi] || 0;
@@ -1065,6 +1072,13 @@ function autoAssignBatch(slots, ngay){
       score += congThangCuaTaiXe(d.hoTen, ngay);
       if(daLamHomTruoc(d.hoTen, ngay)) score += 3;
       score += (assignedToday[d.id]||0) * 5;
+      // Để dành người biết lái cẩu điện cho việc cẩu điện (cẩu điện chạy thường xuyên, dễ nhiều công hơn
+      // người khác) — chỉ bỏ ưu tiên này khi đã giữa/cuối tháng và người đó đang ít công hơn trung bình.
+      if(slot.thietBi!=='Cẩu điện' && coTheVanHanh(d,'Cẩu điện')){
+        const dangItCong = congThangCuaTaiXe(d.hoTen, ngay) < congTrungBinh;
+        const duocGiaoViecKhac = ngayThang >= 15 && dangItCong;
+        if(!duocGiaoViecKhac) score += 20;
+      }
       return {d, score};
     }).sort((a,b)=>a.score-b.score);
     const chosen = scored[0] ? scored[0].d : null;
@@ -1078,7 +1092,7 @@ function confirmBatch(){
   if(bad){ alert('Còn dòng thiếu Thiết bị / Loại việc / Ca — vui lòng chọn đủ trước khi phân công.'); return; }
   const slots = [];
   rows.forEach(r => { for(let k=0;k<r.soLuong;k++){
-    if(r.thietBi==='Cẩu điện' && r.loaiViec==='Xuất hàng'){
+    if(['Cẩu điện','Xúc lật','Máy múc to'].includes(r.thietBi) && r.loaiViec==='Xuất hàng'){
       slots.push({...r, ca:'Ca xuất 6h-18h'});
       slots.push({...r, ca:'Ca xuất 18h-6h', dungChungMay:true});
     } else {
