@@ -850,6 +850,19 @@ function renderTongQuan(body){
 function optsFor(values, selected, emptyLabel){
   return values.map(v => `<option value="${v}" ${v===selected?'selected':''}>${v || (emptyLabel===true?'— chọn ca —':emptyLabel||v)}</option>`).join('');
 }
+function tenHienThiThucHien(hoTen){
+  if(!hoTen) return '';
+  const driver = state.doixe.find(d=>d.hoTen===hoTen);
+  if(!driver) return hoTen; // không phải người trong đội (VD "Thuê ngoài...") — giữ nguyên
+  const words = hoTen.trim().split(/\s+/);
+  if(words.length <= 1) return hoTen;
+  const ten = words[words.length-1];
+  const soNguoiTrungTen = state.doixe.filter(d=>{
+    const w = d.hoTen.trim().split(/\s+/);
+    return w[w.length-1] === ten;
+  }).length;
+  return (soNguoiTrungTen > 1 && words.length >= 2) ? words.slice(-2).join(' ') : ten;
+}
 function coTheVanHanh(d, thietBi){
   if(d.thietBi.includes(thietBi)) return true;
   if(thietBi==='Máy múc nhỏ' && d.thietBi.includes('Máy múc to')) return true; // ai lái được máy múc to thì lái được máy múc nhỏ
@@ -1147,7 +1160,7 @@ function renderGiaoViec(body){
           actionCell += actionButtons('congviec', j.id);
         }
         return `<tr><td class="mono">${j.ngay}</td><td>${j.loaiViec}</td><td>${j.thietBiCan}</td><td style="font-size:12px">${j.ca}</td><td class="mono">${j.khuVuc||j.lotId||''}</td>
-          <td><span class="pill ${pillClass}">${j.trangThai}</span></td><td>${j.taiXe||''}</td><td><div class="row-actions">${actionCell}</div></td></tr>`;
+          <td><span class="pill ${pillClass}">${j.trangThai}</span></td><td>${tenHienThiThucHien(j.taiXe)}</td><td><div class="row-actions">${actionCell}</div></td></tr>`;
       }).join('') || `<tr class="empty-row"><td colspan="8">Chưa có công việc nào được ghi nhận</td></tr>`}</tbody>
     </table></div>
     ${canAdd && jobs.some(j=>j.trangThai==='Chưa giao') ? `
