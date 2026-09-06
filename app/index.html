@@ -1140,9 +1140,7 @@ function renderGiaoViec(body){
         if(canAdd && j.trangThai==='Chưa giao'){
           const goiY = state.doixe.find(d=>d.hoTen===j.taiXe);
           const suggestedId = goiY ? goiY.id : (j.taiXe ? 'THUE_NGOAI' : '');
-          actionCell = `<div class="assign-row"><select id="assign-${j.id}">${eligibleDriverOptions(j.thietBiCan, j.loaiViec, suggestedId)}</select>
-            <button class="mini-btn" onclick="huyCongViec('${j.id}')">Hủy</button>
-            <button class="mini-btn approve" onclick="giaoViec('${j.id}')">Giao việc</button></div>`;
+          actionCell = `<div class="assign-row"><select id="assign-${j.id}">${eligibleDriverOptions(j.thietBiCan, j.loaiViec, suggestedId)}</select></div>`;
         } else if(canAdd && j.trangThai==='Đã giao'){
           actionCell = `<div class="assign-row"><select id="assign-${j.id}">${eligibleDriverOptions(j.thietBiCan, j.loaiViec)}</select>
             <button class="mini-btn" onclick="giaoViec('${j.id}')">Đổi người</button></div>`;
@@ -1152,6 +1150,12 @@ function renderGiaoViec(body){
           <td><span class="pill ${pillClass}">${j.trangThai}</span></td><td>${j.taiXe||''}</td><td><div class="row-actions">${actionCell}</div></td></tr>`;
       }).join('') || `<tr class="empty-row"><td colspan="8">Chưa có công việc nào được ghi nhận</td></tr>`}</tbody>
     </table></div>
+    ${canAdd && jobs.some(j=>j.trangThai==='Chưa giao') ? `
+    <div class="form-actions" style="gap:10px;margin-top:10px">
+      <button type="button" class="btn-secondary" onclick="huyTatCaChuaGiao()">Hủy</button>
+      <button type="button" class="add-btn" onclick="giaoViecTatCa()">Giao việc</button>
+    </div>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin-top:6px">2 nút trên áp dụng cho toàn bộ dòng đang "Chưa giao" — rà soát/đổi người ở từng dòng xong thì bấm 1 lần.</p>` : ''}
     <div class="section-block" style="margin-top:24px">
       <h3 style="font-size:14px">Thống kê công lao động tháng 08/2026 <span style="font-weight:400;color:var(--ink-soft);font-size:12px">(số ngày có việc đã giao/hoàn thành — dùng để cân đối khi tự động phân công)</span></h3>
       <div class="table-wrap"><table><thead><tr><th>Người</th><th style="text-align:right">Số công</th></tr></thead>
@@ -1237,11 +1241,30 @@ function giaoViec(id){
   logActivity(doiNguoi ? `Đổi người phụ trách "${j.loaiViec}" từ ${trươcDo} sang ${j.taiXe}` : `Giao việc "${j.loaiViec}" (${j.ca}) cho ${j.taiXe}`);
   renderM1();
 }
-function huyCongViec(id){
-  const j = state.congviec.find(j=>j.id===id); if(!j) return;
-  if(!confirm(`Hủy đề xuất công việc "${j.loaiViec}" (${j.thietBiCan})?`)) return;
-  state.congviec = state.congviec.filter(x=>x.id!==id);
-  logActivity(`Hủy đề xuất công việc "${j.loaiViec}"`);
+function huyTatCaChuaGiao(){
+  const list = state.congviec.filter(j=>j.trangThai==='Chưa giao');
+  if(!list.length) return;
+  if(!confirm(`Hủy toàn bộ ${list.length} đề xuất công việc đang chờ giao?`)) return;
+  state.congviec = state.congviec.filter(j=>j.trangThai!=='Chưa giao');
+  logActivity(`Hủy toàn bộ ${list.length} đề xuất công việc đang chờ giao`);
+  renderM1();
+}
+function giaoViecTatCa(){
+  const list = state.congviec.filter(j=>j.trangThai==='Chưa giao');
+  if(!list.length) return;
+  list.forEach(j=>{
+    const sel = document.getElementById('assign-'+j.id);
+    if(!sel) return;
+    const val = sel.value;
+    if(val === 'THUE_NGOAI'){
+      j.taiXe = 'Thuê ngoài (huy động thêm)';
+    } else {
+      const d = state.doixe.find(d=>d.id===val);
+      j.taiXe = d ? d.hoTen : val;
+    }
+    j.trangThai = 'Đã giao'; j.nguoiGiao = currentUser.name;
+  });
+  logActivity(`Giao việc hàng loạt ${list.length} công việc đang chờ`);
   renderM1();
 }
 function renderNhap(body){
