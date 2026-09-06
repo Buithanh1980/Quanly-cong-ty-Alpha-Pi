@@ -937,8 +937,8 @@ function readBatchRowsFromDom(){
 /* ---- Đối chiếu nhu cầu thiết bị với số lượng thực có ---- */
 function nhuCauTheoNgay(ngay, extraSlots){
   const dem = {};
-  state.congviec.filter(j => j.ngay===ngay && j.trangThai!=='Từ chối').forEach(j => { dem[j.thietBiCan] = (dem[j.thietBiCan]||0) + 1; });
-  (extraSlots||[]).forEach(s => { dem[s.thietBi] = (dem[s.thietBi]||0) + 1; });
+  state.congviec.filter(j => j.ngay===ngay && j.trangThai!=='Từ chối').forEach(j => { if(!j.dungChungMay) dem[j.thietBiCan] = (dem[j.thietBiCan]||0) + 1; });
+  (extraSlots||[]).forEach(s => { if(!s.dungChungMay) dem[s.thietBi] = (dem[s.thietBi]||0) + 1; });
   return dem;
 }
 function canhBaoThieuTheoNgay(ngay, extraSlots){
@@ -961,8 +961,8 @@ function autoAssignBatch(slots, ngay){
   return slots.map(slot => {
     const limit = state.thietBiSoLuong[slot.thietBi];
     const daDung = machineUsed[slot.thietBi] || 0;
-    const conMay = limit===undefined || daDung < limit;
-    machineUsed[slot.thietBi] = daDung + 1;
+    const conMay = slot.dungChungMay || limit===undefined || daDung < limit;
+    if(!slot.dungChungMay) machineUsed[slot.thietBi] = daDung + 1;
     if(!conMay){
       return {...slot, taiXe:'Thuê ngoài (huy động thêm)', thieu:true};
     }
@@ -988,13 +988,20 @@ function confirmBatch(){
   const bad = rows.find(r=>!r.thietBi || !r.loaiViec || !r.ca);
   if(bad){ alert('Còn dòng thiếu Thiết bị / Loại việc / Ca — vui lòng chọn đủ trước khi phân công.'); return; }
   const slots = [];
-  rows.forEach(r => { for(let k=0;k<r.soLuong;k++) slots.push(r); });
+  rows.forEach(r => { for(let k=0;k<r.soLuong;k++){
+    if(r.thietBi==='Cẩu điện' && r.loaiViec==='Xuất hàng'){
+      slots.push({...r, ca:'Ca xuất 6h-18h'});
+      slots.push({...r, ca:'Ca xuất 18h-6h', dungChungMay:true});
+    } else {
+      slots.push(r);
+    }
+  } });
   const assigned = autoAssignBatch(slots, pendingBatchDate);
   assigned.forEach(a => {
     state.congviec.push({
       id:'CV'+(state.nextId++), ngay: pendingBatchDate, loaiViec:a.loaiViec, thietBiCan:a.thietBi, ca:a.ca,
       lotId:null, khuVuc:a.khuVuc, ghiChu:(a.raw ? a.raw+' — ' : '')+'Tự động phân công'+(a.thieu?' — THIẾU THIẾT BỊ':''),
-      trangThai:'Đã giao', taiXe:a.taiXe, nguoiGiao: currentUser.name,
+      trangThai:'Đã giao', taiXe:a.taiXe, nguoiGiao: currentUser.name, dungChungMay: a.dungChungMay||false,
     });
   });
   logActivity(`Tự động phân công ${assigned.length} đầu việc ngày ${pendingBatchDate}`);
@@ -1122,7 +1129,7 @@ function renderGiaoViec(body){
     </div>
     <div class="info-box">
       <b>Số lượng thiết bị hiện khai báo:</b> ${Object.entries(state.thietBiSoLuong).map(([k,v])=>`${v} ${k}`).join(' · ')} (chỉnh tại M9 — Quản trị hệ thống).<br>
-      <b>Ca làm việc:</b> Nhập hàng 7h-11h &amp; 13h-17h · Xuất hàng 6h-18h &amp; 18h-6h.<br>
+      <b>Ca làm việc:</b> Nhập hàng 7h-11h &amp; 13h-18h (1 người làm cả ngày) · Xuất hàng 6h-18h &amp; 18h-6h (riêng cẩu điện xuất hàng chia 2 người/2 ca).<br>
       <b>Quy tắc tự động phân công:</b> kiểm tra đủ số lượng thiết bị vật lý theo ngày trước → nếu đủ máy thì ưu tiên đúng chuyên môn → người được đánh dấu "Ưu tiên vun hàng" xếp trước cho việc vun hàng, việc khác thì nhường lại cho người còn lại → người có ít công trong tháng được ưu tiên trước (cân bằng khối lượng) → người đã làm hôm trước bị hạ ưu tiên nhẹ (xoay ca nghỉ) → người "Ưu tiên sửa chữa" chỉ điều động khi thật sự thiếu người → <b>vượt quá số thiết bị hiện có thì tự động đề xuất thuê thêm</b>, không gán cho người nội bộ nữa.
     </div>`;
 }
@@ -1634,8 +1641,8 @@ const LOAI_XE_OPTIONS = ['Xe ben','Xe thùng','Xe container','Tàu'].map(v=>({v,
 const THIETBI_TEN_OPTIONS = ['Xe múc','Xe xúc lật','Xe tải','Cẩu điện'].map(v=>({v,t:v}));
 const TRANG_THAI_HOAT_DONG_OPTIONS = [{v:'Đang hoạt động',t:'Đang hoạt động'},{v:'Đang sửa chữa',t:'Đang sửa chữa'},{v:'Ngừng hoạt động',t:'Ngừng hoạt động'}];
 const LOAI_VIEC_LIST = ['Xuống hàng nhập','Gom hàng nhập','Xuất hàng','Vun hàng','Sàng than','Trộn than','Bảo dưỡng sửa chữa'];
-const CA_NHAP_CA_NGAY = 'Ca nhập cả ngày (7h-11h & 13h-17h)';
-const CA_LIST = [CA_NHAP_CA_NGAY,'Ca nhập 7h-11h','Ca nhập 13h-17h','Ca xuất 6h-18h','Ca xuất 18h-6h'];
+const CA_NHAP_CA_NGAY = 'Ca nhập cả ngày (7h-11h & 13h-18h)';
+const CA_LIST = [CA_NHAP_CA_NGAY,'Ca nhập 7h-11h','Ca nhập 13h-18h','Ca xuất 6h-18h','Ca xuất 18h-6h'];
 const LOAI_VIEC_HANG_NHAP = ['Xuống hàng nhập','Gom hàng nhập'];
 const LOAI_XE_BANG_CHUNG = ['Xe thùng','Xe ben','Xe container'];
 const FIELD_SCHEMAS = {
