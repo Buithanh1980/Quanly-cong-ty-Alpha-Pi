@@ -906,20 +906,28 @@ function tinhThietBiKeHoachNhap(soXe, khuVuc, raw){
   return rows;
 }
 /* ---- Diễn giải mô tả kế hoạch nhiều việc thành các dòng ---- */
+function chuanHoaKhongDau(s){ return s.toLowerCase().replace(/\s+/g,''); }
+function timBaiTrongVanBan(vanBan){
+  const baiMatch = vanBan.match(/bãi\s+([^\.]+)/i);
+  const baiRaw = baiMatch ? baiMatch[1].trim() : '';
+  if(!baiRaw) return '';
+  return danhSachBaiPhang().find(b=>chuanHoaKhongDau(b).includes(chuanHoaKhongDau(baiRaw))) || '';
+}
 function parseKeHoach(text){
   const rows = [];
-  text.split(/[\.\n]+/).map(s=>s.trim()).filter(Boolean).forEach(raw=>{
-    if(!/\d/.test(raw)) return; // câu không có số (thường là câu xã giao) — bỏ qua
-    const low = raw.toLowerCase();
-    const baiMatch = raw.match(/bãi\s+([^\.]+)/i);
-    const baiRaw = baiMatch ? baiMatch[1].trim().toLowerCase() : '';
-    const khuVuc = baiRaw ? (danhSachBaiPhang().find(b=>b.toLowerCase().includes(baiRaw)) || '') : '';
-    // Dạng "kế hoạch nhập hàng": ... nhập khoảng N xe ...
-    const soXeMatch = raw.match(/nhập\s*(?:khoảng)?\s*(\d+)\s*xe/i);
+  text.split(/\n+/).map(s=>s.trim()).filter(Boolean).forEach(line=>{
+    // Dạng "kế hoạch nhập hàng" nguyên văn tin nhắn Zalo: tìm số xe và tên bãi trong CẢ DÒNG
+    // (tên bãi có thể nằm ở câu khác trong cùng dòng, không nhất thiết cùng câu với số xe)
+    const soXeMatch = line.match(/nhập\s*(?:khoảng)?\s*(\d+)\s*xe/i);
     if(soXeMatch){
-      rows.push(...tinhThietBiKeHoachNhap(parseInt(soXeMatch[1],10), khuVuc, raw));
+      const khuVuc = timBaiTrongVanBan(line);
+      rows.push(...tinhThietBiKeHoachNhap(parseInt(soXeMatch[1],10), khuVuc, line));
       return;
     }
+    // Dạng liệt kê từng đầu việc trong 1 dòng, cách nhau bởi dấu chấm: "N thiết bị loại việc bãi X. N thiết bị loại việc bãi Y."
+    line.split(/\.+/).map(s=>s.trim()).filter(Boolean).forEach(raw=>{
+    if(!/\d/.test(raw)) return; // câu không có số (thường là câu xã giao) — bỏ qua
+    const khuVuc = timBaiTrongVanBan(raw);
     // Dạng liệt kê từng đầu việc: "N thiết bị loại việc bãi X"
     const m = raw.match(/^(\d+)\s+(.*)$/);
     if(!m){ rows.push({soLuong:1, thietBi:'', loaiViec:'', khuVuc:'', ca:'', raw, ok:false}); return; }
@@ -946,6 +954,7 @@ function parseKeHoach(text){
     if(LOAI_VIEC_HANG_NHAP.includes(loaiViec)) ca = CA_NHAP_CA_NGAY;
     else if(loaiViec==='Xuất hàng') ca = 'Ca xuất 6h-18h';
     rows.push({soLuong, thietBi, loaiViec, khuVuc, ca, raw, ok: !!(thietBi && loaiViec)});
+    });
   });
   return rows;
 }
