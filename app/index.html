@@ -363,6 +363,19 @@
   </div>
 </div>
 
+<!-- ============ MODAL: Nội dung giao việc để dán Zalo (M1) ============ -->
+<div class="modal-overlay" id="modal-zalo">
+  <div class="modal" style="max-width:600px">
+    <h3>Nội dung giao việc</h3>
+    <p class="mnote">Copy đoạn dưới đây dán vào nhóm Zalo để báo việc cho anh em lái máy.</p>
+    <textarea id="zalo-text" rows="12" readonly style="width:100%;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:10px;border:1px solid var(--line);border-radius:4px;resize:vertical"></textarea>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" onclick="closeModal('modal-zalo')">Đóng</button>
+      <button type="button" class="add-btn" onclick="copyZaloText()">Copy</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ AI ASSISTANT WIDGET (BLĐ / Phòng Khai thác / Kế toán) ============ -->
 <button class="ai-fab" id="ai-fab" onclick="toggleAI()" title="Trợ lý AI Claude">✦<span class="ai-dot"></span></button>
 <div class="ai-panel" id="ai-panel">
@@ -1289,6 +1302,25 @@ function giaoViecTatCa(){
   });
   logActivity(`Giao việc hàng loạt ${list.length} công việc đang chờ`);
   renderM1();
+  document.getElementById('zalo-text').value = list.map(dongZaloChoJob).join('\n');
+  openModal('modal-zalo');
+}
+function formatNgayNgan(ngayISO){
+  const [y,m,d] = ngayISO.split('-');
+  return `${parseInt(d,10)}/${parseInt(m,10)}`;
+}
+function dongZaloChoJob(j){
+  return [formatNgayNgan(j.ngay), j.ca, j.taiXe, j.loaiViec, j.khuVuc].filter(Boolean).join(' - ');
+}
+function copyZaloText(){
+  const ta = document.getElementById('zalo-text');
+  ta.focus(); ta.select();
+  let ok = false;
+  try{ ok = document.execCommand('copy'); }catch(e){}
+  if(ok){ alert('Đã copy — dán vào Zalo được luôn.'); return; }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(ta.value).then(()=>alert('Đã copy — dán vào Zalo được luôn.')).catch(()=>alert('Không copy được tự động — bạn bôi đen và Ctrl+C thủ công giúp mình.'));
+  }
 }
 function renderNhap(body){
   const lots = visibleLots(); const lotIds = lots.map(l=>l.id);
