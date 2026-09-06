@@ -1133,8 +1133,7 @@ function renderGiaoViec(body){
             <button class="mini-btn approve" onclick="giaoViec('${j.id}')">Giao việc</button></div>`;
         } else if(canAdd && j.trangThai==='Đã giao'){
           actionCell = `<div class="assign-row"><select id="assign-${j.id}">${eligibleDriverOptions(j.thietBiCan, j.loaiViec)}</select>
-            <button class="mini-btn" onclick="giaoViec('${j.id}')">Đổi người</button>
-            <button class="mini-btn approve" onclick="hoanThanhCongViec('${j.id}')">Hoàn thành</button></div>`;
+            <button class="mini-btn" onclick="giaoViec('${j.id}')">Đổi người</button></div>`;
         }
         if(canAdd) actionCell += actionButtons('congviec', j.id);
         return `<tr><td class="mono">${j.ngay}</td><td>${j.loaiViec}</td><td>${j.thietBiCan}</td><td style="font-size:12px">${j.ca}</td><td class="mono">${j.khuVuc||j.lotId||''}</td>
@@ -1226,13 +1225,6 @@ function giaoViec(id){
   logActivity(doiNguoi ? `Đổi người phụ trách "${j.loaiViec}" từ ${trươcDo} sang ${j.taiXe}` : `Giao việc "${j.loaiViec}" (${j.ca}) cho ${j.taiXe}`);
   renderM1();
 }
-function hoanThanhCongViec(id){
-  const j = state.congviec.find(j=>j.id===id); if(!j) return;
-  j.trangThai = 'Hoàn thành';
-  logActivity(`Hoàn thành công việc "${j.loaiViec}" (${j.taiXe})`);
-  renderM1();
-}
-
 function renderNhap(body){
   const lots = visibleLots(); const lotIds = lots.map(l=>l.id);
   const rows = state.nhap.filter(n=>lotIds.includes(n.lotId)).sort((a,b)=>b.ngay.localeCompare(a.ngay));
