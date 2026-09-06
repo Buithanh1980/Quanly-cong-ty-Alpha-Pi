@@ -1074,7 +1074,7 @@ function renderGiaoViec(body){
       <div class="inline-form" style="grid-template-columns:1fr;">
         <div class="field" style="max-width:220px"><label>Ngày</label><input type="date" id="kh-ngay" value="${pendingBatchDate||''}"></div>
         <div class="field"><label>Mô tả (mỗi việc 1 câu, cách nhau bởi dấu chấm)</label>
-          <textarea id="kh-text" rows="4" placeholder="Dán nguyên văn tin nhắn kế hoạch từ Zalo vào đây. VD: Kế hoạch ngày mai 3/9 nhập khoảng 90 xe thùng bãi Phú Thái. Các a bố trí giúp thiết bị, nhân công."></textarea>
+          <textarea id="kh-text" rows="4" placeholder="Dán nguyên văn tin nhắn kế hoạch từ Zalo vào đây ( ghi thêm địa điểm bãi nếu có) hoặc mô tả kế hoạch công việc bằng cách nhắn tin trực tiếp."></textarea>
         </div>
         <div class="form-actions"><button type="button" class="add-btn" onclick="parseBatch()">Phân tích thành các đầu việc</button></div>
       </div>
