@@ -900,8 +900,8 @@ function parseKeHoach(text){
     const baiRaw = baiMatch ? baiMatch[1].trim().toLowerCase() : '';
     const khuVuc = baiRaw ? (danhSachBaiPhang().find(b=>b.toLowerCase().includes(baiRaw)) || '') : '';
     let ca = '';
-    if(low.includes('nhập')) ca = CA_NHAP_CA_NGAY;
-    else if(low.includes('xuất')) ca = 'Ca xuất 6h-18h';
+    if(LOAI_VIEC_HANG_NHAP.includes(loaiViec)) ca = CA_NHAP_CA_NGAY;
+    else if(loaiViec==='Xuất hàng') ca = 'Ca xuất 6h-18h';
     return {soLuong, thietBi, loaiViec, khuVuc, ca, raw, ok: !!(thietBi && loaiViec)};
   });
 }
