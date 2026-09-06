@@ -448,7 +448,7 @@ function seedState(){
     tamung: [],
     soquy: [],
     nhansu: [],
-    thietBiSoLuong: {'Xúc lật':0, 'Máy múc':0, 'Cẩu điện':0},
+    thietBiSoLuong: {'Xúc lật':0, 'Máy múc nhỏ':0, 'Máy múc to':0, 'Cẩu điện':0},
     nextId: 1,
   };
 }
@@ -477,6 +477,12 @@ function loadState(){
     if(!state.dangkiem) state.dangkiem = seedState().dangkiem;
     if(state.thietbi) state.thietbi.forEach(t=>{ if(t.boPhan===undefined) t.boPhan='Khai thác'; if(t.bienSo===undefined) t.bienSo=''; if(!t.trangThaiHoatDong) t.trangThaiHoatDong='Đang hoạt động'; });
     if(!state.thietBiSoLuong) state.thietBiSoLuong = seedState().thietBiSoLuong;
+    if(state.thietBiSoLuong['Máy múc'] !== undefined){
+      if(state.thietBiSoLuong['Máy múc nhỏ']===undefined) state.thietBiSoLuong['Máy múc nhỏ'] = 0;
+      if(state.thietBiSoLuong['Máy múc to']===undefined) state.thietBiSoLuong['Máy múc to'] = 0;
+      delete state.thietBiSoLuong['Máy múc'];
+    }
+    if(state.doixe) state.doixe.forEach(d=>{ d.thietBi = d.thietBi.map(t=>t==='Máy múc' ? 'Máy múc to' : t); });
     if(!state.dexuatmuahang) state.dexuatmuahang = seedState().dexuatmuahang;
     if(!state.denghithanhtoan) state.denghithanhtoan = seedState().denghithanhtoan;
     if(!state.tamung) state.tamung = seedState().tamung;
@@ -876,35 +882,67 @@ function thongKeCongThang(thangPrefix){
   return state.doixe.map(d=>({hoTen:d.hoTen, cong: congThangCuaTaiXe(d.hoTen, thangPrefix+'-01')})).sort((a,b)=>b.cong-a.cong);
 }
 
+/* ---- Quy tắc bố trí thiết bị cho kế hoạch nhập hàng theo số xe ---- */
+function tinhThietBiKeHoachNhap(soXe, khuVuc, raw){
+  const rows = [];
+  const laVinalift = khuVuc === 'Bãi Vinalift';
+  const laCoalimex = khuVuc === 'Bãi Coalimex';
+  if(!laVinalift){
+    let soMucNho, soXucLat;
+    if(soXe <= 50){ soMucNho = 1; soXucLat = 1; }
+    else if(soXe <= 150){ soMucNho = 2; soXucLat = 2; }
+    else { soMucNho = 3; soXucLat = 2; } // 151-400 xe
+    rows.push({soLuong:soMucNho, thietBi:'Máy múc nhỏ', loaiViec:'Xuống hàng nhập', khuVuc, ca:CA_NHAP_CA_NGAY, raw, ok:true});
+    rows.push({soLuong:soXucLat, thietBi:'Xúc lật', loaiViec:'Gom hàng nhập', khuVuc, ca:CA_NHAP_CA_NGAY, raw, ok:true});
+  }
+  if(!laCoalimex){
+    rows.push({soLuong:1, thietBi:'Máy múc to', loaiViec:'Vun hàng', khuVuc, ca:CA_NHAP_CA_NGAY, raw, ok:true});
+  }
+  return rows;
+}
 /* ---- Diễn giải mô tả kế hoạch nhiều việc thành các dòng ---- */
 function parseKeHoach(text){
-  return text.split(/[\.\n]+/).map(s=>s.trim()).filter(Boolean).map(raw=>{
-    const m = raw.match(/^(\d+)\s+(.*)$/);
-    if(!m) return {soLuong:1, thietBi:'', loaiViec:'', khuVuc:'', ca:'', raw, ok:false};
-    const soLuong = parseInt(m[1],10);
-    const rest = m[2];
-    const low = rest.toLowerCase();
-    let thietBi = '';
-    if(low.includes('xúc lật')) thietBi = 'Xúc lật';
-    else if(low.includes('múc')) thietBi = 'Máy múc';
-    else if(low.includes('cẩu')) thietBi = 'Cẩu điện';
-    let loaiViec = '';
-    if(low.includes('vun')) loaiViec = 'Vun hàng';
-    else if(low.includes('sàng')) loaiViec = 'Sàng than';
-    else if(low.includes('trộn')) loaiViec = 'Trộn than';
-    else if(low.includes('bảo dưỡng') || low.includes('sửa chữa')) loaiViec = 'Bảo dưỡng sửa chữa';
-    else if(low.includes('gom')) loaiViec = 'Gom hàng nhập';
-    else if(low.includes('nhập')) loaiViec = 'Xuống hàng nhập';
-    else if(low.includes('xuất')) loaiViec = 'Xuất hàng';
-    if(thietBi==='Cẩu điện' && !loaiViec) loaiViec = 'Xuất hàng'; // cẩu điện chỉ dùng cho xuất hàng hoặc bảo dưỡng sửa chữa
-    const baiMatch = rest.match(/bãi\s+([^\.]+)/i);
+  const rows = [];
+  text.split(/[\.\n]+/).map(s=>s.trim()).filter(Boolean).forEach(raw=>{
+    if(!/\d/.test(raw)) return; // câu không có số (thường là câu xã giao) — bỏ qua
+    const low = raw.toLowerCase();
+    const baiMatch = raw.match(/bãi\s+([^\.]+)/i);
     const baiRaw = baiMatch ? baiMatch[1].trim().toLowerCase() : '';
     const khuVuc = baiRaw ? (danhSachBaiPhang().find(b=>b.toLowerCase().includes(baiRaw)) || '') : '';
+    // Dạng "kế hoạch nhập hàng": ... nhập khoảng N xe ...
+    const soXeMatch = raw.match(/nhập\s*(?:khoảng)?\s*(\d+)\s*xe/i);
+    if(soXeMatch){
+      rows.push(...tinhThietBiKeHoachNhap(parseInt(soXeMatch[1],10), khuVuc, raw));
+      return;
+    }
+    // Dạng liệt kê từng đầu việc: "N thiết bị loại việc bãi X"
+    const m = raw.match(/^(\d+)\s+(.*)$/);
+    if(!m){ rows.push({soLuong:1, thietBi:'', loaiViec:'', khuVuc:'', ca:'', raw, ok:false}); return; }
+    const soLuong = parseInt(m[1],10);
+    const rest = m[2].toLowerCase();
+    let thietBi = '';
+    let mucChuaRoNhoTo = false;
+    if(rest.includes('xúc lật')) thietBi = 'Xúc lật';
+    else if(rest.includes('cẩu')) thietBi = 'Cẩu điện';
+    else if(rest.includes('múc nhỏ') || rest.includes('máy múc nhỏ')) thietBi = 'Máy múc nhỏ';
+    else if(rest.includes('múc to') || rest.includes('múc lớn') || rest.includes('máy múc to') || rest.includes('máy múc lớn')) thietBi = 'Máy múc to';
+    else if(rest.includes('múc')) mucChuaRoNhoTo = true;
+    let loaiViec = '';
+    if(rest.includes('vun')) loaiViec = 'Vun hàng';
+    else if(rest.includes('sàng')) loaiViec = 'Sàng than';
+    else if(rest.includes('trộn')) loaiViec = 'Trộn than';
+    else if(rest.includes('bảo dưỡng') || rest.includes('sửa chữa')) loaiViec = 'Bảo dưỡng sửa chữa';
+    else if(rest.includes('gom')) loaiViec = 'Gom hàng nhập';
+    else if(rest.includes('nhập')) loaiViec = 'Xuống hàng nhập';
+    else if(rest.includes('xuất')) loaiViec = 'Xuất hàng';
+    if(thietBi==='Cẩu điện' && !loaiViec) loaiViec = 'Xuất hàng'; // cẩu điện chỉ dùng cho xuất hàng hoặc bảo dưỡng sửa chữa
+    if(mucChuaRoNhoTo) thietBi = (loaiViec==='Xuống hàng nhập') ? 'Máy múc nhỏ' : 'Máy múc to'; // "múc" không rõ nhỏ/to — suy theo loại việc
     let ca = '';
     if(LOAI_VIEC_HANG_NHAP.includes(loaiViec)) ca = CA_NHAP_CA_NGAY;
     else if(loaiViec==='Xuất hàng') ca = 'Ca xuất 6h-18h';
-    return {soLuong, thietBi, loaiViec, khuVuc, ca, raw, ok: !!(thietBi && loaiViec)};
+    rows.push({soLuong, thietBi, loaiViec, khuVuc, ca, raw, ok: !!(thietBi && loaiViec)});
   });
+  return rows;
 }
 function parseBatch(){
   const text = document.getElementById('kh-text').value;
@@ -1021,7 +1059,7 @@ function renderGiaoViec(body){
   const canAdd = canEnter('M1');
   const lotOptions = state.lots.map(l=>`<option value="${l.id}">${l.id} · ${l.chuHang} — ${l.loaiHang}</option>`).join('');
   const jobs = state.congviec.slice().sort((a,b)=>b.ngay.localeCompare(a.ngay));
-  const eqOpts = `<option value="Xúc lật">Xúc lật</option><option value="Máy múc">Máy múc</option><option value="Cẩu điện">Cẩu điện</option>`;
+  const eqOpts = THIET_BI_VAN_HANH_LIST.map(v=>`<option value="${v}">${v}</option>`).join('');
   const viecOpts = LOAI_VIEC_LIST.map(v=>`<option value="${v}">${v}</option>`).join('');
   const caOpts = ['',...CA_LIST].map(v=>`<option value="${v}">${v||'— chọn ca —'}</option>`).join('');
   const baiOpts = danhSachBaiPhang();
@@ -1044,7 +1082,7 @@ function renderGiaoViec(body){
         <tbody>${pendingBatch.map((r,i)=>`<tr ${!r.ok?'style="background:var(--amber-tint)"':''}>
           <td style="font-size:11.5px;color:var(--ink-soft);max-width:180px">${r.raw||'(dòng thêm tay)'}</td>
           <td><input type="number" min="1" id="br-sl-${i}" value="${r.soLuong}" style="width:50px;padding:4px"></td>
-          <td><select id="br-tb-${i}">${optsFor(['Xúc lật','Máy múc','Cẩu điện'], r.thietBi||'Xúc lật')}</select></td>
+          <td><select id="br-tb-${i}">${optsFor(THIET_BI_VAN_HANH_LIST, r.thietBi||'Xúc lật')}</select></td>
           <td><select id="br-lv-${i}">${optsFor(LOAI_VIEC_LIST, r.loaiViec||'Xuống hàng nhập')}</select></td>
           <td><select id="br-kv-${i}">${optsFor(['',...baiOpts], r.khuVuc||'', '— chọn bãi —')}</select></td>
           <td><select id="br-ca-${i}">${optsFor(['',...CA_LIST], r.ca||'', true)}</select></td>
@@ -1105,6 +1143,9 @@ function renderGiaoViec(body){
     </div>
     <div class="section-block" style="margin-top:24px">
       <div class="panel-head"><h3 style="font-size:14px">Đội lái máy (${state.doixe.length} người)</h3></div>
+      <div class="stat-row">
+        ${THIET_BI_VAN_HANH_LIST.map(tb=>`<div class="stat-card"><div class="slabel">Vận hành được ${tb}</div><div class="sval">${state.doixe.filter(d=>d.thietBi.includes(tb)).length} <span class="sunit">người</span></div></div>`).join('')}
+      </div>
       ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm tài xế / người vận hành máy</summary>
         <form class="inline-form" onsubmit="return submitDoiXe(event)">
           <div class="field"><label>Họ tên</label><input required id="dx-hoten"></div>
@@ -1112,9 +1153,10 @@ function renderGiaoViec(body){
             <option value="">Không có</option><option value="vun_hang">Ưu tiên vun hàng</option><option value="sua_chua">Ưu tiên sửa chữa (gọi khi thiếu người)</option>
           </select></div>
           <div class="field" style="grid-column:1/-1"><label>Vận hành được</label>
-            <div style="display:flex;gap:16px">
+            <div style="display:flex;gap:16px;flex-wrap:wrap">
               <label style="display:flex;align-items:center;gap:5px;font-weight:400;font-size:13px"><input type="checkbox" id="dx-tb-xuclat"> Xúc lật</label>
-              <label style="display:flex;align-items:center;gap:5px;font-weight:400;font-size:13px"><input type="checkbox" id="dx-tb-maymuc"> Máy múc</label>
+              <label style="display:flex;align-items:center;gap:5px;font-weight:400;font-size:13px"><input type="checkbox" id="dx-tb-mucnho"> Máy múc nhỏ</label>
+              <label style="display:flex;align-items:center;gap:5px;font-weight:400;font-size:13px"><input type="checkbox" id="dx-tb-mucto"> Máy múc to</label>
               <label style="display:flex;align-items:center;gap:5px;font-weight:400;font-size:13px"><input type="checkbox" id="dx-tb-caudien"> Cẩu điện</label>
             </div>
           </div>
@@ -1139,7 +1181,8 @@ function submitDoiXe(e){
   const hoTen = document.getElementById('dx-hoten').value;
   const thietBi = [];
   if(document.getElementById('dx-tb-xuclat').checked) thietBi.push('Xúc lật');
-  if(document.getElementById('dx-tb-maymuc').checked) thietBi.push('Máy múc');
+  if(document.getElementById('dx-tb-mucnho').checked) thietBi.push('Máy múc nhỏ');
+  if(document.getElementById('dx-tb-mucto').checked) thietBi.push('Máy múc to');
   if(document.getElementById('dx-tb-caudien').checked) thietBi.push('Cẩu điện');
   state.doixe.push({id:'DX'+(state.nextId++), hoTen, thietBi,
     uuTien:document.getElementById('dx-uutien').value, ghiChu:document.getElementById('dx-ghichu').value});
@@ -1645,11 +1688,12 @@ const LOAI_VIEC_LIST = ['Xuống hàng nhập','Gom hàng nhập','Xuất hàng'
 const CA_NHAP_CA_NGAY = 'Ca nhập cả ngày (7h-11h & 13h-17h)';
 const CA_LIST = [CA_NHAP_CA_NGAY,'Ca nhập 7h-11h','Ca nhập 13h-17h','Ca xuất 6h-18h','Ca xuất 18h-6h'];
 const LOAI_VIEC_HANG_NHAP = ['Xuống hàng nhập','Gom hàng nhập'];
+const THIET_BI_VAN_HANH_LIST = ['Xúc lật','Máy múc nhỏ','Máy múc to','Cẩu điện'];
 const LOAI_XE_BANG_CHUNG = ['Xe thùng','Xe ben','Xe container'];
 const FIELD_SCHEMAS = {
   doixe: {ten:'tài xế / người vận hành máy', fields:[
     {key:'hoTen', label:'Họ tên', type:'text'},
-    {key:'thietBi', label:'Vận hành được', type:'checkboxes', options:[{v:'Xúc lật',t:'Xúc lật'},{v:'Máy múc',t:'Máy múc'},{v:'Cẩu điện',t:'Cẩu điện'}]},
+    {key:'thietBi', label:'Vận hành được', type:'checkboxes', options:THIET_BI_VAN_HANH_LIST.map(v=>({v,t:v}))},
     {key:'uuTien', label:'Ưu tiên', type:'select', options:[{v:'',t:'Không có'},{v:'vun_hang',t:'Ưu tiên vun hàng'},{v:'sua_chua',t:'Ưu tiên sửa chữa (gọi khi thiếu người)'}]},
     {key:'ghiChu', label:'Ghi chú', type:'text'},
   ]},
@@ -1679,7 +1723,7 @@ const FIELD_SCHEMAS = {
   congviec: {ten:'công việc', fields:[
     {key:'ngay', label:'Ngày', type:'date'},
     {key:'loaiViec', label:'Loại việc', type:'select', options:LOAI_VIEC_LIST.map(v=>({v,t:v}))},
-    {key:'thietBiCan', label:'Thiết bị cần', type:'select', options:['Xúc lật','Máy múc','Cẩu điện'].map(v=>({v,t:v}))},
+    {key:'thietBiCan', label:'Thiết bị cần', type:'select', options:THIET_BI_VAN_HANH_LIST.map(v=>({v,t:v}))},
     {key:'ca', label:'Ca làm việc', type:'select', options:CA_LIST.map(v=>({v,t:v}))},
     {key:'khuVuc', label:'Khu vực/bãi', type:'select', options:danhSachBaiPhang().map(v=>({v,t:v}))},
     {key:'ghiChu', label:'Ghi chú', type:'text'},
