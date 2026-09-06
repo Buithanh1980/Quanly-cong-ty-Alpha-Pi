@@ -1309,8 +1309,20 @@ function formatNgayNgan(ngayISO){
   const [y,m,d] = ngayISO.split('-');
   return `${parseInt(d,10)}/${parseInt(m,10)}`;
 }
+const CA_GIO_MAP = {
+  'Ca nhập cả ngày (7h-11h & 13h-17h)': '7h-11h & 13h-17h',
+  'Ca nhập 7h-11h': '7h-11h',
+  'Ca nhập 13h-17h': '13h-17h',
+  'Ca xuất 6h-18h': '6h-18h',
+  'Ca xuất 18h-6h': '18h-6h',
+};
+function gioCuaCa(ca){ return CA_GIO_MAP[ca] || ca || ''; }
 function dongZaloChoJob(j){
-  return [formatNgayNgan(j.ngay), j.ca, j.taiXe, j.loaiViec, j.khuVuc].filter(Boolean).join(' - ');
+  const ngay = formatNgayNgan(j.ngay);
+  const gio = gioCuaCa(j.ca);
+  const ten = tenHienThiThucHien(j.taiXe);
+  const dauMuc = gio ? `${ngay} (${gio}) ${ten}` : `${ngay} ${ten}`;
+  return [dauMuc, j.loaiViec, j.khuVuc].filter(Boolean).join(' - ');
 }
 function copyZaloText(){
   const ta = document.getElementById('zalo-text');
