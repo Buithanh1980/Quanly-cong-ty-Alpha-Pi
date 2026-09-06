@@ -850,6 +850,11 @@ function renderTongQuan(body){
 function optsFor(values, selected, emptyLabel){
   return values.map(v => `<option value="${v}" ${v===selected?'selected':''}>${v || (emptyLabel===true?'— chọn ca —':emptyLabel||v)}</option>`).join('');
 }
+function coTheVanHanh(d, thietBi){
+  if(d.thietBi.includes(thietBi)) return true;
+  if(thietBi==='Máy múc nhỏ' && d.thietBi.includes('Máy múc to')) return true; // ai lái được máy múc to thì lái được máy múc nhỏ
+  return false;
+}
 function sortDrivers(list, loaiViec){
   return list.slice().sort((a,b)=>{
     const score = d => d.uuTien==='sua_chua' ? 100 : (loaiViec==='Vun hàng' ? (d.uuTien==='vun_hang'?0:1) : (d.uuTien==='vun_hang'?1:0));
@@ -857,8 +862,8 @@ function sortDrivers(list, loaiViec){
   });
 }
 function eligibleDriverOptions(thietBiCan, loaiViec){
-  const eligible = sortDrivers(state.doixe.filter(d=>d.thietBi.includes(thietBiCan)), loaiViec);
-  const rest = sortDrivers(state.doixe.filter(d=>!d.thietBi.includes(thietBiCan)), loaiViec);
+  const eligible = sortDrivers(state.doixe.filter(d=>coTheVanHanh(d, thietBiCan)), loaiViec);
+  const rest = sortDrivers(state.doixe.filter(d=>!coTheVanHanh(d, thietBiCan)), loaiViec);
   let html = `<optgroup label="Phù hợp thiết bị (${thietBiCan})">` +
     eligible.map(d=>`<option value="${d.id}">${d.hoTen}${d.ghiChu?' — '+d.ghiChu:''}</option>`).join('') + `</optgroup>`;
   if(rest.length) html += `<optgroup label="Khác (kiêm nhiệm nếu thiếu người)">` +
@@ -1005,7 +1010,7 @@ function autoAssignBatch(slots, ngay){
     if(!conMay){
       return {...slot, taiXe:'Thuê ngoài (huy động thêm)', thieu:true};
     }
-    let pool = state.doixe.filter(d=>d.thietBi.includes(slot.thietBi));
+    let pool = state.doixe.filter(d=>coTheVanHanh(d, slot.thietBi));
     if(pool.length===0) pool = state.doixe.slice();
     const scored = pool.map(d => {
       let score = 0;
@@ -1144,7 +1149,7 @@ function renderGiaoViec(body){
     <div class="section-block" style="margin-top:24px">
       <div class="panel-head"><h3 style="font-size:14px">Đội lái máy (${state.doixe.length} người)</h3></div>
       <div class="stat-row">
-        ${THIET_BI_VAN_HANH_LIST.map(tb=>`<div class="stat-card"><div class="slabel">Vận hành được ${tb}</div><div class="sval">${state.doixe.filter(d=>d.thietBi.includes(tb)).length} <span class="sunit">người</span></div></div>`).join('')}
+        ${THIET_BI_VAN_HANH_LIST.map(tb=>`<div class="stat-card"><div class="slabel">Vận hành được ${tb}</div><div class="sval">${state.doixe.filter(d=>coTheVanHanh(d, tb)).length} <span class="sunit">người</span></div></div>`).join('')}
       </div>
       ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm tài xế / người vận hành máy</summary>
         <form class="inline-form" onsubmit="return submitDoiXe(event)">
