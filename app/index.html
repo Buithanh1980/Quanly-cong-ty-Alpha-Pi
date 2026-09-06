@@ -861,14 +861,14 @@ function sortDrivers(list, loaiViec){
     return score(a) - score(b);
   });
 }
-function eligibleDriverOptions(thietBiCan, loaiViec){
+function eligibleDriverOptions(thietBiCan, loaiViec, suggestedId){
   const eligible = sortDrivers(state.doixe.filter(d=>coTheVanHanh(d, thietBiCan)), loaiViec);
   const rest = sortDrivers(state.doixe.filter(d=>!coTheVanHanh(d, thietBiCan)), loaiViec);
   let html = `<optgroup label="Phù hợp thiết bị (${thietBiCan})">` +
-    eligible.map(d=>`<option value="${d.id}">${d.hoTen}${d.ghiChu?' — '+d.ghiChu:''}</option>`).join('') + `</optgroup>`;
+    eligible.map(d=>`<option value="${d.id}" ${d.id===suggestedId?'selected':''}>${d.hoTen}${d.ghiChu?' — '+d.ghiChu:''}</option>`).join('') + `</optgroup>`;
   if(rest.length) html += `<optgroup label="Khác (kiêm nhiệm nếu thiếu người)">` +
-    rest.map(d=>`<option value="${d.id}">${d.hoTen}${d.ghiChu?' — '+d.ghiChu:''}</option>`).join('') + `</optgroup>`;
-  html += `<option value="THUE_NGOAI">— Huy động thuê ngoài —</option>`;
+    rest.map(d=>`<option value="${d.id}" ${d.id===suggestedId?'selected':''}>${d.hoTen}${d.ghiChu?' — '+d.ghiChu:''}</option>`).join('') + `</optgroup>`;
+  html += `<option value="THUE_NGOAI" ${suggestedId==='THUE_NGOAI'?'selected':''}>— Huy động thuê ngoài —</option>`;
   return html;
 }
 
@@ -1053,17 +1053,17 @@ function confirmBatch(){
   assigned.forEach(a => {
     state.congviec.push({
       id:'CV'+(state.nextId++), ngay: pendingBatchDate, loaiViec:a.loaiViec, thietBiCan:a.thietBi, ca:a.ca,
-      lotId:null, khuVuc:a.khuVuc, ghiChu:(a.raw ? a.raw+' — ' : '')+'Tự động phân công'+(a.thieu?' — THIẾU THIẾT BỊ':''),
-      trangThai:'Đã giao', taiXe:a.taiXe, nguoiGiao: currentUser.name, dungChungMay: a.dungChungMay||false,
+      lotId:null, khuVuc:a.khuVuc, ghiChu:(a.raw ? a.raw+' — ' : '')+'Đề xuất tự động'+(a.thieu?' — THIẾU THIẾT BỊ':''),
+      trangThai:'Chưa giao', taiXe:a.taiXe, nguoiGiao:null, dungChungMay: a.dungChungMay||false,
     });
   });
-  logActivity(`Tự động phân công ${assigned.length} đầu việc ngày ${pendingBatchDate}`);
+  logActivity(`Đề xuất tự động phân công ${assigned.length} đầu việc ngày ${pendingBatchDate} — chờ bấm "Giao việc" để xác nhận`);
   const thieuList = canhBaoThieuTheoNgay(pendingBatchDate);
   if(thieuList.length){
     logActivity(`Cảnh báo thiếu thiết bị ngày ${pendingBatchDate}: ` + thieuList.map(t=>`${t.loai} thiếu ${t.thieu} (cần ${t.can}, có ${t.co})`).join('; '));
-    alert('Đã phân công xong, nhưng KHÔNG ĐỦ THIẾT BỊ nội bộ cho ngày ' + pendingBatchDate + ':\n' +
+    alert('Đã tạo đề xuất phân công, nhưng KHÔNG ĐỦ THIẾT BỊ nội bộ cho ngày ' + pendingBatchDate + ':\n' +
       thieuList.map(t=>`• ${t.loai}: cần ${t.can}, hiện có ${t.co} → khuyến cáo thuê thêm ${t.thieu} chiếc`).join('\n') +
-      '\n\nCác đầu việc vượt quá số lượng thiết bị đã được đánh dấu "Thuê ngoài (huy động thêm)".');
+      '\n\nCác đầu việc vượt quá số lượng thiết bị đã được đánh dấu "Thuê ngoài (huy động thêm)". Nhớ bấm "Giao việc" ở từng dòng để chính thức giao.');
   }
   pendingBatch = []; pendingBatchDate = '';
   renderM1();
@@ -1138,13 +1138,16 @@ function renderGiaoViec(body){
         const pillClass = j.trangThai==='Hoàn thành' ? 'done' : j.trangThai==='Đã giao' ? 'approved' : 'pending';
         let actionCell = '';
         if(canAdd && j.trangThai==='Chưa giao'){
-          actionCell = `<div class="assign-row"><select id="assign-${j.id}">${eligibleDriverOptions(j.thietBiCan, j.loaiViec)}</select>
+          const goiY = state.doixe.find(d=>d.hoTen===j.taiXe);
+          const suggestedId = goiY ? goiY.id : (j.taiXe ? 'THUE_NGOAI' : '');
+          actionCell = `<div class="assign-row"><select id="assign-${j.id}">${eligibleDriverOptions(j.thietBiCan, j.loaiViec, suggestedId)}</select>
+            <button class="mini-btn" onclick="huyCongViec('${j.id}')">Hủy</button>
             <button class="mini-btn approve" onclick="giaoViec('${j.id}')">Giao việc</button></div>`;
         } else if(canAdd && j.trangThai==='Đã giao'){
           actionCell = `<div class="assign-row"><select id="assign-${j.id}">${eligibleDriverOptions(j.thietBiCan, j.loaiViec)}</select>
             <button class="mini-btn" onclick="giaoViec('${j.id}')">Đổi người</button></div>`;
+          actionCell += actionButtons('congviec', j.id);
         }
-        if(canAdd) actionCell += actionButtons('congviec', j.id);
         return `<tr><td class="mono">${j.ngay}</td><td>${j.loaiViec}</td><td>${j.thietBiCan}</td><td style="font-size:12px">${j.ca}</td><td class="mono">${j.khuVuc||j.lotId||''}</td>
           <td><span class="pill ${pillClass}">${j.trangThai}</span></td><td>${j.taiXe||''}</td><td><div class="row-actions">${actionCell}</div></td></tr>`;
       }).join('') || `<tr class="empty-row"><td colspan="8">Chưa có công việc nào được ghi nhận</td></tr>`}</tbody>
@@ -1232,6 +1235,13 @@ function giaoViec(id){
   const doiNguoi = j.trangThai === 'Đã giao';
   j.trangThai = 'Đã giao'; j.nguoiGiao = currentUser.name;
   logActivity(doiNguoi ? `Đổi người phụ trách "${j.loaiViec}" từ ${trươcDo} sang ${j.taiXe}` : `Giao việc "${j.loaiViec}" (${j.ca}) cho ${j.taiXe}`);
+  renderM1();
+}
+function huyCongViec(id){
+  const j = state.congviec.find(j=>j.id===id); if(!j) return;
+  if(!confirm(`Hủy đề xuất công việc "${j.loaiViec}" (${j.thietBiCan})?`)) return;
+  state.congviec = state.congviec.filter(x=>x.id!==id);
+  logActivity(`Hủy đề xuất công việc "${j.loaiViec}"`);
   renderM1();
 }
 function renderNhap(body){
