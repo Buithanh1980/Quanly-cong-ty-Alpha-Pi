@@ -1718,9 +1718,35 @@ function confirmWeighImport(){
 
 /* ---- Xác nhận với KH: tổng hợp khối lượng hàng qua cân theo tàu, in bảng ký xác nhận ---- */
 let xnHuong = 'xuat', xnTau = '', xnDaiDien = 'Bùi Ngọc Thành', xnChucVu = '', xnTramCan = 'Trạm Cân Số 01';
-function danhSachTauTheo(huong){
+function formatNgayNganNam(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y.slice(2)}`;
+}
+function xnTauKey(tau, tuNgay, denNgay){ return `${tau}||${tuNgay}||${denNgay}`; }
+function parseXnTauKey(key){
+  const [tau, tuNgay, denNgay] = key.split('||');
+  return {tau, tuNgay, denNgay};
+}
+function danhSachChuyenTauTheo(huong){
   const arr = huong==='nhap' ? state.nhap : state.xuat;
-  return [...new Set(arr.filter(r=>r.tuyen==='Đường thủy' && r.nguon).map(r=>r.nguon))];
+  const byTau = {};
+  arr.filter(r=>r.tuyen==='Đường thủy' && r.nguon).forEach(r=>{
+    (byTau[r.nguon] = byTau[r.nguon] || new Set()).add(r.ngay);
+  });
+  const chuyens = [];
+  Object.keys(byTau).forEach(tau=>{
+    const ngays = [...byTau[tau]].filter(Boolean).sort();
+    if(!ngays.length) return;
+    let tuNgay = ngays[0], denNgay = ngays[0];
+    for(let i=1;i<ngays.length;i++){
+      const soNgayCach = (new Date(ngays[i]) - new Date(denNgay)) / 86400000;
+      if(soNgayCach > 3){ chuyens.push({tau, tuNgay, denNgay}); tuNgay = ngays[i]; }
+      denNgay = ngays[i];
+    }
+    chuyens.push({tau, tuNgay, denNgay});
+  });
+  return chuyens.sort((a,b)=>b.denNgay.localeCompare(a.denNgay));
 }
 function setXacNhan(key, val){
   if(key==='huong'){ xnHuong = val; xnTau = ''; }
@@ -1730,10 +1756,12 @@ function setXacNhan(key, val){
   else if(key==='tramcan') xnTramCan = val;
   renderM1();
 }
-function nhomXacNhanTheoTau(huong, tau){
+function nhomXacNhanTheoTau(huong, tauKey){
+  if(!tauKey) return {groups:[], tau:'', tuNgay:'', denNgay:''};
+  const {tau, tuNgay, denNgay} = parseXnTauKey(tauKey);
   const lots = visibleLots(); const lotIds = lots.map(l=>l.id);
   const arr = huong==='nhap' ? state.nhap : state.xuat;
-  const recs = tau ? arr.filter(r=>lotIds.includes(r.lotId) && r.tuyen==='Đường thủy' && r.nguon===tau) : [];
+  const recs = arr.filter(r=>lotIds.includes(r.lotId) && r.tuyen==='Đường thủy' && r.nguon===tau && r.ngay>=tuNgay && r.ngay<=denNgay);
   const groups = [];
   recs.forEach(r=>{
     const lot = state.lots.find(l=>l.id===r.lotId);
@@ -1744,8 +1772,7 @@ function nhomXacNhanTheoTau(huong, tau){
     g.kg += r.khoiLuong*1000;
     g.xe += 1;
   });
-  const ngays = recs.map(r=>r.ngay).filter(Boolean).sort();
-  return {groups, tuNgay: ngays[0]||'', denNgay: ngays[ngays.length-1]||''};
+  return {groups, tau, tuNgay, denNgay};
 }
 function formatNgayVN(iso){
   if(!iso) return '';
@@ -1753,22 +1780,27 @@ function formatNgayVN(iso){
   return `${d}/${m}/${y}`;
 }
 function renderXacNhan(body){
-  const tauOptions = danhSachTauTheo(xnHuong);
-  if(xnTau && !tauOptions.includes(xnTau)) xnTau = '';
-  if(!xnTau && tauOptions.length) xnTau = tauOptions[0];
+  const chuyenOptions = danhSachChuyenTauTheo(xnHuong);
+  const validKeys = chuyenOptions.map(c=>xnTauKey(c.tau,c.tuNgay,c.denNgay));
+  if(xnTau && !validKeys.includes(xnTau)) xnTau = '';
+  if(!xnTau && chuyenOptions.length) xnTau = validKeys[0];
   const {groups, tuNgay, denNgay} = nhomXacNhanTheoTau(xnHuong, xnTau);
   const tongKg = groups.reduce((s,g)=>s+g.kg,0);
   const tongXe = groups.reduce((s,g)=>s+g.xe,0);
   body.innerHTML = `
     <div class="panel-head"><h3>Xác nhận khối lượng hàng qua cân — theo tàu</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 14px">Chọn tàu đã nhập số liệu từ file cân (tab Nhập hàng / Xuất hàng), hệ thống tự tổng hợp theo khách hàng — bấm "In bảng xác nhận" để có bản in ký ngay.</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 14px">Chọn tàu đã nhập số liệu từ file cân (tab Nhập hàng / Xuất hàng), hệ thống tự tổng hợp theo khách hàng — bấm "In bảng xác nhận" để có bản in ký ngay. Cùng 1 tàu ghé nhiều lần trong tháng sẽ hiện thành nhiều lượt riêng theo ngày làm hàng.</p>
     <div class="inline-form" style="grid-template-columns:1fr 1fr">
       <div class="field"><label>Hướng</label><select onchange="setXacNhan('huong',this.value)">
         <option value="xuat" ${xnHuong==='xuat'?'selected':''}>Xuất hàng</option>
         <option value="nhap" ${xnHuong==='nhap'?'selected':''}>Nhập hàng</option>
       </select></div>
       <div class="field"><label>Tên tàu</label><select onchange="setXacNhan('tau',this.value)">
-        ${tauOptions.length ? tauOptions.map(t=>`<option value="${t}" ${t===xnTau?'selected':''}>${t}</option>`).join('') : '<option value="">— chưa có dữ liệu tàu —</option>'}
+        ${chuyenOptions.length ? chuyenOptions.map(c=>{
+          const key = xnTauKey(c.tau,c.tuNgay,c.denNgay);
+          const label = `${c.tau} (${formatNgayNganNam(c.tuNgay)}${c.denNgay!==c.tuNgay ? ' - '+formatNgayNganNam(c.denNgay) : ''})`;
+          return `<option value="${key}" ${key===xnTau?'selected':''}>${label}</option>`;
+        }).join('') : '<option value="">— chưa có dữ liệu tàu —</option>'}
       </select></div>
     </div>
     ${!xnTau || !groups.length ? `<p style="font-size:12.5px;color:var(--ink-soft)">Chưa có phiếu cân đường thủy nào cho lựa chọn này. Vào tab ${xnHuong==='nhap'?'Nhập hàng':'Xuất hàng'}, mục "Nhập số liệu từ file cân" để nạp dữ liệu tàu này trước.</p>` : `
@@ -1787,14 +1819,14 @@ function renderXacNhan(body){
   `;
 }
 function inBangXacNhan(){
-  const {groups, tuNgay, denNgay} = nhomXacNhanTheoTau(xnHuong, xnTau);
+  const {groups, tau, tuNgay, denNgay} = nhomXacNhanTheoTau(xnHuong, xnTau);
   if(!groups.length){ alert('Chưa có dữ liệu để in.'); return; }
   const tongKg = groups.reduce((s,g)=>s+g.kg,0);
   const tongXe = groups.reduce((s,g)=>s+g.xe,0);
   const khHang = [...new Set(groups.map(g=>g.kh))].join(', ');
   const win = window.open('', '_blank');
   if(!win){ alert('Trình duyệt đã chặn cửa sổ in — cho phép popup rồi thử lại.'); return; }
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bảng xác nhận — ${xnTau}</title>
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bảng xác nhận — ${tau}</title>
   <style>
     body{font-family:'Times New Roman',Times,serif;font-size:13px;color:#111;margin:30px 45px;}
     .head b{font-size:14.5px}
@@ -1814,7 +1846,7 @@ function inBangXacNhan(){
     <div class="head"><b>CÔNG TY CỔ PHẦN ALPHA PI</b><br>Địa chỉ trụ sở: Số 99 Nội khu Hưng Thái 2, P. Tân Hưng, TP.Hồ Chí Minh, Việt Nam.<br>Mã số thuế: 0105860806<br>Email: accountant@alphapi.com.vn</div>
     <h1>Bảng xác nhận hàng ${xnHuong==='nhap'?'nhập':'xuất'} bãi qua cân</h1>
     <div class="meta">
-      <div><b>Tên tàu:</b> ${xnTau}</div>
+      <div><b>Tên tàu:</b> ${tau}</div>
       <div><b>Thời gian bắt đầu làm hàng:</b> ${formatNgayVN(tuNgay)} 00:00:00 AM</div>
       <div><b>Thời gian kết thúc làm hàng:</b> ${formatNgayVN(denNgay)} 23:59:59 PM</div>
       <div><b>${xnTramCan}</b></div>
