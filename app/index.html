@@ -2054,9 +2054,42 @@ function inBangKeChiTietNhaXe(nccKey){
   const tongKg = rows.reduce((s,r)=>s+r.kg,0);
   const win = window.open('', '_blank');
   if(!win){ alert('Trình duyệt đã chặn cửa sổ in — cho phép popup rồi thử lại.'); return; }
+
+  const SO_DONG_TRANG_DAU = 18, SO_DONG_TRANG_SAU = 28;
+  const trangs = [];
+  for(let i=0; i<rows.length; ){
+    const soDong = trangs.length===0 ? SO_DONG_TRANG_DAU : SO_DONG_TRANG_SAU;
+    trangs.push(rows.slice(i, i+soDong));
+    i += soDong;
+  }
+  const tongSoTrang = trangs.length;
+  const theadHtml = `<thead><tr><th>Stt</th><th>Số phiếu</th><th>Ngày</th><th>Biển số xe</th><th>Tài xế</th><th>Khách hàng</th><th>Loại hàng</th><th class="num">Khối lượng hàng (Kg)</th></tr></thead>`;
+  let sttOffset = 0;
+  const trangsHtml = trangs.map((trRows, idx) => {
+    const laDauTien = idx===0, laCuoi = idx===tongSoTrang-1;
+    const bodyHtml = trRows.map((r,j)=>`<tr><td class="c">${sttOffset+j+1}</td><td class="c">${r.soPhieu}</td><td class="c">${formatNgayVN(r.ngay)}</td><td class="c">${r.bienSo}</td><td>${r.taiXe}</td><td>${r.khachHang}</td><td>${r.loaiHang}</td><td class="num">${fmt(r.kg)}</td></tr>`).join('');
+    sttOffset += trRows.length;
+    return `<div class="pg">
+      ${laDauTien ? `<div class="head"><img src="${ALPHAPI_LOGO_DATAURI}"><div><b>CÔNG TY CỔ PHẦN ALPHA PI</b><br>Địa chỉ trụ sở: Số 99 Nội khu Hưng Thái 2, P. Tân Hưng, TP.Hồ Chí Minh, Việt Nam.<br>Mã số thuế: 0105860806<br>Email: accountant@alphapi.com.vn</div></div>
+      <h1>Bảng kê chi tiết cân hàng</h1>
+      <h2>Đơn vị vận chuyển: ${ncc.ten}</h2>
+      <div class="party">Tên tàu: ${tau} &nbsp;&nbsp;&nbsp; Thời gian: từ ngày ${formatNgayVN(tuNgay)} đến ngày ${formatNgayVN(denNgay)}</div>` : ''}
+      <table>${theadHtml}<tbody>${bodyHtml}
+      ${laCuoi ? `<tr style="font-weight:700"><td colspan="7" class="c">TỔNG CỘNG</td><td class="num">${fmt(tongKg)}</td></tr>` : ''}
+      </tbody></table>
+      ${laCuoi ? `<div class="sign">
+        <div>ĐẠI DIỆN BÊN A<div class="line"></div>${xnDaiDien}</div>
+        <div>ĐẠI DIỆN BÊN B<div class="line"></div></div>
+      </div>` : ''}
+      <div class="pagefoot">Trang ${idx+1}/${tongSoTrang}</div>
+    </div>`;
+  }).join('');
+
   win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bảng kê chi tiết — ${ncc.ten}</title>
   <style>
-    body{font-family:'Times New Roman',Times,serif;font-size:12.5px;color:#111;margin:26px 40px;}
+    @page{ size:A4; margin:15mm 12mm; }
+    body{font-family:'Times New Roman',Times,serif;font-size:12.5px;color:#111;margin:0;}
+    .pg:not(:last-child){page-break-after:always}
     .head{display:flex;align-items:center;gap:16px;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:14px;line-height:1.5}
     .head img{height:60px}
     .head b{font-size:15px}
@@ -2068,23 +2101,14 @@ function inBangKeChiTietNhaXe(nccKey){
     th{background:#f2f2f2;text-align:center;}
     td.num, th.num{text-align:right}
     td.c{text-align:center}
+    tr{page-break-inside:avoid}
     .sign{display:flex;justify-content:space-between;margin-top:40px;text-align:center;}
     .sign > div{width:45%}
     .sign .line{margin-top:60px;font-weight:700}
-    @media print{ .noprint{display:none} thead{display:table-header-group} }
+    .pagefoot{text-align:center;font-size:11px;color:#555;margin-top:16px}
+    @media print{ .noprint{display:none} }
   </style></head><body>
-    <div class="head"><img src="${ALPHAPI_LOGO_DATAURI}"><div><b>CÔNG TY CỔ PHẦN ALPHA PI</b><br>Địa chỉ trụ sở: Số 99 Nội khu Hưng Thái 2, P. Tân Hưng, TP.Hồ Chí Minh, Việt Nam.<br>Mã số thuế: 0105860806<br>Email: accountant@alphapi.com.vn</div></div>
-    <h1>Bảng kê chi tiết cân hàng</h1>
-    <h2>Đơn vị vận chuyển: ${ncc.ten}</h2>
-    <div class="party">Tên tàu: ${tau} &nbsp;&nbsp;&nbsp; Thời gian: từ ngày ${formatNgayVN(tuNgay)} đến ngày ${formatNgayVN(denNgay)}</div>
-    <table><thead><tr><th>Stt</th><th>Số phiếu</th><th>Ngày</th><th>Biển số xe</th><th>Tài xế</th><th>Khách hàng</th><th>Loại hàng</th><th class="num">Khối lượng hàng (Kg)</th></tr></thead>
-    <tbody>${rows.map((r,i)=>`<tr><td class="c">${i+1}</td><td class="c">${r.soPhieu}</td><td class="c">${formatNgayVN(r.ngay)}</td><td class="c">${r.bienSo}</td><td>${r.taiXe}</td><td>${r.khachHang}</td><td>${r.loaiHang}</td><td class="num">${fmt(r.kg)}</td></tr>`).join('')}
-    <tr style="font-weight:700"><td colspan="7" class="c">TỔNG CỘNG</td><td class="num">${fmt(tongKg)}</td></tr>
-    </tbody></table>
-    <div class="sign">
-      <div>ĐẠI DIỆN BÊN A<div class="line"></div>${xnDaiDien}</div>
-      <div>ĐẠI DIỆN BÊN B<div class="line"></div></div>
-    </div>
+    ${trangsHtml}
     <button class="noprint" style="margin-top:30px;padding:10px 22px;font-size:14px;font-weight:700;background:#0E5C52;color:#fff;border:none;border-radius:5px;cursor:pointer" onclick="window.print()">In</button>
   </body></html>`);
   win.document.close();
