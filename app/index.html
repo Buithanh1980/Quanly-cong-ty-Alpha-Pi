@@ -482,6 +482,10 @@ function loadState(){
     if(!state.permissions) state.permissions = defaultPermissions();
     if(state.permissions.KT) delete state.permissions.KT.M4;
     if(state.permissions.VT) delete state.permissions.VT.M2;
+    if(state.permissions.KT && state.permissions.KT.M6===undefined) state.permissions.KT.M6 = 'D';
+    if(state.permissions.TC && state.permissions.TC.M6===undefined) state.permissions.TC.M6 = 'X';
+    if(state.permissions.BLD && state.permissions.BLD.M6===undefined) state.permissions.BLD.M6 = 'X';
+    if(state.permissions.IT && state.permissions.IT.M6===undefined) state.permissions.IT.M6 = 'X';
     if(!state.log) state.log = [];
     if(!state.doixe) state.doixe = seedState().doixe;
     if(!state.congviec) state.congviec = seedState().congviec;
