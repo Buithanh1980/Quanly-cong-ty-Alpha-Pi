@@ -452,7 +452,10 @@ function seedState(){
     suachua: [],
     vattu: [],
     kiemke: [],
-    khachhang: [],
+    khachhang: [
+      {id:'KH-NAMTIEN', ten:'Nam Tiến', loaiDoiTac:'Khách hàng thuê bãi', danhSachBai:'Bãi Alpha Pi, Bãi Phú Thái, Bãi Vinalift', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''},
+      {id:'KH-COALIMEX', ten:'Coalimex', loaiDoiTac:'Khách hàng thuê bãi', danhSachBai:'Bãi Coalimex', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''},
+    ],
     xekhachhang: [],
     vantai: [],
     xevantai: [],
@@ -508,6 +511,22 @@ function loadState(){
     if(!state.denghithanhtoan) state.denghithanhtoan = seedState().denghithanhtoan;
     if(!state.tamung) state.tamung = seedState().tamung;
     if(!state.soquy) state.soquy = seedState().soquy;
+    if(!state.khachhang.some(k=>k.ten==='Nam Tiến' && k.loaiDoiTac==='Khách hàng thuê bãi')){
+      state.khachhang.push({id:'KH-NAMTIEN', ten:'Nam Tiến', loaiDoiTac:'Khách hàng thuê bãi', danhSachBai:'Bãi Alpha Pi, Bãi Phú Thái, Bãi Vinalift', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''});
+    }
+    if(!state.khachhang.some(k=>k.ten==='Coalimex' && k.loaiDoiTac==='Khách hàng thuê bãi')){
+      state.khachhang.push({id:'KH-COALIMEX', ten:'Coalimex', loaiDoiTac:'Khách hàng thuê bãi', danhSachBai:'Bãi Coalimex', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''});
+    }
+    const NHACUNGCAP_TU_KHOA = ['NAM PHÁT','X16','SAO VÀNG','T.D','LOGISTICS','DỊCH VỤ HÀNG HẢI'];
+    state.khachhang.forEach(k=>{
+      if(k.loaiDoiTac===undefined){
+        if(k.ten.toUpperCase().includes('VINACOMIN')) k.loaiDoiTac = 'Chủ hàng';
+        else if(NHACUNGCAP_TU_KHOA.some(tk=>k.ten.toUpperCase().includes(tk))) k.loaiDoiTac = 'Nhà cung cấp vận chuyển';
+        else k.loaiDoiTac = '';
+      }
+      if(k.danhSachBai===undefined) k.danhSachBai = '';
+    });
+    rebuildBaiTheoKhachHang();
   }catch(e){ state = seedState(); }
 }
 function saveState(){
@@ -1481,7 +1500,15 @@ function renderXuat(body){
 
 /* ---- Nhập số liệu từ file trạm cân (.xls/.xlsx/.csv) — dành cho nhân viên trạm cân ---- */
 let pendingWeigh = null; // {huong, lotId, tuyen, tenTau, khachHang, bai, tickets:[...]}
-const BAI_THEO_KHACH = {'Nam Tiến':['Bãi Alpha Pi','Bãi Phú Thái','Bãi Vinalift'], 'Coalimex':['Bãi Coalimex']};
+let BAI_THEO_KHACH = {};
+function rebuildBaiTheoKhachHang(){
+  const map = {};
+  state.khachhang.filter(k=>k.loaiDoiTac==='Khách hàng thuê bãi').forEach(k=>{
+    map[k.ten] = (k.danhSachBai||'').split(',').map(s=>s.trim()).filter(Boolean);
+  });
+  Object.keys(BAI_THEO_KHACH).forEach(k=>delete BAI_THEO_KHACH[k]);
+  Object.assign(BAI_THEO_KHACH, map);
+}
 function baiOptionsHtml(khachHang, selected){
   return (BAI_THEO_KHACH[khachHang]||[]).map(b=>`<option value="${b}" ${b===selected?'selected':''}>${b}</option>`).join('');
 }
@@ -1503,9 +1530,9 @@ function renderWeighImportBlock(huong){
     return `<details class="add-details"><summary class="add-summary">Nhập số liệu từ file cân (.xls/.xlsx/.csv)</summary>
       <div class="inline-form" style="grid-template-columns:1fr 1fr 1fr;">
         <div class="field"><label>Khách hàng</label><select id="wg-khachhang-${huong}" onchange="updateWeighBaiOptions('${huong}')">
-          <option value="Nam Tiến">Nam Tiến</option><option value="Coalimex">Coalimex</option>
+          ${Object.keys(BAI_THEO_KHACH).length ? Object.keys(BAI_THEO_KHACH).map(kh=>`<option value="${kh}">${kh}</option>`).join('') : '<option value="">— chưa có khách hàng thuê bãi, khai báo ở M6 —</option>'}
         </select></div>
-        <div class="field"><label>Bãi</label><select id="wg-bai-${huong}">${baiOptionsHtml('Nam Tiến')}</select></div>
+        <div class="field"><label>Bãi</label><select id="wg-bai-${huong}">${baiOptionsHtml(Object.keys(BAI_THEO_KHACH)[0]||'')}</select></div>
         <div class="field"><label>Tuyến</label><select id="wg-tuyen-${huong}" onchange="toggleWeighTauField('${huong}')">
           <option value="Đường bộ">Đường bộ</option><option value="Đường thủy">Đường thủy</option><option value="Khác">Khác</option>
         </select></div>
@@ -1793,6 +1820,38 @@ function formatNgayVN(iso){
   const [y,m,d] = iso.split('-');
   return `${d}/${m}/${y}`;
 }
+function nhaCungCapCuaBienSo(bienSo){
+  if(!bienSo) return null;
+  const xe = state.xekhachhang.find(x=>x.bienSo===bienSo);
+  if(!xe) return null;
+  return state.khachhang.find(k=>k.id===xe.khachHangId) || null;
+}
+function nhomNhaCungCapTheoTau(huong, tauKey, khachHang){
+  if(!tauKey) return [];
+  const {tau, tuNgay, denNgay} = parseXnTauKey(tauKey);
+  const recs = duongThuyTheoHuong(huong, khachHang).filter(r=>r.nguon===tau && r.ngay>=tuNgay && r.ngay<=denNgay);
+  const byNCC = {};
+  recs.forEach(r=>{
+    const bienSo = r.bienSo || '';
+    const ncc = nhaCungCapCuaBienSo(bienSo);
+    const key = ncc ? ncc.id : '__chuaro__';
+    if(!byNCC[key]) byNCC[key] = {ncc, xeMap:{}};
+    if(!byNCC[key].xeMap[bienSo]) byNCC[key].xeMap[bienSo] = {bienSo: bienSo||'(chưa rõ biển số)', taiXe:'', kg:0, chuyen:0};
+    const xk = state.xekhachhang.find(x=>x.bienSo===bienSo);
+    if(xk && xk.taiXe) byNCC[key].xeMap[bienSo].taiXe = xk.taiXe;
+    byNCC[key].xeMap[bienSo].kg += r.khoiLuong*1000;
+    byNCC[key].xeMap[bienSo].chuyen += 1;
+  });
+  return Object.keys(byNCC).map(key => {
+    const g = byNCC[key];
+    const xeList = Object.values(g.xeMap);
+    return {
+      nccKey: key, ncc: g.ncc, xeList,
+      tongKg: xeList.reduce((s,x)=>s+x.kg,0),
+      tongChuyen: xeList.reduce((s,x)=>s+x.chuyen,0),
+    };
+  }).sort((a,b)=>(a.ncc?a.ncc.ten:'zzzzzz').localeCompare(b.ncc?b.ncc.ten:'zzzzzz'));
+}
 function renderXacNhan(body){
   const khachHangOptions = danhSachKhachHangTheoTau(xnHuong);
   if(xnKhachHang && !khachHangOptions.includes(xnKhachHang)) xnKhachHang = '';
@@ -1823,7 +1882,9 @@ function renderXacNhan(body){
         }).join('') : '<option value="">— chưa có dữ liệu tàu —</option>'}
       </select></div>
     </div>
-    ${!xnTau || !groups.length ? `<p style="font-size:12.5px;color:var(--ink-soft)">Chưa có phiếu cân đường thủy nào cho lựa chọn này. Vào tab ${xnHuong==='nhap'?'Nhập hàng':'Xuất hàng'}, mục "Nhập số liệu từ file cân" để nạp dữ liệu tàu này trước.</p>` : `
+    ${!xnTau || !groups.length ? `<p style="font-size:12.5px;color:var(--ink-soft)">Chưa có phiếu cân đường thủy nào cho lựa chọn này. Vào tab ${xnHuong==='nhap'?'Nhập hàng':'Xuất hàng'}, mục "Nhập số liệu từ file cân" để nạp dữ liệu tàu này trước.</p>` : (() => {
+      const nccGroups = nhomNhaCungCapTheoTau(xnHuong, xnTau, xnKhachHang);
+      return `
     <div class="table-wrap">
       <table><thead><tr><th>Stt</th><th>Khách hàng</th><th>Loại hàng</th><th style="text-align:right">Khối lượng hàng (Kg)</th><th style="text-align:right">Số lượng xe (Chiếc)</th><th>Ghi chú</th></tr></thead>
       <tbody>${groups.map((g,i)=>`<tr><td class="mono">${i+1}</td><td>${g.kh}</td><td>${g.loai}</td><td class="num">${fmt(g.kg)}</td><td class="num">${g.xe}</td><td></td></tr>`).join('')}
@@ -1835,7 +1896,17 @@ function renderXacNhan(body){
       <div class="field"><label>Chức vụ</label><input value="${xnChucVu}" onchange="setXacNhan('chucvu',this.value)"></div>
     </div>
     <div class="form-actions" style="display:flex;justify-content:flex-end;margin-top:10px"><button type="button" class="add-btn" onclick="inBangXacNhan()">In bảng xác nhận</button></div>
-    `}
+
+    <div class="panel-head" style="margin-top:28px"><h3>Xác nhận với nhà cung cấp vận chuyển</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 10px">Tự động nhóm theo biển số xe đã đăng ký ở module "Thông tin khách hàng" (loại "Nhà cung cấp vận chuyển"). Biển số chưa đăng ký sẽ gộp vào dòng "Chưa rõ nhà xe" — vào M6 đăng ký biển số cho đúng nhà xe để tách ra.</p>
+    <div class="table-wrap">
+      <table><thead><tr><th>Nhà cung cấp vận chuyển</th><th style="text-align:right">Số xe</th><th style="text-align:right">Tổng chuyến</th><th style="text-align:right">Tổng khối lượng (Kg)</th><th></th></tr></thead>
+      <tbody>${nccGroups.map(g=>`<tr><td>${g.ncc ? g.ncc.ten : 'Chưa rõ nhà xe'}</td><td class="num">${g.xeList.length}</td><td class="num">${g.tongChuyen}</td><td class="num">${fmt(g.tongKg)}</td>
+        <td>${g.ncc ? `<button type="button" class="mini-btn" onclick="inBangXacNhanNhaXe('${g.nccKey}')">In bảng xác nhận</button>` : ''}</td></tr>`).join('')
+        || `<tr class="empty-row"><td colspan="5">Chưa có dữ liệu</td></tr>`}</tbody>
+      </table>
+    </div>
+    `; })()}
   `;
 }
 function inBangXacNhan(){
@@ -1843,7 +1914,9 @@ function inBangXacNhan(){
   if(!groups.length){ alert('Chưa có dữ liệu để in.'); return; }
   const tongKg = groups.reduce((s,g)=>s+g.kg,0);
   const tongXe = groups.reduce((s,g)=>s+g.xe,0);
-  const khHang = [...new Set(groups.map(g=>g.kh))].join(', ');
+  const khNames = [...new Set(groups.map(g=>g.kh))];
+  const khHang = khNames.join(', ');
+  const khMatch = khNames.length===1 ? state.khachhang.find(k=>k.ten===khNames[0]) : null;
   const win = window.open('', '_blank');
   if(!win){ alert('Trình duyệt đã chặn cửa sổ in — cho phép popup rồi thử lại.'); return; }
   win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bảng xác nhận — ${tau}</title>
@@ -1877,8 +1950,62 @@ function inBangXacNhan(){
     </tbody></table>
     <p style="margin-top:10px">Đính kèm bảng kê chi tiết.</p>
     <div class="sign">
-      <div>${khHang || '(Khách hàng)'}<div class="line"></div>Đại diện ký, ghi rõ họ tên</div>
+      <div>${khHang || '(Khách hàng)'}${khMatch && khMatch.diaChi ? `<br><span style="font-size:11px;font-weight:400">${khMatch.diaChi}</span>` : ''}${khMatch && khMatch.maSoThue ? `<br><span style="font-size:11px;font-weight:400">MST: ${khMatch.maSoThue}</span>` : ''}<div class="line"></div>${khMatch && khMatch.nguoiDaiDien ? khMatch.nguoiDaiDien : 'Đại diện ký, ghi rõ họ tên'}</div>
       <div>CÔNG TY CP ALPHA PI<div class="line"></div><b>${xnDaiDien}</b><br>${xnChucVu}</div>
+    </div>
+    <button class="noprint" style="margin-top:30px" onclick="window.print()">In</button>
+    <script>window.onload=function(){ setTimeout(function(){ window.print(); }, 200); }<\/script>
+  </body></html>`);
+  win.document.close();
+}
+function inBangXacNhanNhaXe(nccKey){
+  const nccGroups = nhomNhaCungCapTheoTau(xnHuong, xnTau, xnKhachHang);
+  const g = nccGroups.find(x=>x.nccKey===nccKey);
+  if(!g || !g.ncc){ alert('Không tìm thấy dữ liệu.'); return; }
+  const {tau, tuNgay, denNgay} = parseXnTauKey(xnTau);
+  const ncc = g.ncc;
+  const xeSorted = g.xeList.slice().sort((a,b)=>b.kg-a.kg);
+  const win = window.open('', '_blank');
+  if(!win){ alert('Trình duyệt đã chặn cửa sổ in — cho phép popup rồi thử lại.'); return; }
+  const homNay = new Date();
+  const ngayKy = `ngày ${homNay.getDate()} tháng ${homNay.getMonth()+1} năm ${homNay.getFullYear()}`;
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bảng xác nhận — ${ncc.ten}</title>
+  <style>
+    body{font-family:'Times New Roman',Times,serif;font-size:13px;color:#111;margin:30px 45px;}
+    h1{font-size:15px;text-align:center;margin:14px 0 2px;text-transform:uppercase;}
+    h2{font-size:13.5px;text-align:center;margin:0 0 16px;font-weight:400}
+    .party{margin:10px 0}
+    table{border-collapse:collapse;width:100%;margin-top:10px;}
+    th,td{border:1px solid #111;padding:6px 8px;font-size:12.5px;}
+    th{background:#f2f2f2;text-align:center;}
+    td.num, th.num{text-align:right}
+    td.c{text-align:center}
+    .sign{display:flex;justify-content:space-between;margin-top:50px;text-align:center;}
+    .sign > div{width:45%}
+    .sign .line{margin-top:70px;font-weight:700}
+    @media print{ .noprint{display:none} }
+  </style></head><body>
+    <h1>Bảng xác nhận</h1>
+    <h2>Tổng hợp khối lượng ${xnHuong==='nhap'?'nhập':'xuất'} bãi Alpha Pi</h2>
+    <div class="party">THỜI GIAN: TỪ NGÀY ${formatNgayVN(tuNgay)} ĐẾN NGÀY ${formatNgayVN(denNgay)}<br>
+    ĐƠN VỊ VẬN CHUYỂN: ${ncc.ten}<br>
+    TÊN TÀU: ${tau}</div>
+    <div class="party"><b>Bên A (Bên thuê):</b> CÔNG TY CỔ PHẦN ALPHA PI<br>
+    Địa chỉ: Số 99 Nội khu Hưng Thái 2, P. Tân Hưng, TP.Hồ Chí Minh, Việt Nam.<br>
+    Mã số thuế: 0105860806<br>
+    Đại diện: <b>${xnDaiDien}</b>${xnChucVu?' — Chức vụ: '+xnChucVu:''}</div>
+    <div class="party"><b>Bên B:</b> ${ncc.ten}<br>
+    ${ncc.diaChi?`Địa chỉ: ${ncc.diaChi}<br>`:''}${ncc.maSoThue?`Mã số thuế: ${ncc.maSoThue}<br>`:''}${ncc.nguoiDaiDien?`Đại diện: ${ncc.nguoiDaiDien}${ncc.chucVu?' — Chức vụ: '+ncc.chucVu:''}`:''}</div>
+    <p>Hai bên cùng nhau thống nhất ký xác nhận tổng khối lượng ${xnHuong==='nhap'?'nhập':'xuất'} bãi của Công ty cổ phần Alpha Pi từ ngày ${formatNgayVN(tuNgay)} đến ngày ${formatNgayVN(denNgay)} như sau:</p>
+    <table><thead><tr><th>Stt</th><th>BKS</th><th>Tài xế</th><th class="num">Khối lượng (Kg)</th><th class="num">Số chuyến</th></tr></thead>
+    <tbody>${xeSorted.map((x,i)=>`<tr><td class="c">${i+1}</td><td class="mono">${x.bienSo}</td><td>${x.taiXe||''}</td><td class="num">${fmt(x.kg)}</td><td class="num">${x.chuyen}</td></tr>`).join('')}
+    <tr style="font-weight:700"><td colspan="3" class="c">TỔNG CỘNG</td><td class="num">${fmt(g.tongKg)}</td><td class="num">${g.tongChuyen}</td></tr>
+    </tbody></table>
+    <p style="margin-top:10px">Đính kèm bảng kê chi tiết.</p>
+    <p style="margin-top:20px">Thành phố Huế, ${ngayKy}</p>
+    <div class="sign">
+      <div>ĐẠI DIỆN BÊN A<div class="line"></div><b>${xnDaiDien}</b></div>
+      <div>ĐẠI DIỆN BÊN B<div class="line"></div></div>
     </div>
     <button class="noprint" style="margin-top:30px" onclick="window.print()">In</button>
     <script>window.onload=function(){ setTimeout(function(){ window.print(); }, 200); }<\/script>
@@ -2025,7 +2152,14 @@ const FIELD_SCHEMAS = {
     {key:'hanBaoDuongTiep', label:'Mốc giờ/km cần bảo dưỡng tiếp theo (để trống nếu không phải lần bảo dưỡng)', type:'number'},
   ]},
   khachhang: {ten:'khách hàng', fields:[
+    {key:'loaiDoiTac', label:'Loại đối tác', type:'select', options:[
+      {v:'', t:'— Chưa phân loại —'},
+      {v:'Khách hàng thuê bãi', t:'Khách hàng thuê bãi'},
+      {v:'Chủ hàng', t:'Chủ hàng'},
+      {v:'Nhà cung cấp vận chuyển', t:'Nhà cung cấp vận chuyển'},
+    ]},
     {key:'ten', label:'Tên khách hàng', type:'text'},
+    {key:'danhSachBai', label:'Danh sách bãi (chỉ áp dụng nếu là "Khách hàng thuê bãi", cách nhau bởi dấu phẩy)', type:'text'},
     {key:'diaChi', label:'Địa chỉ', type:'text'},
     {key:'maSoThue', label:'Mã số thuế', type:'text'},
     {key:'nguoiDaiDien', label:'Người đại diện', type:'text'},
@@ -2157,6 +2291,7 @@ function saveEditModal(e){
     }
   }
   Object.assign(record, updates);
+  if(editCtx.collection==='khachhang') rebuildBaiTheoKhachHang();
   logActivity(`Sửa ${schema.ten} ${record.id}`);
   closeModal('modal-edit');
   renderContent();
@@ -2168,7 +2303,10 @@ function deleteRecord(collection, id){
     ? ` Toàn bộ ${xeCuaKhachHang(id).length} xe đã đăng ký của khách hàng này cũng sẽ bị xóa theo.` : '';
   if(!confirm(`Xóa ${schema.ten} này?${canhBaoXe} Không thể hoàn tác (trừ khi khôi phục dữ liệu mẫu).`)) return;
   state[collection] = state[collection].filter(r=>r.id!==id);
-  if(collection==='khachhang') state.xekhachhang = state.xekhachhang.filter(x=>x.khachHangId!==id);
+  if(collection==='khachhang'){
+    state.xekhachhang = state.xekhachhang.filter(x=>x.khachHangId!==id);
+    rebuildBaiTheoKhachHang();
+  }
   logActivity(`Xóa ${schema.ten} ${id}`);
   renderContent();
 }
@@ -2730,16 +2868,19 @@ function capNhatTienDoGT(id){
 }
 
 /* ===================== M6: KHÁCH HÀNG ===================== */
-let m6SelectedKH = '';
+let m6SelectedKH = '', m6LocLoai = '';
+const LOAI_DOI_TAC_LIST = ['Khách hàng thuê bãi', 'Chủ hàng', 'Nhà cung cấp vận chuyển'];
 function xeCuaKhachHang(khachHangId){
   return state.xekhachhang.filter(x=>x.khachHangId===khachHangId);
 }
 function setM6SelectedKH(id){ m6SelectedKH = id; renderM6(); }
+function setM6LocLoai(loai){ m6LocLoai = loai; renderM6(); }
 function renderM6(){
   const content = document.getElementById('content');
   const canAdd = canEnter('M6');
-  if(m6SelectedKH && !state.khachhang.some(k=>k.id===m6SelectedKH)) m6SelectedKH = '';
-  if(!m6SelectedKH && state.khachhang.length) m6SelectedKH = state.khachhang[0].id;
+  const dsHienThi = m6LocLoai ? state.khachhang.filter(k=>k.loaiDoiTac===m6LocLoai) : state.khachhang;
+  if(m6SelectedKH && !dsHienThi.some(k=>k.id===m6SelectedKH)) m6SelectedKH = '';
+  if(!m6SelectedKH && dsHienThi.length) m6SelectedKH = dsHienThi[0].id;
   content.innerHTML = `
     <div class="panel-head"><h3>Danh sách khách hàng</h3>${canAdd ? `<div style="display:flex;gap:8px;flex-wrap:wrap">
       <button type="button" class="mini-btn" onclick="themNhanhKHVietThuan()">Nhập nhanh KH + xe từ file kê tàu Việt Thuận 235-07</button>
@@ -2748,9 +2889,20 @@ function renderM6(){
       <button type="button" class="mini-btn" onclick="themNhanhNhaXeSaoVang()">Nhập nhanh nhà xe Sao Vàng</button>
       <button type="button" class="mini-btn" onclick="themNhanhNhaXeTD()">Nhập nhanh nhà xe T.D</button>
     </div>` : ''}</div>
+    <div class="field" style="max-width:320px;margin-bottom:14px"><label>Lọc theo loại đối tác</label>
+      <select onchange="setM6LocLoai(this.value)">
+        <option value="">— Tất cả —</option>
+        ${LOAI_DOI_TAC_LIST.map(l=>`<option value="${l}" ${l===m6LocLoai?'selected':''}>${l}</option>`).join('')}
+      </select>
+    </div>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm khách hàng</summary>
       <form class="inline-form" onsubmit="return submitKhachHang(event)">
+        <div class="field"><label>Loại đối tác</label><select id="kh-loai">
+          <option value="">— Chưa phân loại —</option>
+          ${LOAI_DOI_TAC_LIST.map(l=>`<option value="${l}">${l}</option>`).join('')}
+        </select></div>
         <div class="field"><label>Tên khách hàng</label><input required id="kh-ten"></div>
+        <div class="field" style="grid-column:1/-1"><label>Danh sách bãi (chỉ áp dụng nếu là "Khách hàng thuê bãi", cách nhau bởi dấu phẩy)</label><input id="kh-danhsachbai" placeholder="VD: Bãi Alpha Pi, Bãi Phú Thái"></div>
         <div class="field"><label>Địa chỉ</label><input id="kh-diachi"></div>
         <div class="field"><label>Mã số thuế</label><input id="kh-mst"></div>
         <div class="field"><label>Người đại diện</label><input id="kh-daidien"></div>
@@ -2760,17 +2912,17 @@ function renderM6(){
         <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
       </form></details>` : ''}
     <div class="table-wrap"><table>
-      <thead><tr><th>Tên khách hàng</th><th>Địa chỉ</th><th>Mã số thuế</th><th>Người đại diện</th><th>SĐT</th><th style="text-align:right">Số xe đã đăng ký</th><th>Ghi chú</th><th></th></tr></thead>
-      <tbody>${state.khachhang.map(k => `<tr class="${k.id===m6SelectedKH?'row-selected':''}" style="cursor:pointer" onclick="setM6SelectedKH('${k.id}')">
-        <td>${k.ten}</td><td>${k.diaChi||''}</td><td class="mono">${k.maSoThue||''}</td><td>${k.nguoiDaiDien||''}${k.chucVu?' — '+k.chucVu:''}</td><td>${k.sdt||''}</td>
+      <thead><tr><th>Loại đối tác</th><th>Tên khách hàng</th><th>Địa chỉ</th><th>Mã số thuế</th><th>Người đại diện</th><th>SĐT</th><th style="text-align:right">Số xe đã đăng ký</th><th>Ghi chú</th><th></th></tr></thead>
+      <tbody>${dsHienThi.map(k => `<tr class="${k.id===m6SelectedKH?'row-selected':''}" style="cursor:pointer" onclick="setM6SelectedKH('${k.id}')">
+        <td style="font-size:12px">${k.loaiDoiTac||'—'}</td><td>${k.ten}</td><td>${k.diaChi||''}</td><td class="mono">${k.maSoThue||''}</td><td>${k.nguoiDaiDien||''}${k.chucVu?' — '+k.chucVu:''}</td><td>${k.sdt||''}</td>
         <td class="num">${xeCuaKhachHang(k.id).length}</td><td>${k.ghiChu||''}</td>
         <td><div class="row-actions" onclick="event.stopPropagation()">${canAdd ? actionButtons('khachhang', k.id) : ''}</div></td></tr>`).join('')
-        || `<tr class="empty-row"><td colspan="8">Chưa có khách hàng nào</td></tr>`}</tbody>
+        || `<tr class="empty-row"><td colspan="9">Chưa có khách hàng nào</td></tr>`}</tbody>
     </table></div>
-    ${state.khachhang.length ? `
-    <div class="panel-head" style="margin-top:28px"><h3>Xe của khách hàng — ${state.khachhang.find(k=>k.id===m6SelectedKH)?.ten||''}</h3></div>
+    ${dsHienThi.length ? `
+    <div class="panel-head" style="margin-top:28px"><h3>Xe của khách hàng — ${dsHienThi.find(k=>k.id===m6SelectedKH)?.ten||''}</h3></div>
     <div class="field" style="max-width:320px;margin-bottom:12px"><label>Chọn khách hàng</label>
-      <select onchange="setM6SelectedKH(this.value)">${state.khachhang.map(k=>`<option value="${k.id}" ${k.id===m6SelectedKH?'selected':''}>${k.ten}</option>`).join('')}</select>
+      <select onchange="setM6SelectedKH(this.value)">${dsHienThi.map(k=>`<option value="${k.id}" ${k.id===m6SelectedKH?'selected':''}>${k.ten}</option>`).join('')}</select>
     </div>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm xe cho khách hàng này</summary>
       <form class="inline-form" onsubmit="return submitXeKhachHang(event)">
@@ -2793,6 +2945,8 @@ function submitKhachHang(e){
   const ten = document.getElementById('kh-ten').value.trim();
   if(!ten){ alert('Nhập tên khách hàng.'); return false; }
   const kh = {id:'KH'+(state.nextId++), ten,
+    loaiDoiTac: document.getElementById('kh-loai').value,
+    danhSachBai: document.getElementById('kh-danhsachbai').value.trim(),
     diaChi: document.getElementById('kh-diachi').value.trim(),
     maSoThue: document.getElementById('kh-mst').value.trim(),
     nguoiDaiDien: document.getElementById('kh-daidien').value.trim(),
@@ -2802,6 +2956,7 @@ function submitKhachHang(e){
   };
   state.khachhang.push(kh);
   m6SelectedKH = kh.id;
+  rebuildBaiTheoKhachHang();
   logActivity(`Thêm khách hàng "${ten}"`);
   renderM6();
   return false;
@@ -2827,6 +2982,7 @@ function themNhanhKHVietThuan(){
     return;
   }
   const kh = {id:'KH'+(state.nextId++), ten:'CTY CỔ PHẦN XUẤT NHẬP KHẨU THAN VINACOMIN',
+    loaiDoiTac:'Chủ hàng', danhSachBai:'',
     diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'',
     ghiChu:'Chủ hàng tàu Việt Thuận 235-07 (03-05/09/2026) — chưa có địa chỉ/MST, bổ sung sau'};
   state.khachhang.push(kh);
@@ -2855,7 +3011,7 @@ function themNhanhNhaCungCap(ten, diaChi, maSoThue, nguoiDaiDien, chucVu, danhSa
     alert(`Đã có "${ten}" trong danh sách — không nhập lại để tránh trùng.`);
     return;
   }
-  const kh = {id:'KH'+(state.nextId++), ten, diaChi, maSoThue, nguoiDaiDien, chucVu, sdt:'',
+  const kh = {id:'KH'+(state.nextId++), ten, loaiDoiTac:'Nhà cung cấp vận chuyển', danhSachBai:'', diaChi, maSoThue, nguoiDaiDien, chucVu, sdt:'',
     ghiChu:'Đơn vị vận chuyển (nhà xe) — chở hàng cho khách hàng Vinacomin, tàu Việt Thuận 235-07'};
   state.khachhang.push(kh);
   let soDaChuyen = 0;
