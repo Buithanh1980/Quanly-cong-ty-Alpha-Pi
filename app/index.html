@@ -58,8 +58,6 @@
   .role-btn:hover{border-color:var(--brand); transform:translateY(-1px);}
   .role-btn .rname{font-weight:700;font-size:13.5px;margin-bottom:6px;}
   .role-btn .rdesc{font-size:11px;color:var(--ink-soft);margin-top:6px;line-height:1.4;}
-  .role-btn.group-btn{background:var(--brand-tint);border-color:var(--brand);}
-  .role-btn.group-btn .rname{color:var(--brand-ink);}
   .role-btn.role-btn-sub{margin-left:18px;width:calc(100% - 18px);border-left:3px solid var(--brand);background:var(--paper-raised);}
   .perm-strip{display:flex;gap:3px;}
   .perm-dot{width:15px;height:15px;border-radius:3px;font-family:"IBM Plex Mono",monospace;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;color:transparent;}
@@ -539,12 +537,6 @@ function expiryPill(dateStr){
 
 /* ===================== LOGIN ===================== */
 function permDotClass(p){ return p==='D'?'d':p==='N'?'n':p==='X'?'x':p==='Q'?'q':'none'; }
-const ROLE_GROUPS = {'Phòng Khai thác': {head:'KT', children:['DD','CC']}};
-let expandedLoginGroup = null;
-function findLoginGroupOf(roleId){
-  for(const g in ROLE_GROUPS){ if(ROLE_GROUPS[g].children.includes(roleId)) return g; }
-  return null;
-}
 function roleCardHtml(r, sub){
   const strip = MODULES.map(m => {
     const p = getPerm(r.id, m.code);
@@ -556,39 +548,9 @@ function roleCardHtml(r, sub){
       <div class="rdesc">${r.note}</div>
     </button>`;
 }
-function toggleLoginGroup(g){
-  expandedLoginGroup = (expandedLoginGroup === g) ? null : g;
-  renderLogin();
-}
 function renderLogin(){
   const grid = document.getElementById('role-grid');
-  const cards = [];
-  ROLES.forEach(r => {
-    const groupName = Object.keys(ROLE_GROUPS).find(g => ROLE_GROUPS[g].head === r.id);
-    if(!groupName){
-      if(findLoginGroupOf(r.id)) return; // đã/sẽ hiện dưới dạng con của nhóm, không lặp lại ở ngoài
-      cards.push(roleCardHtml(r, false));
-      return;
-    }
-    const group = ROLE_GROUPS[groupName];
-    const children = group.children.map(id => ROLES.find(x=>x.id===id));
-    const isOpen = expandedLoginGroup === groupName;
-    const childLabel = children.map(c => c.name.split(/[\/—]/)[0].trim()).join(' / ');
-    const strip = MODULES.map(m => {
-      const p = getPerm(r.id, m.code);
-      return `<span class="perm-dot ${permDotClass(p)}" title="${m.code} ${m.name}: ${p||'không có quyền'}">${p==='Q'?'Q':''}</span>`;
-    }).join('');
-    cards.push(`<div class="role-btn group-btn">
-      <div class="rname">${groupName}</div>
-      <div class="perm-strip">${strip}</div>
-      <div class="rdesc">${r.note}</div>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button type="button" class="mini-btn approve" style="flex:1" onclick="login('${r.id}')">Đăng nhập</button>
-        <button type="button" class="mini-btn" style="flex:1" onclick="toggleLoginGroup('${groupName}')">${childLabel} ${isOpen?'▲':'▼'}</button>
-      </div>
-    </div>`);
-    if(isOpen) children.forEach(m => cards.push(roleCardHtml(m, true)));
-  });
+  const cards = ROLES.filter(r => r.id!=='DD' && r.id!=='CC').map(r => roleCardHtml(r, false));
   grid.innerHTML = cards.join('');
 }
 
@@ -662,23 +624,24 @@ function renderContent(){
 function renderM1(){
   const content = document.getElementById('content');
   const laDieuDo = currentUser.id === 'DD';
+  const coGiaoViec = laDieuDo || currentUser.id === 'KT';
   const tabs = [
     {id:'tongquan', label:'Tổng quan'},
-    ...(laDieuDo ? [{id:'giaoviec', label:'Giao việc'}] : []),
     ...(laDieuDo ? [] : [
       {id:'nhap', label:'Nhập hàng'},
       {id:'xuat', label:'Xuất hàng'},
       {id:'dichvu', label:'Dịch vụ tại bãi'},
     ]),
+    ...(coGiaoViec ? [{id:'giaoviec', label:'Giao việc'}] : []),
   ];
-  if(currentTab === 'giaoviec' && !laDieuDo) currentTab = 'tongquan';
+  if(currentTab === 'giaoviec' && !coGiaoViec) currentTab = 'tongquan';
   if(['nhap','xuat','dichvu'].includes(currentTab) && laDieuDo) currentTab = 'tongquan';
   content.innerHTML = `<div class="tabs">` + tabs.map(t =>
     `<button class="tab-btn ${t.id===currentTab?'active':''}" onclick="currentTab='${t.id}';renderM1()">${t.label}</button>`
   ).join('') + `</div><div id="tab-body"></div>`;
   const body = document.getElementById('tab-body');
   if(currentTab === 'tongquan') return renderTongQuan(body);
-  if(currentTab === 'giaoviec' && laDieuDo) return renderGiaoViec(body);
+  if(currentTab === 'giaoviec' && coGiaoViec) return renderGiaoViec(body);
   if(currentTab === 'nhap') return renderNhap(body);
   if(currentTab === 'xuat') return renderXuat(body);
   if(currentTab === 'dichvu') return renderDichVu(body);
