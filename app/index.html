@@ -2688,6 +2688,9 @@ function renderM6(){
     <div class="panel-head"><h3>Danh sách khách hàng</h3>${canAdd ? `<div style="display:flex;gap:8px;flex-wrap:wrap">
       <button type="button" class="mini-btn" onclick="themNhanhKHVietThuan()">Nhập nhanh KH + xe từ file kê tàu Việt Thuận 235-07</button>
       <button type="button" class="mini-btn" onclick="themNhanhNhaXeNamPhat()">Nhập nhanh nhà xe Nam Phát</button>
+      <button type="button" class="mini-btn" onclick="themNhanhNhaXeX16()">Nhập nhanh nhà xe X16</button>
+      <button type="button" class="mini-btn" onclick="themNhanhNhaXeSaoVang()">Nhập nhanh nhà xe Sao Vàng</button>
+      <button type="button" class="mini-btn" onclick="themNhanhNhaXeTD()">Nhập nhanh nhà xe T.D</button>
     </div>` : ''}</div>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm khách hàng</summary>
       <form class="inline-form" onsubmit="return submitKhachHang(event)">
@@ -2791,31 +2794,55 @@ function themNhanhKHVietThuan(){
   logActivity(`Nhập nhanh khách hàng "${kh.ten}" và ${xeList.length} xe từ file kê tàu Việt Thuận 235-07`);
   renderM6();
 }
-function themNhanhNhaXeNamPhat(){
-  if(state.khachhang.some(k=>k.ten.toUpperCase().includes('NAM PHÁT'))){
-    alert('Đã có Nam Phát trong danh sách — không nhập lại để tránh trùng.');
+function themNhanhNhaCungCap(ten, diaChi, maSoThue, nguoiDaiDien, chucVu, danhSachXe){
+  if(state.khachhang.some(k=>k.ten===ten)){
+    alert(`Đã có "${ten}" trong danh sách — không nhập lại để tránh trùng.`);
     return;
   }
-  const kh = {id:'KH'+(state.nextId++), ten:'CÔNG TY CP CÔNG NGHỆ & CUNG ỨNG NHÂN LỰC NAM PHÁT',
-    diaChi:'Số nhà TT6-09 khu Foressa, Phường Xuân Phương, Thành Phố Hà Nội, Việt Nam.',
-    maSoThue:'0109576313', nguoiDaiDien:'Lê Quang Minh', chucVu:'Giám đốc', sdt:'',
+  const kh = {id:'KH'+(state.nextId++), ten, diaChi, maSoThue, nguoiDaiDien, chucVu, sdt:'',
     ghiChu:'Đơn vị vận chuyển (nhà xe) — chở hàng cho khách hàng Vinacomin, tàu Việt Thuận 235-07'};
   state.khachhang.push(kh);
-  const bienSoNamPhat = ['29K-119.18','29K-117.28','51C-084.88'];
   let soDaChuyen = 0;
-  bienSoNamPhat.forEach(bs => {
-    const xe = state.xekhachhang.find(x=>x.bienSo===bs);
+  danhSachXe.forEach(item => {
+    const bienSo = typeof item === 'string' ? item : item.bienSo;
+    const taiXe = typeof item === 'string' ? '' : (item.taiXe||'');
+    const xe = state.xekhachhang.find(x=>x.bienSo===bienSo);
     if(xe){
       xe.khachHangId = kh.id;
-      xe.ghiChu = xe.ghiChu.replace(/^Nhà xe Nam Phát — /, '');
+      xe.ghiChu = xe.ghiChu.replace(/^Nhà xe [^—]+ — /, '');
+      if(taiXe && !xe.taiXe) xe.taiXe = taiXe;
       soDaChuyen++;
     } else {
-      state.xekhachhang.push({id:'XKH'+(state.nextId++), khachHangId: kh.id, bienSo:bs, roMoc:'', taiXe:'', sdtTaiXe:'', ghiChu:'Tàu Việt Thuận 235-07'});
+      state.xekhachhang.push({id:'XKH'+(state.nextId++), khachHangId: kh.id, bienSo, roMoc:'', taiXe, sdtTaiXe:'', ghiChu:'Tàu Việt Thuận 235-07'});
     }
   });
   m6SelectedKH = kh.id;
   logActivity(`Nhập nhanh khách hàng "${kh.ten}" (nhà xe)${soDaChuyen ? `, chuyển ${soDaChuyen} xe đã có sang khách hàng này` : ''}`);
   renderM6();
+}
+function themNhanhNhaXeNamPhat(){
+  themNhanhNhaCungCap('CÔNG TY CP CÔNG NGHỆ & CUNG ỨNG NHÂN LỰC NAM PHÁT',
+    'Số nhà TT6-09 khu Foressa, Phường Xuân Phương, Thành Phố Hà Nội, Việt Nam.',
+    '0109576313', 'Lê Quang Minh', 'Giám đốc',
+    ['29K-119.18','29K-117.28','51C-084.88']);
+}
+function themNhanhNhaXeX16(){
+  themNhanhNhaCungCap('CÔNG TY TNHH MỘT THÀNH VIÊN LOGISTICS X16',
+    '66 Lê Ninh, Phường An Hải, Thành phố Đà Nẵng, Việt Nam.',
+    '0402344547', '', '',
+    ['43H-340.33']);
+}
+function themNhanhNhaXeSaoVang(){
+  themNhanhNhaCungCap('CÔNG TY CỔ PHẦN DỊCH VỤ KỸ THUẬT & LOGISTICS SAO VÀNG',
+    '36 Đường Nội Khu Hưng Gia 1, P. Tân Hưng, TP.Hồ Chí Minh, Việt Nam.',
+    '0317323539', '', '',
+    [{bienSo:'43H-062.66', taiXe:'Nguyễn Đăng Sơn'}]);
+}
+function themNhanhNhaXeTD(){
+  themNhanhNhaCungCap('CÔNG TY TNHH MTV DỊCH VỤ HÀNG HẢI T.D',
+    'Trung Kiền, xã Chân Mây - Lăng Cô, thành phố Huế, Việt Nam.',
+    '3301677224', '', '',
+    ['75E-003.04','75E-003.13','75E-007.19','75E-007.30']);
 }
 
 /* ===================== M7: TÀI CHÍNH — KẾ TOÁN ===================== */
