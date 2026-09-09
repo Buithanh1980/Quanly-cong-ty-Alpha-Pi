@@ -2685,7 +2685,7 @@ function renderM6(){
   if(m6SelectedKH && !state.khachhang.some(k=>k.id===m6SelectedKH)) m6SelectedKH = '';
   if(!m6SelectedKH && state.khachhang.length) m6SelectedKH = state.khachhang[0].id;
   content.innerHTML = `
-    <div class="panel-head"><h3>Danh sách khách hàng</h3></div>
+    <div class="panel-head"><h3>Danh sách khách hàng</h3>${canAdd ? `<button type="button" class="mini-btn" onclick="themNhanhKHVietThuan()">Nhập nhanh KH + xe từ file kê tàu Việt Thuận 235-07</button>` : ''}</div>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm khách hàng</summary>
       <form class="inline-form" onsubmit="return submitKhachHang(event)">
         <div class="field"><label>Tên khách hàng</label><input required id="kh-ten"></div>
@@ -2758,6 +2758,35 @@ function submitXeKhachHang(e){
   logActivity(`Thêm xe ${bienSo} cho khách hàng`);
   renderM6();
   return false;
+}
+function themNhanhKHVietThuan(){
+  if(state.khachhang.some(k=>k.ten.toUpperCase().includes('VINACOMIN'))){
+    alert('Đã có khách hàng Vinacomin trong danh sách — không nhập lại để tránh trùng.');
+    return;
+  }
+  const kh = {id:'KH'+(state.nextId++), ten:'CTY CỔ PHẦN XUẤT NHẬP KHẨU THAN VINACOMIN',
+    diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'',
+    ghiChu:'Chủ hàng tàu Việt Thuận 235-07 (03-05/09/2026) — chưa có địa chỉ/MST, bổ sung sau'};
+  state.khachhang.push(kh);
+  const xeList = [
+    {bienSo:'29K-119.18', ghiChu:'Nhà xe Nam Phát — 77 chuyến, tàu Việt Thuận 235-07'},
+    {bienSo:'29K-117.28', ghiChu:'Nhà xe Nam Phát — 104 chuyến, tàu Việt Thuận 235-07'},
+    {bienSo:'51C-084.88', ghiChu:'Nhà xe Nam Phát — 23 chuyến, tàu Việt Thuận 235-07'},
+    {bienSo:'43H-340.33', ghiChu:'Nhà xe Logistics X16 — 82 chuyến, tàu Việt Thuận 235-07'},
+    {bienSo:'43H-062.66', taiXe:'Nguyễn Đăng Sơn', ghiChu:'Nhà xe Sao Vàng — 65 chuyến, tàu Việt Thuận 235-07'},
+    {bienSo:'75E-003.04', ghiChu:'Nhà xe T.D — 90 chuyến, tàu Việt Thuận 235-07'},
+    {bienSo:'75E-003.13', ghiChu:'Nhà xe T.D — 76 chuyến, tàu Việt Thuận 235-07'},
+    {bienSo:'75E-007.19', ghiChu:'Nhà xe T.D — 93 chuyến, tàu Việt Thuận 235-07'},
+    {bienSo:'75E-007.30', ghiChu:'Nhà xe T.D — 93 chuyến, tàu Việt Thuận 235-07'},
+    {bienSo:'43H-060.60', taiXe:'Nguyễn Văn Đạt Thịnh', ghiChu:'Nhà xe A.P — 27 chuyến, tàu Việt Thuận 235-07'},
+  ];
+  xeList.forEach(x => {
+    state.xekhachhang.push({id:'XKH'+(state.nextId++), khachHangId: kh.id, bienSo:x.bienSo, roMoc:'',
+      taiXe: x.taiXe||'', sdtTaiXe:'', ghiChu:x.ghiChu});
+  });
+  m6SelectedKH = kh.id;
+  logActivity(`Nhập nhanh khách hàng "${kh.ten}" và ${xeList.length} xe từ file kê tàu Việt Thuận 235-07`);
+  renderM6();
 }
 
 /* ===================== M7: TÀI CHÍNH — KẾ TOÁN ===================== */
