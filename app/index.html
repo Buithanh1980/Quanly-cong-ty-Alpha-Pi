@@ -1717,7 +1717,7 @@ function confirmWeighImport(){
 }
 
 /* ---- Xác nhận với KH: tổng hợp khối lượng hàng qua cân theo tàu, in bảng ký xác nhận ---- */
-let xnHuong = 'xuat', xnTau = '', xnDaiDien = 'Phạm Văn Đông', xnChucVu = 'Trưởng Phòng Khai Thác', xnTramCan = 'Trạm Cân Số 01';
+let xnHuong = 'xuat', xnTau = '', xnDaiDien = 'Bùi Ngọc Thành', xnChucVu = '', xnTramCan = 'Trạm Cân Số 01';
 function danhSachTauTheo(huong){
   const arr = huong==='nhap' ? state.nhap : state.xuat;
   return [...new Set(arr.filter(r=>r.tuyen==='Đường thủy' && r.nguon).map(r=>r.nguon))];
