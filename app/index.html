@@ -1751,7 +1751,7 @@ function confirmWeighImport(){
 }
 
 /* ---- Xác nhận với KH: tổng hợp khối lượng hàng qua cân theo tàu, in bảng ký xác nhận ---- */
-let xnHuong = 'xuat', xnKhachHang = '', xnTau = '', xnDaiDien = 'Bùi Ngọc Thành', xnChucVu = 'Phó Tổng Giám đốc', xnTramCan = 'Trạm Cân Số 01';
+let xnHuong = 'xuat', xnKhachHang = '', xnTau = '', xnDaiDien = 'Bùi Ngọc Thành', xnChucVu = 'Phó Tổng Giám đốc';
 function formatNgayNganNam(iso){
   if(!iso) return '';
   const [y,m,d] = iso.split('-');
@@ -1803,7 +1803,6 @@ function setXacNhan(key, val){
   else if(key==='tau') xnTau = val;
   else if(key==='daidien') xnDaiDien = val;
   else if(key==='chucvu') xnChucVu = val;
-  else if(key==='tramcan') xnTramCan = val;
   renderM1();
 }
 function nhomXacNhanTheoTau(huong, tauKey, khachHang){
@@ -1816,10 +1815,12 @@ function nhomXacNhanTheoTau(huong, tauKey, khachHang){
     const kh = lot ? lot.chuHang : '';
     const loai = lot ? lot.loaiHang : '';
     let g = groups.find(g=>g.kh===kh && g.loai===loai);
-    if(!g){ g = {kh, loai, kg:0, xe:0}; groups.push(g); }
+    if(!g){ g = {kh, loai, kg:0, xe:0, baiSet:new Set()}; groups.push(g); }
     g.kg += r.khoiLuong*1000;
     g.xe += 1;
+    if(lot && lot.viTri) g.baiSet.add(lot.viTri);
   });
+  groups.forEach(g=>{ g.bai = [...g.baiSet].join(', '); });
   return {groups, tau, tuNgay, denNgay};
 }
 function formatNgayVN(iso){
@@ -1896,16 +1897,15 @@ function renderXacNhan(body){
     ${!xnTau || !groups.length ? `<p style="font-size:12.5px;color:var(--ink-soft)">Chưa có phiếu cân đường thủy nào cho lựa chọn này. Vào tab ${xnHuong==='nhap'?'Nhập hàng':'Xuất hàng'}, mục "Nhập số liệu từ file cân" để nạp dữ liệu tàu này trước.</p>` : (() => {
       const nccGroups = nhomNhaCungCapTheoTau(xnHuong, xnTau, xnKhachHang);
       return `
-    <div class="inline-form" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:16px">
-      <div class="field"><label>Trạm cân</label><input value="${xnTramCan}" onchange="setXacNhan('tramcan',this.value)"></div>
+    <div class="inline-form" style="grid-template-columns:1fr 1fr;margin-bottom:16px">
       <div class="field"><label>Đại diện Alpha Pi ký</label><input value="${xnDaiDien}" onchange="setXacNhan('daidien',this.value)"></div>
       <div class="field"><label>Chức vụ</label><input value="${xnChucVu}" onchange="setXacNhan('chucvu',this.value)"></div>
     </div>
     <div class="table-wrap">
-      <table><thead><tr><th>Stt</th><th>Khách hàng</th><th>Loại hàng</th><th style="text-align:right">Khối lượng hàng (Kg)</th><th style="text-align:right">Số lượng xe (Chiếc)</th><th>Ghi chú</th><th></th></tr></thead>
-      <tbody>${groups.map((g,i)=>`<tr><td class="mono">${i+1}</td><td>${g.kh}</td><td>${g.loai}</td><td class="num">${fmt(g.kg)}</td><td class="num">${g.xe}</td><td></td>
+      <table><thead><tr><th>Stt</th><th>Khách hàng</th><th>Loại hàng</th><th style="text-align:right">Số lượng xe (chuyến)</th><th style="text-align:right">Khối lượng hàng (kg)</th><th>Ghi chú</th><th></th></tr></thead>
+      <tbody>${groups.map((g,i)=>`<tr><td class="mono">${i+1}</td><td>${g.kh}</td><td>${g.loai}</td><td class="num">${g.xe}</td><td class="num">${fmt(g.kg)}</td><td>${g.bai}</td>
         <td><div class="row-actions"><button type="button" class="mini-btn" onclick="inBangXacNhan('${g.kh}')">In bảng xác nhận</button><button type="button" class="mini-btn" onclick="inBangKeChiTietKhachHang('${g.kh}')">In bảng kê chi tiết</button></div></td></tr>`).join('')}
-      <tr style="font-weight:700"><td colspan="3">Tổng</td><td class="num">${fmt(tongKg)}</td><td class="num">${tongXe}</td><td></td><td></td></tr></tbody></table>
+      <tr style="font-weight:700"><td colspan="3">Tổng</td><td class="num">${tongXe}</td><td class="num">${fmt(tongKg)}</td><td></td><td></td></tr></tbody></table>
     </div>
 
     <div class="panel-head" style="margin-top:28px"><h3>Xác nhận với nhà cung cấp dịch vụ</h3></div>
@@ -1938,7 +1938,9 @@ function inBangXacNhan(khOverride){
     .head img{height:64px}
     .head b{font-size:15.5px}
     h1{font-size:16px;text-align:center;margin:18px 0 14px;text-transform:uppercase;}
-    .meta div{margin:4px 0}
+    .meta{width:auto;border-collapse:collapse;margin-bottom:6px;}
+    .meta td{padding:2px 0;border:none;font-size:13px;}
+    .meta td:first-child{padding-right:14px;}
     table{border-collapse:collapse;width:100%;margin-top:14px;}
     th,td{border:1px solid #111;padding:6px 8px;font-size:12.5px;}
     th{background:#f2f2f2;text-align:center;}
@@ -1950,16 +1952,15 @@ function inBangXacNhan(khOverride){
     @media print{ .noprint{display:none} }
   </style></head><body>
     <div class="head"><img src="${ALPHAPI_LOGO_DATAURI}"><div><b>CÔNG TY CỔ PHẦN ALPHA PI</b><br>Địa chỉ trụ sở: Số 99 Nội khu Hưng Thái 2, P. Tân Hưng, TP.Hồ Chí Minh, Việt Nam.<br>Mã số thuế: 0105860806<br>Email: accountant@alphapi.com.vn</div></div>
-    <h1>Bảng xác nhận hàng ${xnHuong==='nhap'?'nhập':'xuất'} bãi qua cân</h1>
-    <div class="meta">
-      <div><b>Tên tàu:</b> ${tau}</div>
-      <div><b>Thời gian bắt đầu làm hàng:</b> ${formatNgayVN(tuNgay)} 00:00:00 AM</div>
-      <div><b>Thời gian kết thúc làm hàng:</b> ${formatNgayVN(denNgay)} 23:59:59 PM</div>
-      <div><b>${xnTramCan}</b></div>
-    </div>
-    <table><thead><tr><th>Stt</th><th>Khách hàng</th><th>Loại hàng</th><th class="num">Khối lượng hàng (Kg)</th><th class="num">Số lượng xe (Chiếc)</th><th>Ghi chú</th></tr></thead>
-    <tbody>${groups.map((g,i)=>`<tr><td class="c">${i+1}</td><td>${tenDayDuKhachHang(g.kh)}</td><td>${g.loai}</td><td class="num">${fmt(g.kg)}</td><td class="num">${g.xe}</td><td></td></tr>`).join('')}
-    <tr style="font-weight:700"><td colspan="3" class="c">Tổng</td><td class="num">${fmt(tongKg)}</td><td class="num">${tongXe}</td><td></td></tr>
+    <h1>Bảng xác nhận khối lượng hàng ${xnHuong==='nhap'?'nhập':'xuất'} qua cân</h1>
+    <table class="meta">
+      <tr><td>Tên tàu:</td><td>${tau}</td></tr>
+      <tr><td>Ngày bắt đầu làm hàng:</td><td>${formatNgayVN(tuNgay)}</td></tr>
+      <tr><td>Ngày kết thúc làm hàng:</td><td>${formatNgayVN(denNgay)}</td></tr>
+    </table>
+    <table><thead><tr><th>Stt</th><th>Khách Hàng</th><th>Loại hàng</th><th class="num">Số lượng xe (chuyến)</th><th class="num">Khối lượng hàng (kg)</th><th>Ghi chú</th></tr></thead>
+    <tbody>${groups.map((g,i)=>`<tr><td class="c">${i+1}</td><td>${tenDayDuKhachHang(g.kh)}</td><td>${g.loai}</td><td class="num">${g.xe}</td><td class="num">${fmt(g.kg)}</td><td>${g.bai}</td></tr>`).join('')}
+    <tr style="font-weight:700"><td colspan="3" class="c">Tổng</td><td class="num">${tongXe}</td><td class="num">${fmt(tongKg)}</td><td></td></tr>
     </tbody></table>
     <p style="margin-top:10px">Đính kèm bảng kê chi tiết.</p>
     <div class="sign">
@@ -2073,19 +2074,22 @@ function inBangKeChiTietPhieuCan(rows, titleSuffix, h2Line, tau, tuNgay, denNgay
     i += soDong;
   }
   const tongSoTrang = trangs.length;
-  const theadHtml = `<thead><tr><th>Stt</th><th>Số phiếu</th><th>Ngày</th><th>Biển số xe</th><th>Tài xế</th><th>Khách hàng</th><th>Loại hàng</th><th class="num">Khối lượng hàng (Kg)</th></tr></thead>`;
+  const theadHtml = `<thead><tr><th>Stt</th><th>Số phiếu</th><th>Biển số xe</th><th>Khách hàng</th><th>Loại hàng</th><th>Ngày</th><th class="num">Khối lượng hàng (Kg)</th><th>Tài xế</th></tr></thead>`;
   let sttOffset = 0;
   const trangsHtml = trangs.map((trRows, idx) => {
     const laDauTien = idx===0, laCuoi = idx===tongSoTrang-1;
-    const bodyHtml = trRows.map((r,j)=>`<tr><td class="c">${sttOffset+j+1}</td><td class="c">${r.soPhieu}</td><td class="c">${formatNgayVN(r.ngay)}</td><td class="c">${r.bienSo}</td><td>${r.taiXe}</td><td>${r.khachHang}</td><td>${r.loaiHang}</td><td class="num">${fmt(r.kg)}</td></tr>`).join('');
+    const bodyHtml = trRows.map((r,j)=>`<tr><td class="c">${sttOffset+j+1}</td><td class="c">${r.soPhieu}</td><td class="c">${r.bienSo}</td><td>${r.khachHang}</td><td>${r.loaiHang}</td><td class="c">${formatNgayVN(r.ngay)}</td><td class="num">${fmt(r.kg)}</td><td>${r.taiXe}</td></tr>`).join('');
     sttOffset += trRows.length;
     return `<div class="pg">
       ${laDauTien ? `<div class="head"><img src="${ALPHAPI_LOGO_DATAURI}"><div><b>CÔNG TY CỔ PHẦN ALPHA PI</b><br>Địa chỉ trụ sở: Số 99 Nội khu Hưng Thái 2, P. Tân Hưng, TP.Hồ Chí Minh, Việt Nam.<br>Mã số thuế: 0105860806<br>Email: accountant@alphapi.com.vn</div></div>
       <h1>Bảng kê chi tiết cân hàng</h1>
       <h2>${h2Line}</h2>
-      <div class="party">Tên tàu: ${tau} &nbsp;&nbsp;&nbsp; Thời gian: từ ngày ${formatNgayVN(tuNgay)} đến ngày ${formatNgayVN(denNgay)}</div>` : ''}
+      <table class="meta">
+        <tr><td>Tên Tàu:</td><td>${tau}</td></tr>
+        <tr><td>Ngày làm hàng:</td><td>${formatNgayVN(tuNgay)}</td><td style="padding-left:20px">Ngày kết thúc:</td><td>${formatNgayVN(denNgay)}</td></tr>
+      </table>` : ''}
       <table>${theadHtml}<tbody>${bodyHtml}
-      ${laCuoi ? `<tr style="font-weight:700"><td colspan="7" class="c">TỔNG CỘNG</td><td class="num">${fmt(tongKg)}</td></tr>` : ''}
+      ${laCuoi ? `<tr style="font-weight:700"><td colspan="6" class="c">TỔNG CỘNG</td><td class="num">${fmt(tongKg)}</td><td></td></tr>` : ''}
       </tbody></table>
       ${laCuoi ? signHtml : ''}
       <div class="pagefoot">Trang ${idx+1}/${tongSoTrang}</div>
@@ -2102,7 +2106,8 @@ function inBangKeChiTietPhieuCan(rows, titleSuffix, h2Line, tau, tuNgay, denNgay
     .head b{font-size:15px}
     h1{font-size:15px;text-align:center;margin:10px 0 2px;text-transform:uppercase;}
     h2{font-size:13px;text-align:center;margin:0 0 14px;font-weight:400}
-    .party{margin:4px 0 12px;font-size:12.5px}
+    table.meta{width:auto;border-collapse:collapse;margin:8px 0 12px;}
+    table.meta td{border:none;padding:2px 0;font-size:12.5px;}
     table{border-collapse:collapse;width:100%;margin-top:10px;}
     th,td{border:1px solid #111;padding:4px 6px;font-size:11.5px;}
     th{background:#f2f2f2;text-align:center;}
