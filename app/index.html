@@ -1890,17 +1890,17 @@ function renderXacNhan(body){
     ${!xnTau || !groups.length ? `<p style="font-size:12.5px;color:var(--ink-soft)">Chưa có phiếu cân đường thủy nào cho lựa chọn này. Vào tab ${xnHuong==='nhap'?'Nhập hàng':'Xuất hàng'}, mục "Nhập số liệu từ file cân" để nạp dữ liệu tàu này trước.</p>` : (() => {
       const nccGroups = nhomNhaCungCapTheoTau(xnHuong, xnTau, xnKhachHang);
       return `
-    <div class="table-wrap">
-      <table><thead><tr><th>Stt</th><th>Khách hàng</th><th>Loại hàng</th><th style="text-align:right">Khối lượng hàng (Kg)</th><th style="text-align:right">Số lượng xe (Chiếc)</th><th>Ghi chú</th></tr></thead>
-      <tbody>${groups.map((g,i)=>`<tr><td class="mono">${i+1}</td><td>${g.kh}</td><td>${g.loai}</td><td class="num">${fmt(g.kg)}</td><td class="num">${g.xe}</td><td></td></tr>`).join('')}
-      <tr style="font-weight:700"><td colspan="3">Tổng</td><td class="num">${fmt(tongKg)}</td><td class="num">${tongXe}</td><td></td></tr></tbody></table>
-    </div>
-    <div class="inline-form" style="grid-template-columns:1fr 1fr 1fr;margin-top:16px">
+    <div class="inline-form" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:16px">
       <div class="field"><label>Trạm cân</label><input value="${xnTramCan}" onchange="setXacNhan('tramcan',this.value)"></div>
       <div class="field"><label>Đại diện Alpha Pi ký</label><input value="${xnDaiDien}" onchange="setXacNhan('daidien',this.value)"></div>
       <div class="field"><label>Chức vụ</label><input value="${xnChucVu}" onchange="setXacNhan('chucvu',this.value)"></div>
     </div>
-    <div class="form-actions" style="display:flex;justify-content:flex-end;margin-top:10px"><button type="button" class="add-btn" onclick="inBangXacNhan()">In bảng xác nhận</button></div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Stt</th><th>Khách hàng</th><th>Loại hàng</th><th style="text-align:right">Khối lượng hàng (Kg)</th><th style="text-align:right">Số lượng xe (Chiếc)</th><th>Ghi chú</th><th></th></tr></thead>
+      <tbody>${groups.map((g,i)=>`<tr><td class="mono">${i+1}</td><td>${g.kh}</td><td>${g.loai}</td><td class="num">${fmt(g.kg)}</td><td class="num">${g.xe}</td><td></td>
+        <td><div class="row-actions"><button type="button" class="mini-btn" onclick="inBangXacNhan('${g.kh}')">In bảng xác nhận</button><button type="button" class="mini-btn" onclick="inBangKeChiTietKhachHang('${g.kh}')">In bảng kê chi tiết</button></div></td></tr>`).join('')}
+      <tr style="font-weight:700"><td colspan="3">Tổng</td><td class="num">${fmt(tongKg)}</td><td class="num">${tongXe}</td><td></td><td></td></tr></tbody></table>
+    </div>
 
     <div class="panel-head" style="margin-top:28px"><h3>Xác nhận với nhà cung cấp dịch vụ</h3></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 10px">Tự động nhóm theo biển số xe đã đăng ký ở module "Thông tin khách hàng" (loại "Nhà cung cấp dịch vụ"). Biển số chưa đăng ký sẽ gộp vào dòng "Chưa rõ nhà xe" — vào M6 đăng ký biển số cho đúng nhà xe để tách ra.</p>
@@ -1914,8 +1914,9 @@ function renderXacNhan(body){
     `; })()}
   `;
 }
-function inBangXacNhan(){
-  const {groups, tau, tuNgay, denNgay} = nhomXacNhanTheoTau(xnHuong, xnTau, xnKhachHang);
+function inBangXacNhan(khOverride){
+  const khLoc = khOverride !== undefined ? khOverride : xnKhachHang;
+  const {groups, tau, tuNgay, denNgay} = nhomXacNhanTheoTau(xnHuong, xnTau, khLoc);
   if(!groups.length){ alert('Chưa có dữ liệu để in.'); return; }
   const tongKg = groups.reduce((s,g)=>s+g.kg,0);
   const tongXe = groups.reduce((s,g)=>s+g.xe,0);
@@ -2020,15 +2021,18 @@ function inBangXacNhanNhaXe(nccKey){
   </body></html>`);
   win.document.close();
 }
-function chiTietTheoNhaCungCap(huong, tauKey, khachHang, nccKey){
+function chiTietTheoLoc(huong, tauKey, khachHang, nccKey){
   if(!tauKey) return [];
   const {tau, tuNgay, denNgay} = parseXnTauKey(tauKey);
-  const recs = duongThuyTheoHuong(huong, khachHang).filter(r=>r.nguon===tau && r.ngay>=tuNgay && r.ngay<=denNgay);
-  return recs.filter(r=>{
-    const ncc = nhaCungCapCuaBienSo(r.bienSo);
-    const key = ncc ? ncc.id : '__chuaro__';
-    return key === nccKey;
-  }).map(r=>{
+  let recs = duongThuyTheoHuong(huong, khachHang).filter(r=>r.nguon===tau && r.ngay>=tuNgay && r.ngay<=denNgay);
+  if(nccKey !== undefined){
+    recs = recs.filter(r=>{
+      const ncc = nhaCungCapCuaBienSo(r.bienSo);
+      const key = ncc ? ncc.id : '__chuaro__';
+      return key === nccKey;
+    });
+  }
+  return recs.map(r=>{
     const lot = state.lots.find(l=>l.id===r.lotId);
     const xk = state.xekhachhang.find(x=>x.bienSo===r.bienSo);
     const m = (r.phuongTien||'').match(/\(phiếu ([^)]+)\)/);
@@ -2043,14 +2047,14 @@ function chiTietTheoNhaCungCap(huong, tauKey, khachHang, nccKey){
     };
   }).sort((a,b)=> a.ngay===b.ngay ? a.soPhieu.localeCompare(b.soPhieu) : a.ngay.localeCompare(b.ngay));
 }
-function inBangKeChiTietNhaXe(nccKey){
-  const nccGroups = nhomNhaCungCapTheoTau(xnHuong, xnTau, xnKhachHang);
-  const g = nccGroups.find(x=>x.nccKey===nccKey);
-  if(!g || !g.ncc){ alert('Không tìm thấy dữ liệu.'); return; }
-  const rows = chiTietTheoNhaCungCap(xnHuong, xnTau, xnKhachHang, nccKey);
+function chiTietTheoNhaCungCap(huong, tauKey, khachHang, nccKey){
+  return chiTietTheoLoc(huong, tauKey, khachHang, nccKey);
+}
+function chiTietTheoKhachHang(huong, tauKey, khachHang){
+  return chiTietTheoLoc(huong, tauKey, khachHang, undefined);
+}
+function inBangKeChiTietPhieuCan(rows, titleSuffix, h2Line, tau, tuNgay, denNgay, signHtml){
   if(!rows.length){ alert('Chưa có dữ liệu chi tiết để in.'); return; }
-  const {tau, tuNgay, denNgay} = parseXnTauKey(xnTau);
-  const ncc = g.ncc;
   const tongKg = rows.reduce((s,r)=>s+r.kg,0);
   const win = window.open('', '_blank');
   if(!win){ alert('Trình duyệt đã chặn cửa sổ in — cho phép popup rồi thử lại.'); return; }
@@ -2072,20 +2076,17 @@ function inBangKeChiTietNhaXe(nccKey){
     return `<div class="pg">
       ${laDauTien ? `<div class="head"><img src="${ALPHAPI_LOGO_DATAURI}"><div><b>CÔNG TY CỔ PHẦN ALPHA PI</b><br>Địa chỉ trụ sở: Số 99 Nội khu Hưng Thái 2, P. Tân Hưng, TP.Hồ Chí Minh, Việt Nam.<br>Mã số thuế: 0105860806<br>Email: accountant@alphapi.com.vn</div></div>
       <h1>Bảng kê chi tiết cân hàng</h1>
-      <h2>Đơn vị vận chuyển: ${ncc.ten}</h2>
+      <h2>${h2Line}</h2>
       <div class="party">Tên tàu: ${tau} &nbsp;&nbsp;&nbsp; Thời gian: từ ngày ${formatNgayVN(tuNgay)} đến ngày ${formatNgayVN(denNgay)}</div>` : ''}
       <table>${theadHtml}<tbody>${bodyHtml}
       ${laCuoi ? `<tr style="font-weight:700"><td colspan="7" class="c">TỔNG CỘNG</td><td class="num">${fmt(tongKg)}</td></tr>` : ''}
       </tbody></table>
-      ${laCuoi ? `<div class="sign">
-        <div>ĐẠI DIỆN BÊN A<div class="line"></div>${xnDaiDien}</div>
-        <div>ĐẠI DIỆN BÊN B<div class="line"></div></div>
-      </div>` : ''}
+      ${laCuoi ? signHtml : ''}
       <div class="pagefoot">Trang ${idx+1}/${tongSoTrang}</div>
     </div>`;
   }).join('');
 
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bảng kê chi tiết — ${ncc.ten}</title>
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bảng kê chi tiết — ${titleSuffix}</title>
   <style>
     @page{ size:A4; margin:15mm 12mm; }
     body{font-family:'Times New Roman',Times,serif;font-size:12.5px;color:#111;margin:0;}
@@ -2112,6 +2113,30 @@ function inBangKeChiTietNhaXe(nccKey){
     <button class="noprint" style="margin-top:30px;padding:10px 22px;font-size:14px;font-weight:700;background:#0E5C52;color:#fff;border:none;border-radius:5px;cursor:pointer" onclick="window.print()">In</button>
   </body></html>`);
   win.document.close();
+}
+function inBangKeChiTietNhaXe(nccKey){
+  const nccGroups = nhomNhaCungCapTheoTau(xnHuong, xnTau, xnKhachHang);
+  const g = nccGroups.find(x=>x.nccKey===nccKey);
+  if(!g || !g.ncc){ alert('Không tìm thấy dữ liệu.'); return; }
+  const rows = chiTietTheoNhaCungCap(xnHuong, xnTau, xnKhachHang, nccKey);
+  const {tau, tuNgay, denNgay} = parseXnTauKey(xnTau);
+  const ncc = g.ncc;
+  const signHtml = `<div class="sign">
+        <div>ĐẠI DIỆN BÊN A<div class="line"></div>${xnDaiDien}</div>
+        <div>ĐẠI DIỆN BÊN B<div class="line"></div></div>
+      </div>`;
+  inBangKeChiTietPhieuCan(rows, ncc.ten, `Đơn vị vận chuyển: ${ncc.ten}`, tau, tuNgay, denNgay, signHtml);
+}
+function inBangKeChiTietKhachHang(khTen){
+  if(!xnTau){ alert('Không tìm thấy dữ liệu.'); return; }
+  const rows = chiTietTheoKhachHang(xnHuong, xnTau, khTen);
+  const {tau, tuNgay, denNgay} = parseXnTauKey(xnTau);
+  const khMatch = state.khachhang.find(k=>k.ten===khTen);
+  const signHtml = `<div class="sign">
+        <div>${khTen}${khMatch && khMatch.diaChi ? `<br><span style="font-size:11px;font-weight:400">${khMatch.diaChi}</span>` : ''}${khMatch && khMatch.maSoThue ? `<br><span style="font-size:11px;font-weight:400">MST: ${khMatch.maSoThue}</span>` : ''}<div class="line"></div>${khMatch && khMatch.nguoiDaiDien ? khMatch.nguoiDaiDien : 'Đại diện ký, ghi rõ họ tên'}</div>
+        <div>CÔNG TY CP ALPHA PI<div class="line"></div>${xnDaiDien}<br>${xnChucVu}</div>
+      </div>`;
+  inBangKeChiTietPhieuCan(rows, khTen, `Khách hàng: ${khTen}`, tau, tuNgay, denNgay, signHtml);
 }
 
 function renderDichVu(body){
