@@ -667,7 +667,7 @@ function renderM1(){
       {id:'dichvu', label:'Dịch vụ tại bãi'},
     ]),
     ...(coGiaoViec ? [{id:'giaoviec', label:'Giao việc'}] : []),
-    ...(laKT ? [{id:'xacnhan', label:'Xác nhận với KH'}] : []),
+    ...(laKT ? [{id:'xacnhan', label:'Xác nhận KL với KH/ nhà CCDV'}] : []),
   ];
   if(currentTab === 'giaoviec' && !coGiaoViec) currentTab = 'tongquan';
   if(currentTab === 'xacnhan' && !laKT) currentTab = 'tongquan';
