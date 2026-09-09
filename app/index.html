@@ -454,7 +454,7 @@ function seedState(){
     kiemke: [],
     khachhang: [
       {id:'KH-NAMTIEN', ten:'Nam Tiến', loaiDoiTac:'Khách hàng thuê bãi (chủ hàng)', danhSachBai:'Bãi Alpha Pi, Bãi Phú Thái, Bãi Vinalift', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''},
-      {id:'KH-COALIMEX', ten:'Coalimex', loaiDoiTac:'Khách hàng thuê bãi (chủ hàng)', danhSachBai:'Bãi Coalimex', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''},
+      {id:'KH-COALIMEX', ten:'Coalimex', tenDayDu:'CTY CỔ PHẦN XUẤT NHẬP KHẨU THAN VINACOMIN', loaiDoiTac:'Khách hàng thuê bãi (chủ hàng)', danhSachBai:'Bãi Coalimex', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''},
     ],
     xekhachhang: [],
     vantai: [],
@@ -519,7 +519,7 @@ function loadState(){
       state.khachhang.push({id:'KH-NAMTIEN', ten:'Nam Tiến', loaiDoiTac:'Khách hàng thuê bãi (chủ hàng)', danhSachBai:'Bãi Alpha Pi, Bãi Phú Thái, Bãi Vinalift', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''});
     }
     if(!state.khachhang.some(k=>k.ten==='Coalimex' && k.loaiDoiTac==='Khách hàng thuê bãi (chủ hàng)')){
-      state.khachhang.push({id:'KH-COALIMEX', ten:'Coalimex', loaiDoiTac:'Khách hàng thuê bãi (chủ hàng)', danhSachBai:'Bãi Coalimex', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''});
+      state.khachhang.push({id:'KH-COALIMEX', ten:'Coalimex', tenDayDu:'CTY CỔ PHẦN XUẤT NHẬP KHẨU THAN VINACOMIN', loaiDoiTac:'Khách hàng thuê bãi (chủ hàng)', danhSachBai:'Bãi Coalimex', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''});
     }
     const NHACUNGCAP_TU_KHOA = ['NAM PHÁT','X16','SAO VÀNG','T.D','LOGISTICS','DỊCH VỤ HÀNG HẢI'];
     state.khachhang.forEach(k=>{
@@ -529,6 +529,8 @@ function loadState(){
         else k.loaiDoiTac = '';
       }
       if(k.danhSachBai===undefined) k.danhSachBai = '';
+      if(k.tenDayDu===undefined) k.tenDayDu = '';
+      if(k.ten==='Coalimex' && !k.tenDayDu) k.tenDayDu = 'CTY CỔ PHẦN XUẤT NHẬP KHẨU THAN VINACOMIN';
     });
     rebuildBaiTheoKhachHang();
   }catch(e){ state = seedState(); }
@@ -1831,6 +1833,10 @@ function nhaCungCapCuaBienSo(bienSo){
   if(!xe) return null;
   return state.khachhang.find(k=>k.id===xe.khachHangId) || null;
 }
+function tenDayDuKhachHang(tenNgan){
+  const k = state.khachhang.find(k=>k.ten===tenNgan);
+  return (k && k.tenDayDu) ? k.tenDayDu : tenNgan;
+}
 function nhomNhaCungCapTheoTau(huong, tauKey, khachHang){
   if(!tauKey) return [];
   const {tau, tuNgay, denNgay} = parseXnTauKey(tauKey);
@@ -1921,7 +1927,7 @@ function inBangXacNhan(khOverride){
   const tongKg = groups.reduce((s,g)=>s+g.kg,0);
   const tongXe = groups.reduce((s,g)=>s+g.xe,0);
   const khNames = [...new Set(groups.map(g=>g.kh))];
-  const khHang = khNames.join(', ');
+  const khHang = khNames.map(tenDayDuKhachHang).join(', ');
   const khMatch = khNames.length===1 ? state.khachhang.find(k=>k.ten===khNames[0]) : null;
   const win = window.open('', '_blank');
   if(!win){ alert('Trình duyệt đã chặn cửa sổ in — cho phép popup rồi thử lại.'); return; }
@@ -1952,7 +1958,7 @@ function inBangXacNhan(khOverride){
       <div><b>${xnTramCan}</b></div>
     </div>
     <table><thead><tr><th>Stt</th><th>Khách hàng</th><th>Loại hàng</th><th class="num">Khối lượng hàng (Kg)</th><th class="num">Số lượng xe (Chiếc)</th><th>Ghi chú</th></tr></thead>
-    <tbody>${groups.map((g,i)=>`<tr><td class="c">${i+1}</td><td>${g.kh}</td><td>${g.loai}</td><td class="num">${fmt(g.kg)}</td><td class="num">${g.xe}</td><td></td></tr>`).join('')}
+    <tbody>${groups.map((g,i)=>`<tr><td class="c">${i+1}</td><td>${tenDayDuKhachHang(g.kh)}</td><td>${g.loai}</td><td class="num">${fmt(g.kg)}</td><td class="num">${g.xe}</td><td></td></tr>`).join('')}
     <tr style="font-weight:700"><td colspan="3" class="c">Tổng</td><td class="num">${fmt(tongKg)}</td><td class="num">${tongXe}</td><td></td></tr>
     </tbody></table>
     <p style="margin-top:10px">Đính kèm bảng kê chi tiết.</p>
@@ -2132,11 +2138,12 @@ function inBangKeChiTietKhachHang(khTen){
   const rows = chiTietTheoKhachHang(xnHuong, xnTau, khTen);
   const {tau, tuNgay, denNgay} = parseXnTauKey(xnTau);
   const khMatch = state.khachhang.find(k=>k.ten===khTen);
+  const khDayDu = tenDayDuKhachHang(khTen);
   const signHtml = `<div class="sign">
-        <div>${khTen}${khMatch && khMatch.diaChi ? `<br><span style="font-size:11px;font-weight:400">${khMatch.diaChi}</span>` : ''}${khMatch && khMatch.maSoThue ? `<br><span style="font-size:11px;font-weight:400">MST: ${khMatch.maSoThue}</span>` : ''}<div class="line"></div>${khMatch && khMatch.nguoiDaiDien ? khMatch.nguoiDaiDien : 'Đại diện ký, ghi rõ họ tên'}</div>
+        <div>${khDayDu}${khMatch && khMatch.diaChi ? `<br><span style="font-size:11px;font-weight:400">${khMatch.diaChi}</span>` : ''}${khMatch && khMatch.maSoThue ? `<br><span style="font-size:11px;font-weight:400">MST: ${khMatch.maSoThue}</span>` : ''}<div class="line"></div>${khMatch && khMatch.nguoiDaiDien ? khMatch.nguoiDaiDien : 'Đại diện ký, ghi rõ họ tên'}</div>
         <div>CÔNG TY CP ALPHA PI<div class="line"></div>${xnDaiDien}<br>${xnChucVu}</div>
       </div>`;
-  inBangKeChiTietPhieuCan(rows, khTen, `Khách hàng: ${khTen}`, tau, tuNgay, denNgay, signHtml);
+  inBangKeChiTietPhieuCan(rows, khTen, `Khách hàng: ${khDayDu}`, tau, tuNgay, denNgay, signHtml);
 }
 
 function renderDichVu(body){
@@ -2284,6 +2291,7 @@ const FIELD_SCHEMAS = {
       {v:'Nhà cung cấp dịch vụ', t:'Nhà cung cấp dịch vụ'},
     ]},
     {key:'ten', label:'Tên khách hàng', type:'text'},
+    {key:'tenDayDu', label:'Tên đầy đủ để in trên chứng từ (bỏ trống nếu giống tên ở trên)', type:'text'},
     {key:'danhSachBai', label:'Danh sách bãi (chỉ áp dụng nếu là "Khách hàng thuê bãi (chủ hàng)", cách nhau bởi dấu phẩy)', type:'text'},
     {key:'diaChi', label:'Địa chỉ', type:'text'},
     {key:'maSoThue', label:'Mã số thuế', type:'text'},
@@ -3027,6 +3035,7 @@ function renderM6(){
           ${LOAI_DOI_TAC_LIST.map(l=>`<option value="${l}">${l}</option>`).join('')}
         </select></div>
         <div class="field"><label>Tên khách hàng</label><input required id="kh-ten"></div>
+        <div class="field" style="grid-column:1/-1"><label>Tên đầy đủ để in trên chứng từ (bỏ trống nếu giống tên ở trên)</label><input id="kh-tendaydu" placeholder="VD: CTY CỔ PHẦN XUẤT NHẬP KHẨU THAN VINACOMIN"></div>
         <div class="field" style="grid-column:1/-1"><label>Danh sách bãi (chỉ áp dụng nếu là "Khách hàng thuê bãi (chủ hàng)", cách nhau bởi dấu phẩy)</label><input id="kh-danhsachbai" placeholder="VD: Bãi Alpha Pi, Bãi Phú Thái"></div>
         <div class="field"><label>Địa chỉ</label><input id="kh-diachi"></div>
         <div class="field"><label>Mã số thuế</label><input id="kh-mst"></div>
@@ -3071,6 +3080,7 @@ function submitKhachHang(e){
   if(!ten){ alert('Nhập tên khách hàng.'); return false; }
   const kh = {id:'KH'+(state.nextId++), ten,
     loaiDoiTac: document.getElementById('kh-loai').value,
+    tenDayDu: document.getElementById('kh-tendaydu').value.trim(),
     danhSachBai: document.getElementById('kh-danhsachbai').value.trim(),
     diaChi: document.getElementById('kh-diachi').value.trim(),
     maSoThue: document.getElementById('kh-mst').value.trim(),
