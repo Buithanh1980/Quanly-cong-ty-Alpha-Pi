@@ -1903,7 +1903,7 @@ function renderXacNhan(body){
     <div class="table-wrap">
       <table><thead><tr><th>Nhà cung cấp vận chuyển</th><th style="text-align:right">Số xe</th><th style="text-align:right">Tổng chuyến</th><th style="text-align:right">Tổng khối lượng (Kg)</th><th></th></tr></thead>
       <tbody>${nccGroups.map(g=>`<tr><td>${g.ncc ? g.ncc.ten : 'Chưa rõ nhà xe'}</td><td class="num">${g.xeList.length}</td><td class="num">${g.tongChuyen}</td><td class="num">${fmt(g.tongKg)}</td>
-        <td>${g.ncc ? `<button type="button" class="mini-btn" onclick="inBangXacNhanNhaXe('${g.nccKey}')">In bảng xác nhận</button>` : ''}</td></tr>`).join('')
+        <td>${g.ncc ? `<div class="row-actions"><button type="button" class="mini-btn" onclick="inBangXacNhanNhaXe('${g.nccKey}')">In bảng xác nhận</button><button type="button" class="mini-btn" onclick="inBangKeChiTietNhaXe('${g.nccKey}')">In bảng kê chi tiết</button></div>` : ''}</td></tr>`).join('')
         || `<tr class="empty-row"><td colspan="5">Chưa có dữ liệu</td></tr>`}</tbody>
       </table>
     </div>
@@ -2009,6 +2009,76 @@ function inBangXacNhanNhaXe(nccKey){
     </tbody></table>
     <p style="margin-top:10px">Đính kèm bảng kê chi tiết.</p>
     <p style="margin-top:20px">Thành phố Huế, ${ngayKy}</p>
+    <div class="sign">
+      <div>ĐẠI DIỆN BÊN A<div class="line"></div>${xnDaiDien}</div>
+      <div>ĐẠI DIỆN BÊN B<div class="line"></div></div>
+    </div>
+    <button class="noprint" style="margin-top:30px" onclick="window.print()">In</button>
+    <script>window.onload=function(){ setTimeout(function(){ window.print(); }, 200); }<\/script>
+  </body></html>`);
+  win.document.close();
+}
+function chiTietTheoNhaCungCap(huong, tauKey, khachHang, nccKey){
+  if(!tauKey) return [];
+  const {tau, tuNgay, denNgay} = parseXnTauKey(tauKey);
+  const recs = duongThuyTheoHuong(huong, khachHang).filter(r=>r.nguon===tau && r.ngay>=tuNgay && r.ngay<=denNgay);
+  return recs.filter(r=>{
+    const ncc = nhaCungCapCuaBienSo(r.bienSo);
+    const key = ncc ? ncc.id : '__chuaro__';
+    return key === nccKey;
+  }).map(r=>{
+    const lot = state.lots.find(l=>l.id===r.lotId);
+    const xk = state.xekhachhang.find(x=>x.bienSo===r.bienSo);
+    const m = (r.phuongTien||'').match(/\(phiếu ([^)]+)\)/);
+    return {
+      soPhieu: m ? m[1] : '',
+      ngay: r.ngay,
+      bienSo: r.bienSo||'',
+      taiXe: xk ? xk.taiXe : '',
+      khachHang: lot ? lot.chuHang : '',
+      loaiHang: lot ? lot.loaiHang : '',
+      kg: r.khoiLuong*1000,
+    };
+  }).sort((a,b)=> a.ngay===b.ngay ? a.soPhieu.localeCompare(b.soPhieu) : a.ngay.localeCompare(b.ngay));
+}
+function inBangKeChiTietNhaXe(nccKey){
+  const nccGroups = nhomNhaCungCapTheoTau(xnHuong, xnTau, xnKhachHang);
+  const g = nccGroups.find(x=>x.nccKey===nccKey);
+  if(!g || !g.ncc){ alert('Không tìm thấy dữ liệu.'); return; }
+  const rows = chiTietTheoNhaCungCap(xnHuong, xnTau, xnKhachHang, nccKey);
+  if(!rows.length){ alert('Chưa có dữ liệu chi tiết để in.'); return; }
+  const {tau, tuNgay, denNgay} = parseXnTauKey(xnTau);
+  const ncc = g.ncc;
+  const tongKg = rows.reduce((s,r)=>s+r.kg,0);
+  const win = window.open('', '_blank');
+  if(!win){ alert('Trình duyệt đã chặn cửa sổ in — cho phép popup rồi thử lại.'); return; }
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bảng kê chi tiết — ${ncc.ten}</title>
+  <style>
+    body{font-family:'Times New Roman',Times,serif;font-size:12.5px;color:#111;margin:26px 40px;}
+    .head{display:flex;align-items:center;gap:16px;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:14px;line-height:1.5}
+    .head img{height:60px}
+    .head b{font-size:15px}
+    h1{font-size:15px;text-align:center;margin:10px 0 2px;text-transform:uppercase;}
+    h2{font-size:13px;text-align:center;margin:0 0 14px;font-weight:400}
+    .party{margin:4px 0 12px;font-size:12.5px}
+    table{border-collapse:collapse;width:100%;margin-top:10px;}
+    th,td{border:1px solid #111;padding:4px 6px;font-size:11.5px;}
+    th{background:#f2f2f2;text-align:center;}
+    td.num, th.num{text-align:right}
+    td.c{text-align:center}
+    .sign{display:flex;justify-content:space-between;margin-top:40px;text-align:center;}
+    .sign > div{width:45%}
+    .sign .line{margin-top:60px;font-weight:700}
+    @media print{ .noprint{display:none} thead{display:table-header-group} }
+  </style></head><body>
+    <div class="head"><img src="${ALPHAPI_LOGO_DATAURI}"><div><b>CÔNG TY CỔ PHẦN ALPHA PI</b><br>Địa chỉ trụ sở: Số 99 Nội khu Hưng Thái 2, P. Tân Hưng, TP.Hồ Chí Minh, Việt Nam.<br>Mã số thuế: 0105860806<br>Email: accountant@alphapi.com.vn</div></div>
+    <h1>Bảng kê chi tiết cân hàng</h1>
+    <h2>Đơn vị vận chuyển: ${ncc.ten}</h2>
+    <div class="party">Tên tàu: ${tau} &nbsp;&nbsp;&nbsp; Thời gian: từ ngày ${formatNgayVN(tuNgay)} đến ngày ${formatNgayVN(denNgay)}</div>
+    <table><thead><tr><th>Stt</th><th>Số phiếu</th><th>Ngày</th><th>Biển số xe</th><th>Tài xế</th><th>Khách hàng</th><th>Loại hàng</th><th class="num">Khối lượng hàng (Kg)</th></tr></thead>
+    <tbody>${rows.map((r,i)=>`<tr><td class="c">${i+1}</td><td class="c">${r.soPhieu}</td><td class="c">${formatNgayVN(r.ngay)}</td><td class="c">${r.bienSo}</td><td>${r.taiXe}</td><td>${r.khachHang}</td><td>${r.loaiHang}</td><td class="num">${fmt(r.kg)}</td></tr>`).join('')}
+    <tr style="font-weight:700"><td colspan="7" class="c">TỔNG CỘNG</td><td class="num">${fmt(tongKg)}</td></tr>
+    </tbody></table>
     <div class="sign">
       <div>ĐẠI DIỆN BÊN A<div class="line"></div>${xnDaiDien}</div>
       <div>ĐẠI DIỆN BÊN B<div class="line"></div></div>
