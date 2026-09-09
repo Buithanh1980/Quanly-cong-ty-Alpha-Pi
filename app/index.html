@@ -2685,7 +2685,10 @@ function renderM6(){
   if(m6SelectedKH && !state.khachhang.some(k=>k.id===m6SelectedKH)) m6SelectedKH = '';
   if(!m6SelectedKH && state.khachhang.length) m6SelectedKH = state.khachhang[0].id;
   content.innerHTML = `
-    <div class="panel-head"><h3>Danh sách khách hàng</h3>${canAdd ? `<button type="button" class="mini-btn" onclick="themNhanhKHVietThuan()">Nhập nhanh KH + xe từ file kê tàu Việt Thuận 235-07</button>` : ''}</div>
+    <div class="panel-head"><h3>Danh sách khách hàng</h3>${canAdd ? `<div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button type="button" class="mini-btn" onclick="themNhanhKHVietThuan()">Nhập nhanh KH + xe từ file kê tàu Việt Thuận 235-07</button>
+      <button type="button" class="mini-btn" onclick="themNhanhNhaXeNamPhat()">Nhập nhanh nhà xe Nam Phát</button>
+    </div>` : ''}</div>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm khách hàng</summary>
       <form class="inline-form" onsubmit="return submitKhachHang(event)">
         <div class="field"><label>Tên khách hàng</label><input required id="kh-ten"></div>
@@ -2786,6 +2789,32 @@ function themNhanhKHVietThuan(){
   });
   m6SelectedKH = kh.id;
   logActivity(`Nhập nhanh khách hàng "${kh.ten}" và ${xeList.length} xe từ file kê tàu Việt Thuận 235-07`);
+  renderM6();
+}
+function themNhanhNhaXeNamPhat(){
+  if(state.khachhang.some(k=>k.ten.toUpperCase().includes('NAM PHÁT'))){
+    alert('Đã có Nam Phát trong danh sách — không nhập lại để tránh trùng.');
+    return;
+  }
+  const kh = {id:'KH'+(state.nextId++), ten:'CÔNG TY CP CÔNG NGHỆ & CUNG ỨNG NHÂN LỰC NAM PHÁT',
+    diaChi:'Số nhà TT6-09 khu Foressa, Phường Xuân Phương, Thành Phố Hà Nội, Việt Nam.',
+    maSoThue:'0109576313', nguoiDaiDien:'Lê Quang Minh', chucVu:'Giám đốc', sdt:'',
+    ghiChu:'Đơn vị vận chuyển (nhà xe) — chở hàng cho khách hàng Vinacomin, tàu Việt Thuận 235-07'};
+  state.khachhang.push(kh);
+  const bienSoNamPhat = ['29K-119.18','29K-117.28','51C-084.88'];
+  let soDaChuyen = 0;
+  bienSoNamPhat.forEach(bs => {
+    const xe = state.xekhachhang.find(x=>x.bienSo===bs);
+    if(xe){
+      xe.khachHangId = kh.id;
+      xe.ghiChu = xe.ghiChu.replace(/^Nhà xe Nam Phát — /, '');
+      soDaChuyen++;
+    } else {
+      state.xekhachhang.push({id:'XKH'+(state.nextId++), khachHangId: kh.id, bienSo:bs, roMoc:'', taiXe:'', sdtTaiXe:'', ghiChu:'Tàu Việt Thuận 235-07'});
+    }
+  });
+  m6SelectedKH = kh.id;
+  logActivity(`Nhập nhanh khách hàng "${kh.ten}" (nhà xe)${soDaChuyen ? `, chuyển ${soDaChuyen} xe đã có sang khách hàng này` : ''}`);
   renderM6();
 }
 
