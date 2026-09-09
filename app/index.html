@@ -194,6 +194,7 @@
   .mini-btn.approve:hover{background:var(--brand);color:#fff;}
 
   .empty-row td{text-align:center;color:var(--ink-soft);font-style:italic;padding:22px;}
+  tr.row-selected{background:var(--brand-tint);}
 
   .progress-track{background:var(--grey-tint);border-radius:99px;height:8px;width:100px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px;}
   .progress-fill{height:100%;background:var(--brand);}
@@ -413,6 +414,7 @@ const MODULES = [
   {code:'M3', name:'Kiểm kê & Đối soát kho',    desc:'Kiểm kê định kỳ, xử lý chênh lệch'},
   {code:'M4', name:'Vận tải liên vận',          desc:'Xe tự có & thuê ngoài back-to-back'},
   {code:'M5', name:'Dịch vụ kỹ thuật',          desc:'Gói thầu sửa chữa cảng'},
+  {code:'M6', name:'Khách hàng',                desc:'Thông tin khách hàng và xe của khách hàng'},
   {code:'M7', name:'Tài chính — kế toán',       desc:'Đề xuất mua hàng, thanh toán, tạm ứng, sổ quỹ, công nợ'},
   {code:'M8', name:'Nhân sự — hành chính',      desc:'Hồ sơ nhân sự, chứng chỉ'},
   {code:'M9', name:'Quản trị hệ thống',         desc:'Tài khoản, phân quyền, nhật ký'},
@@ -420,15 +422,15 @@ const MODULES = [
 
 function defaultPermissions(){
   return {
-    BLD:{M1:'X',M2:'X',M3:'D',M4:'X',M5:'X',M7:'D',M8:'X',M9:'X'},
-    KT: {M1:'D',M2:'D',M3:'N',M7:'N'},
+    BLD:{M1:'X',M2:'X',M3:'D',M4:'X',M5:'X',M6:'X',M7:'D',M8:'X',M9:'X'},
+    KT: {M1:'D',M2:'D',M3:'N',M6:'D',M7:'N'},
     DD: {M1:'N',M2:'N',M3:'N'},
     CC: {M1:'N',M2:'X'},
     VT: {M1:'X',M4:'D',M7:'N'},
     DV: {M2:'X',M5:'D',M7:'N'},
-    TC: {M1:'X',M2:'N',M3:'X',M4:'X',M5:'X',M7:'D'},
+    TC: {M1:'X',M2:'N',M3:'X',M4:'X',M5:'X',M6:'X',M7:'D'},
     NS: {M2:'X',M8:'D'},
-    IT: {M1:'X',M2:'X',M3:'X',M4:'X',M5:'X',M7:'X',M8:'X',M9:'Q'},
+    IT: {M1:'X',M2:'X',M3:'X',M4:'X',M5:'X',M6:'X',M7:'X',M8:'X',M9:'Q'},
     CH: {M1:'X',M3:'X'},
   };
 }
@@ -450,6 +452,8 @@ function seedState(){
     suachua: [],
     vattu: [],
     kiemke: [],
+    khachhang: [],
+    xekhachhang: [],
     vantai: [],
     xevantai: [],
     goithau: [],
@@ -486,6 +490,8 @@ function loadState(){
     if(!state.vattu) state.vattu = seedState().vattu;
     if(!state.xevantai) state.xevantai = seedState().xevantai;
     if(!state.dangkiem) state.dangkiem = seedState().dangkiem;
+    if(!state.khachhang) state.khachhang = seedState().khachhang;
+    if(!state.xekhachhang) state.xekhachhang = seedState().xekhachhang;
     if(state.thietbi) state.thietbi.forEach(t=>{ if(t.boPhan===undefined) t.boPhan='Khai thác'; if(t.bienSo===undefined) t.bienSo=''; if(!t.trangThaiHoatDong) t.trangThaiHoatDong='Đang hoạt động'; });
     if(!state.thietBiSoLuong) state.thietBiSoLuong = seedState().thietBiSoLuong;
     if(state.thietBiSoLuong['Máy múc'] !== undefined){
@@ -600,7 +606,7 @@ function selectModule(code){
 
 const MODULE_RENDERERS = {
   M1:renderM1, M2:renderM2, M3:renderM3, M4:renderM4,
-  M5:renderM5, M7:renderM7, M8:renderM8, M9:renderM9,
+  M5:renderM5, M6:renderM6, M7:renderM7, M8:renderM8, M9:renderM9,
 };
 
 function renderContent(){
@@ -1962,6 +1968,22 @@ const FIELD_SCHEMAS = {
     {key:'hangMucBaoDuong', label:'Hạng mục bảo dưỡng (để trống nếu không phải lần bảo dưỡng)', type:'text'},
     {key:'hanBaoDuongTiep', label:'Mốc giờ/km cần bảo dưỡng tiếp theo (để trống nếu không phải lần bảo dưỡng)', type:'number'},
   ]},
+  khachhang: {ten:'khách hàng', fields:[
+    {key:'ten', label:'Tên khách hàng', type:'text'},
+    {key:'diaChi', label:'Địa chỉ', type:'text'},
+    {key:'maSoThue', label:'Mã số thuế', type:'text'},
+    {key:'nguoiDaiDien', label:'Người đại diện', type:'text'},
+    {key:'chucVu', label:'Chức vụ', type:'text'},
+    {key:'sdt', label:'Số điện thoại', type:'text'},
+    {key:'ghiChu', label:'Ghi chú', type:'text'},
+  ]},
+  xekhachhang: {ten:'xe của khách hàng', fields:[
+    {key:'bienSo', label:'Biển số xe', type:'text'},
+    {key:'roMoc', label:'Biển số rơ moóc', type:'text'},
+    {key:'taiXe', label:'Tài xế', type:'text'},
+    {key:'sdtTaiXe', label:'SĐT tài xế', type:'text'},
+    {key:'ghiChu', label:'Ghi chú', type:'text'},
+  ]},
   dangkiem: {ten:'đăng kiểm', fields:[
     {key:'soDangKiem', label:'Số đăng kiểm', type:'text'},
     {key:'hanDangKiem', label:'Hạn đăng kiểm', type:'date'},
@@ -2086,8 +2108,11 @@ function saveEditModal(e){
 }
 function deleteRecord(collection, id){
   const schema = FIELD_SCHEMAS[collection];
-  if(!confirm(`Xóa ${schema.ten} này? Không thể hoàn tác (trừ khi khôi phục dữ liệu mẫu).`)) return;
+  const canhBaoXe = collection==='khachhang' && xeCuaKhachHang(id).length
+    ? ` Toàn bộ ${xeCuaKhachHang(id).length} xe đã đăng ký của khách hàng này cũng sẽ bị xóa theo.` : '';
+  if(!confirm(`Xóa ${schema.ten} này?${canhBaoXe} Không thể hoàn tác (trừ khi khôi phục dữ liệu mẫu).`)) return;
   state[collection] = state[collection].filter(r=>r.id!==id);
+  if(collection==='khachhang') state.xekhachhang = state.xekhachhang.filter(x=>x.khachHangId!==id);
   logActivity(`Xóa ${schema.ten} ${id}`);
   renderContent();
 }
@@ -2646,6 +2671,93 @@ function capNhatTienDoGT(id){
   g.tienDo = Math.max(0, Math.min(100, parseFloat(v)||0));
   logActivity(`Cập nhật tiến độ gói "${g.ten}" → ${g.tienDo}%`);
   renderM5();
+}
+
+/* ===================== M6: KHÁCH HÀNG ===================== */
+let m6SelectedKH = '';
+function xeCuaKhachHang(khachHangId){
+  return state.xekhachhang.filter(x=>x.khachHangId===khachHangId);
+}
+function setM6SelectedKH(id){ m6SelectedKH = id; renderM6(); }
+function renderM6(){
+  const content = document.getElementById('content');
+  const canAdd = canEnter('M6');
+  if(m6SelectedKH && !state.khachhang.some(k=>k.id===m6SelectedKH)) m6SelectedKH = '';
+  if(!m6SelectedKH && state.khachhang.length) m6SelectedKH = state.khachhang[0].id;
+  content.innerHTML = `
+    <div class="panel-head"><h3>Danh sách khách hàng</h3></div>
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm khách hàng</summary>
+      <form class="inline-form" onsubmit="return submitKhachHang(event)">
+        <div class="field"><label>Tên khách hàng</label><input required id="kh-ten"></div>
+        <div class="field"><label>Địa chỉ</label><input id="kh-diachi"></div>
+        <div class="field"><label>Mã số thuế</label><input id="kh-mst"></div>
+        <div class="field"><label>Người đại diện</label><input id="kh-daidien"></div>
+        <div class="field"><label>Chức vụ</label><input id="kh-chucvu"></div>
+        <div class="field"><label>Số điện thoại</label><input id="kh-sdt"></div>
+        <div class="field" style="grid-column:1/-1"><label>Ghi chú</label><input id="kh-ghichu"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Tên khách hàng</th><th>Địa chỉ</th><th>Mã số thuế</th><th>Người đại diện</th><th>SĐT</th><th style="text-align:right">Số xe đã đăng ký</th><th>Ghi chú</th><th></th></tr></thead>
+      <tbody>${state.khachhang.map(k => `<tr class="${k.id===m6SelectedKH?'row-selected':''}" style="cursor:pointer" onclick="setM6SelectedKH('${k.id}')">
+        <td>${k.ten}</td><td>${k.diaChi||''}</td><td class="mono">${k.maSoThue||''}</td><td>${k.nguoiDaiDien||''}${k.chucVu?' — '+k.chucVu:''}</td><td>${k.sdt||''}</td>
+        <td class="num">${xeCuaKhachHang(k.id).length}</td><td>${k.ghiChu||''}</td>
+        <td><div class="row-actions" onclick="event.stopPropagation()">${canAdd ? actionButtons('khachhang', k.id) : ''}</div></td></tr>`).join('')
+        || `<tr class="empty-row"><td colspan="8">Chưa có khách hàng nào</td></tr>`}</tbody>
+    </table></div>
+    ${state.khachhang.length ? `
+    <div class="panel-head" style="margin-top:28px"><h3>Xe của khách hàng — ${state.khachhang.find(k=>k.id===m6SelectedKH)?.ten||''}</h3></div>
+    <div class="field" style="max-width:320px;margin-bottom:12px"><label>Chọn khách hàng</label>
+      <select onchange="setM6SelectedKH(this.value)">${state.khachhang.map(k=>`<option value="${k.id}" ${k.id===m6SelectedKH?'selected':''}>${k.ten}</option>`).join('')}</select>
+    </div>
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm xe cho khách hàng này</summary>
+      <form class="inline-form" onsubmit="return submitXeKhachHang(event)">
+        <div class="field"><label>Biển số xe</label><input required id="xkh-bienso"></div>
+        <div class="field"><label>Biển số rơ moóc</label><input id="xkh-romoc"></div>
+        <div class="field"><label>Tài xế</label><input id="xkh-taixe"></div>
+        <div class="field"><label>SĐT tài xế</label><input id="xkh-sdttaixe"></div>
+        <div class="field" style="grid-column:1/-1"><label>Ghi chú</label><input id="xkh-ghichu"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Biển số xe</th><th>Biển số rơ moóc</th><th>Tài xế</th><th>SĐT tài xế</th><th>Ghi chú</th><th></th></tr></thead>
+      <tbody>${xeCuaKhachHang(m6SelectedKH).map(x => `<tr><td class="mono">${x.bienSo}</td><td class="mono">${x.roMoc||''}</td><td>${x.taiXe||''}</td><td>${x.sdtTaiXe||''}</td><td>${x.ghiChu||''}</td>
+        <td><div class="row-actions">${canAdd ? actionButtons('xekhachhang', x.id) : ''}</div></td></tr>`).join('')
+        || `<tr class="empty-row"><td colspan="6">Khách hàng này chưa có xe nào</td></tr>`}</tbody>
+    </table></div>` : ''}`;
+}
+function submitKhachHang(e){
+  e.preventDefault();
+  const ten = document.getElementById('kh-ten').value.trim();
+  if(!ten){ alert('Nhập tên khách hàng.'); return false; }
+  const kh = {id:'KH'+(state.nextId++), ten,
+    diaChi: document.getElementById('kh-diachi').value.trim(),
+    maSoThue: document.getElementById('kh-mst').value.trim(),
+    nguoiDaiDien: document.getElementById('kh-daidien').value.trim(),
+    chucVu: document.getElementById('kh-chucvu').value.trim(),
+    sdt: document.getElementById('kh-sdt').value.trim(),
+    ghiChu: document.getElementById('kh-ghichu').value.trim(),
+  };
+  state.khachhang.push(kh);
+  m6SelectedKH = kh.id;
+  logActivity(`Thêm khách hàng "${ten}"`);
+  renderM6();
+  return false;
+}
+function submitXeKhachHang(e){
+  e.preventDefault();
+  if(!m6SelectedKH){ alert('Chọn khách hàng trước.'); return false; }
+  const bienSo = document.getElementById('xkh-bienso').value.trim();
+  if(!bienSo){ alert('Nhập biển số xe.'); return false; }
+  state.xekhachhang.push({id:'XKH'+(state.nextId++), khachHangId: m6SelectedKH, bienSo,
+    roMoc: document.getElementById('xkh-romoc').value.trim(),
+    taiXe: document.getElementById('xkh-taixe').value.trim(),
+    sdtTaiXe: document.getElementById('xkh-sdttaixe').value.trim(),
+    ghiChu: document.getElementById('xkh-ghichu').value.trim(),
+  });
+  logActivity(`Thêm xe ${bienSo} cho khách hàng`);
+  renderM6();
+  return false;
 }
 
 /* ===================== M7: TÀI CHÍNH — KẾ TOÁN ===================== */
