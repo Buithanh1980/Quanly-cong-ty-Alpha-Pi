@@ -2178,7 +2178,7 @@ function chiTietTheoNhaCungCap(huong, tuyenVal, tau, tuNgay, denNgay, khachHang,
 function chiTietTheoKhachHang(huong, tuyenVal, tau, tuNgay, denNgay, khachHang){
   return chiTietTheoLoc(huong, tuyenVal, tau, tuNgay, denNgay, khachHang, undefined);
 }
-function inBangKeChiTietPhieuCan(rows, titleSuffix, h2Line, tau, tuNgay, denNgay, signHtml){
+function inBangKeChiTietPhieuCan(rows, titleSuffix, h2Line, tau, tuNgay, denNgay, signHtml, anXeSummary){
   if(!rows.length){ alert('Chưa có dữ liệu chi tiết để in.'); return; }
   const tongKg = rows.reduce((s,r)=>s+r.kg,0);
   const tongKlCoHang = rows.reduce((s,r)=>s+(r.klCoHang||0),0);
@@ -2194,7 +2194,7 @@ function inBangKeChiTietPhieuCan(rows, titleSuffix, h2Line, tau, tuNgay, denNgay
   });
   const xeSummary = Object.values(xeMap).sort((a,b)=>a.bienSo.localeCompare(b.bienSo));
   let xeSummaryHtml = '';
-  if(xeSummary.length > 1){
+  if(anXeSummary!==false && xeSummary.length > 1){
     const baiTitle = (rows.find(r=>r.bai)||{}).bai || '';
     const tongChuyenXe = xeSummary.reduce((s,x)=>s+x.chuyen,0);
     xeSummaryHtml = `<table class="xesum">
@@ -2278,7 +2278,8 @@ function inBangKeChiTietNhaXe(nccKey){
         <div>ĐẠI DIỆN BÊN A<div class="line"></div></div>
         <div>ĐẠI DIỆN BÊN B<div class="line"></div></div>
       </div>`;
-  inBangKeChiTietPhieuCan(rows, ncc.ten, `Đơn vị vận chuyển: ${ncc.ten}`, tau, tuNgay, denNgay, signHtml);
+  const anXeSummary = !(xnHuong==='nhap' && tuyenVal==='Đường bộ');
+  inBangKeChiTietPhieuCan(rows, ncc.ten, `Đơn vị vận chuyển: ${ncc.ten}`, tau, tuNgay, denNgay, signHtml, anXeSummary);
 }
 function inBangKeChiTietKhachHang(khTen){
   const {tuyenVal, tau, tuNgay, denNgay} = layKyXacNhanHienTai();
@@ -2300,7 +2301,8 @@ function inBangKeChiTietKhachHang(khTen){
   const xeSummary = Object.values(xeMap).sort((a,b)=>a.bienSo.localeCompare(b.bienSo));
   const tongChuyenXe = xeSummary.reduce((s,x)=>s+x.chuyen,0);
   const baiTitle = (rows.find(r=>r.bai)||{}).bai || '';
-  const xeSummaryHtml = `<table class="xesum">
+  const anXeSummary = !(xnHuong==='nhap' && tuyenVal==='Đường bộ');
+  const xeSummaryHtml = !anXeSummary ? '' : `<table class="xesum">
       <thead><tr><th colspan="4">${baiTitle.toUpperCase()}</th></tr>
       <tr><th>Stt</th><th>BKS</th><th class="num">Khối lượng</th><th class="num">Số chuyến</th></tr></thead>
       <tbody>${xeSummary.map((x,i)=>`<tr><td class="c">${i+1}</td><td class="c">${x.bienSo}</td><td class="num">${fmt(x.kg)}</td><td class="num">${x.chuyen}</td></tr>`).join('')}
