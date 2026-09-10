@@ -2100,6 +2100,8 @@ function chiTietTheoKhachHang(huong, tauKey, khachHang){
 function inBangKeChiTietPhieuCan(rows, titleSuffix, h2Line, tau, tuNgay, denNgay, signHtml){
   if(!rows.length){ alert('Chưa có dữ liệu chi tiết để in.'); return; }
   const tongKg = rows.reduce((s,r)=>s+r.kg,0);
+  const tongKlCoHang = rows.reduce((s,r)=>s+(r.klCoHang||0),0);
+  const tongKlXe = rows.reduce((s,r)=>s+(r.klXe||0),0);
   const win = window.open('', '_blank');
   if(!win){ alert('Trình duyệt đã chặn cửa sổ in — cho phép popup rồi thử lại.'); return; }
 
@@ -2111,11 +2113,11 @@ function inBangKeChiTietPhieuCan(rows, titleSuffix, h2Line, tau, tuNgay, denNgay
     i += soDong;
   }
   const tongSoTrang = trangs.length;
-  const theadHtml = `<thead><tr><th>Stt</th><th>Số phiếu</th><th>Biển số xe</th><th>Khách hàng</th><th>Loại hàng</th><th>Ngày</th><th class="num">Khối lượng hàng (Kg)</th><th>Tài xế</th></tr></thead>`;
+  const theadHtml = `<thead><tr><th>Stt</th><th>Số phiếu</th><th>Biển số xe</th><th>Tên khách hàng</th><th>Tên hàng hóa</th><th class="num">KL có hàng</th><th class="num">KL xe</th><th class="num">KL hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Tài xế</th></tr></thead>`;
   let sttOffset = 0;
   const trangsHtml = trangs.map((trRows, idx) => {
     const laDauTien = idx===0, laCuoi = idx===tongSoTrang-1;
-    const bodyHtml = trRows.map((r,j)=>`<tr><td class="c">${sttOffset+j+1}</td><td class="c">${r.soPhieu}</td><td class="c">${r.bienSo}</td><td>${r.khachHang}</td><td>${r.loaiHang}</td><td class="c">${formatNgayVN(r.ngay)}</td><td class="num">${fmt(r.kg)}</td><td>${r.taiXe}</td></tr>`).join('');
+    const bodyHtml = trRows.map((r,j)=>`<tr><td class="c">${sttOffset+j+1}</td><td class="c">${r.soPhieu}</td><td class="c">${r.bienSo}</td><td>${r.khachHang}</td><td>${r.hangHoaRaw}</td><td class="num">${fmt(r.klCoHang)}</td><td class="num">${fmt(r.klXe)}</td><td class="num">${fmt(r.kg)}</td><td class="c">${r.gioCanTong}</td><td class="c">${r.gioCanXe}</td><td>${r.ghiChu}</td><td>${r.taiXe}</td></tr>`).join('');
     sttOffset += trRows.length;
     return `<div class="pg">
       ${laDauTien ? `<div class="head"><img src="${ALPHAPI_LOGO_DATAURI}"><div><b>CÔNG TY CỔ PHẦN ALPHA PI</b><br>Địa chỉ trụ sở: Số 99 Nội khu Hưng Thái 2, P. Tân Hưng, TP.Hồ Chí Minh, Việt Nam.<br>Mã số thuế: 0105860806<br>Email: accountant@alphapi.com.vn</div></div>
@@ -2126,7 +2128,7 @@ function inBangKeChiTietPhieuCan(rows, titleSuffix, h2Line, tau, tuNgay, denNgay
         <tr><td>Ngày làm hàng:</td><td>${formatNgayVN(tuNgay)}</td><td style="padding-left:20px">Ngày kết thúc:</td><td>${formatNgayVN(denNgay)}</td></tr>
       </table>` : ''}
       <table>${theadHtml}<tbody>${bodyHtml}
-      ${laCuoi ? `<tr style="font-weight:700"><td colspan="6" class="c">TỔNG CỘNG</td><td class="num">${fmt(tongKg)}</td><td></td></tr>` : ''}
+      ${laCuoi ? `<tr style="font-weight:700"><td colspan="5" class="c">TỔNG CỘNG</td><td class="num">${fmt(tongKlCoHang)}</td><td class="num">${fmt(tongKlXe)}</td><td class="num">${fmt(tongKg)}</td><td colspan="4"></td></tr>` : ''}
       </tbody></table>
       ${laCuoi ? signHtml : ''}
       <div class="pagefoot">Trang ${idx+1}/${tongSoTrang}</div>
