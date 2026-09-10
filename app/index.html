@@ -1815,8 +1815,8 @@ function confirmWeighImport(){
   renderM1();
 }
 
-/* ---- Xác nhận với KH: tổng hợp khối lượng hàng qua cân theo tàu, in bảng ký xác nhận ---- */
-let xnHuong = 'xuat', xnKhachHang = '', xnTau = '', xnNgayTach = '', xnTuyenDuong = '';
+/* ---- Xác nhận với KH: tổng hợp khối lượng hàng qua cân theo tàu (đường thủy) hoặc theo kỳ (đường bộ), in bảng ký xác nhận ---- */
+let xnHuong = 'xuat', xnKhachHang = '', xnTuyen = 'thuy', xnTau = '', xnTuNgayBo = '', xnDenNgayBo = '', xnNgayTach = '', xnTuyenDuong = '';
 function formatNgayNganNam(iso){
   if(!iso) return '';
   const [y,m,d] = iso.split('-');
@@ -1827,18 +1827,31 @@ function parseXnTauKey(key){
   const [tau, tuNgay, denNgay] = key.split('||');
   return {tau, tuNgay, denNgay};
 }
-function duongThuyTheoHuong(huong, khachHang){
+function layKyXacNhanHienTai(){
+  if(xnTuyen==='bo'){
+    const homNayIso = new Date().toISOString().slice(0,10);
+    if(!xnTuNgayBo) xnTuNgayBo = homNayIso;
+    if(!xnDenNgayBo) xnDenNgayBo = homNayIso;
+    return {tuyenVal:'Đường bộ', tau:'', tuNgay:xnTuNgayBo, denNgay:xnDenNgayBo};
+  }
+  if(!xnTau) return {tuyenVal:'Đường thủy', tau:'', tuNgay:'', denNgay:''};
+  const {tau, tuNgay, denNgay} = parseXnTauKey(xnTau);
+  return {tuyenVal:'Đường thủy', tau, tuNgay, denNgay};
+}
+function duongTheoTuyen(huong, khachHang, tuyenVal){
   const lots = visibleLots(); const lotIds = lots.map(l=>l.id);
   const arr = huong==='nhap' ? state.nhap : state.xuat;
   return arr.filter(r=>{
-    if(!lotIds.includes(r.lotId) || r.tuyen!=='Đường thủy' || !r.nguon) return false;
+    if(!lotIds.includes(r.lotId) || r.tuyen!==tuyenVal) return false;
+    if(tuyenVal==='Đường thủy' && !r.nguon) return false;
     if(!khachHang) return true;
     const lot = state.lots.find(l=>l.id===r.lotId);
     return lot && lot.chuHang===khachHang;
   });
 }
-function danhSachKhachHangTheoTau(huong){
-  return [...new Set(duongThuyTheoHuong(huong, '').map(r=>{
+function duongThuyTheoHuong(huong, khachHang){ return duongTheoTuyen(huong, khachHang, 'Đường thủy'); }
+function danhSachKhachHangTheoTuyen(huong, tuyenVal){
+  return [...new Set(duongTheoTuyen(huong, '', tuyenVal).map(r=>{
     const lot = state.lots.find(l=>l.id===r.lotId);
     return lot ? lot.chuHang : '';
   }).filter(Boolean))];
@@ -1863,17 +1876,20 @@ function danhSachChuyenTauTheo(huong, khachHang){
   return chuyens.sort((a,b)=>b.denNgay.localeCompare(a.denNgay));
 }
 function setXacNhan(key, val){
-  if(key==='huong'){ xnHuong = val; xnKhachHang = ''; xnTau = ''; xnNgayTach = ''; xnTuyenDuong = ''; }
-  else if(key==='khachhang'){ xnKhachHang = val; xnTau = ''; xnNgayTach = ''; xnTuyenDuong = ''; }
+  if(key==='huong'){ xnHuong = val; xnKhachHang = ''; xnTau = ''; xnTuNgayBo = ''; xnDenNgayBo = ''; xnNgayTach = ''; xnTuyenDuong = ''; }
+  else if(key==='khachhang'){ xnKhachHang = val; xnTau = ''; xnTuNgayBo = ''; xnDenNgayBo = ''; xnNgayTach = ''; xnTuyenDuong = ''; }
+  else if(key==='tuyen'){ xnTuyen = val; xnKhachHang = ''; xnTau = ''; xnTuNgayBo = ''; xnDenNgayBo = ''; xnNgayTach = ''; xnTuyenDuong = ''; }
   else if(key==='tau'){ xnTau = val; xnNgayTach = ''; xnTuyenDuong = ''; }
+  else if(key==='tunngaybo'){ xnTuNgayBo = val; xnNgayTach = ''; xnTuyenDuong = ''; }
+  else if(key==='denngaybo'){ xnDenNgayBo = val; xnNgayTach = ''; xnTuyenDuong = ''; }
   else if(key==='ngaytach') xnNgayTach = val;
   else if(key==='tuyenduong') xnTuyenDuong = val;
   renderM1();
 }
-function nhomXacNhanTheoTau(huong, tauKey, khachHang, ngayTach){
-  if(!tauKey) return {groups:[], tau:'', tuNgay:'', denNgay:'', coTach:false};
-  const {tau, tuNgay, denNgay} = parseXnTauKey(tauKey);
-  const recs = duongThuyTheoHuong(huong, khachHang).filter(r=>r.nguon===tau && r.ngay>=tuNgay && r.ngay<=denNgay);
+function nhomXacNhanTheoKy(huong, tuyenVal, tau, tuNgay, denNgay, khachHang, ngayTach){
+  if(!tuNgay || !denNgay) return {groups:[], coTach:false};
+  let recs = duongTheoTuyen(huong, khachHang, tuyenVal).filter(r=>r.ngay>=tuNgay && r.ngay<=denNgay);
+  if(tuyenVal==='Đường thủy') recs = recs.filter(r=>r.nguon===tau);
   const coTach = !!(ngayTach && ngayTach>tuNgay && ngayTach<=denNgay);
   const groups = [];
   recs.forEach(r=>{
@@ -1891,7 +1907,7 @@ function nhomXacNhanTheoTau(huong, tauKey, khachHang, ngayTach){
   });
   groups.forEach(g=>{ g.bai = [...g.baiSet].join(', '); });
   groups.sort((a,b)=> a.ky-b.ky || a.kh.localeCompare(b.kh));
-  return {groups, tau, tuNgay, denNgay, coTach};
+  return {groups, coTach};
 }
 function formatNgayVN(iso){
   if(!iso) return '';
@@ -1908,10 +1924,10 @@ function tenDayDuKhachHang(tenNgan){
   const k = state.khachhang.find(k=>k.ten===tenNgan);
   return (k && k.tenDayDu) ? k.tenDayDu : tenNgan;
 }
-function nhomNhaCungCapTheoTau(huong, tauKey, khachHang){
-  if(!tauKey) return [];
-  const {tau, tuNgay, denNgay} = parseXnTauKey(tauKey);
-  const recs = duongThuyTheoHuong(huong, khachHang).filter(r=>r.nguon===tau && r.ngay>=tuNgay && r.ngay<=denNgay);
+function nhomNhaCungCapTheoKy(huong, tuyenVal, tau, tuNgay, denNgay, khachHang){
+  if(!tuNgay || !denNgay) return [];
+  let recs = duongTheoTuyen(huong, khachHang, tuyenVal).filter(r=>r.ngay>=tuNgay && r.ngay<=denNgay);
+  if(tuyenVal==='Đường thủy') recs = recs.filter(r=>r.nguon===tau);
   const byNCC = {};
   recs.forEach(r=>{
     const bienSo = r.bienSo || '';
@@ -1935,27 +1951,48 @@ function nhomNhaCungCapTheoTau(huong, tauKey, khachHang){
   }).sort((a,b)=>(a.ncc?a.ncc.ten:'zzzzzz').localeCompare(b.ncc?b.ncc.ten:'zzzzzz'));
 }
 function renderXacNhan(body){
-  const khachHangOptions = danhSachKhachHangTheoTau(xnHuong);
+  const tuyenVal = xnTuyen==='bo' ? 'Đường bộ' : 'Đường thủy';
+  const khachHangOptions = danhSachKhachHangTheoTuyen(xnHuong, tuyenVal);
   if(xnKhachHang && !khachHangOptions.includes(xnKhachHang)) xnKhachHang = '';
-  const chuyenOptions = danhSachChuyenTauTheo(xnHuong, xnKhachHang);
-  const validKeys = chuyenOptions.map(c=>xnTauKey(c.tau,c.tuNgay,c.denNgay));
-  if(xnTau && !validKeys.includes(xnTau)) xnTau = '';
-  if(!xnTau && chuyenOptions.length) xnTau = validKeys[0];
-  const {groups, tuNgay, denNgay, coTach} = nhomXacNhanTheoTau(xnHuong, xnTau, xnKhachHang, xnNgayTach);
+  let tau = '', tuNgay = '', denNgay = '', chuyenOptions = [];
+  if(xnTuyen==='bo'){
+    const homNayIso = new Date().toISOString().slice(0,10);
+    if(!xnTuNgayBo) xnTuNgayBo = homNayIso;
+    if(!xnDenNgayBo) xnDenNgayBo = homNayIso;
+    tuNgay = xnTuNgayBo; denNgay = xnDenNgayBo;
+  } else {
+    chuyenOptions = danhSachChuyenTauTheo(xnHuong, xnKhachHang);
+    const validKeys = chuyenOptions.map(c=>xnTauKey(c.tau,c.tuNgay,c.denNgay));
+    if(xnTau && !validKeys.includes(xnTau)) xnTau = '';
+    if(!xnTau && chuyenOptions.length) xnTau = validKeys[0];
+    if(xnTau){ const p = parseXnTauKey(xnTau); tau = p.tau; tuNgay = p.tuNgay; denNgay = p.denNgay; }
+  }
+  const coDuLieuKy = xnTuyen==='bo' ? !!(tuNgay && denNgay) : !!xnTau;
+  const {groups, coTach} = nhomXacNhanTheoKy(xnHuong, tuyenVal, tau, tuNgay, denNgay, xnKhachHang, xnNgayTach);
   const tongKg = groups.reduce((s,g)=>s+g.kg,0);
   const tongXe = groups.reduce((s,g)=>s+g.xe,0);
   body.innerHTML = `
-    <div class="panel-head"><h3>Xác nhận khối lượng hàng qua cân — theo tàu</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 14px">Chọn tàu đã nhập số liệu từ file cân (tab Nhập hàng / Xuất hàng), hệ thống tự tổng hợp theo khách hàng — bấm "In bảng xác nhận" để có bản in ký ngay. Cùng 1 tàu ghé nhiều lần trong tháng sẽ hiện thành nhiều lượt riêng theo ngày làm hàng.</p>
+    <div class="panel-head"><h3>Xác nhận khối lượng hàng qua cân</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 14px">Đường thủy: chọn tàu đã nhập số liệu từ file cân (tab Nhập hàng / Xuất hàng). Đường bộ: tự chọn khoảng ngày chốt số liệu. Hệ thống tự tổng hợp theo khách hàng — bấm "In bảng xác nhận" để có bản in ký ngay.</p>
     <div class="inline-form" style="grid-template-columns:1fr 1fr 1fr">
       <div class="field"><label>Hướng</label><select onchange="setXacNhan('huong',this.value)">
         <option value="xuat" ${xnHuong==='xuat'?'selected':''}>Xuất hàng</option>
         <option value="nhap" ${xnHuong==='nhap'?'selected':''}>Nhập hàng</option>
       </select></div>
+      <div class="field"><label>Tuyến</label><select onchange="setXacNhan('tuyen',this.value)">
+        <option value="thuy" ${xnTuyen==='thuy'?'selected':''}>Đường thủy</option>
+        <option value="bo" ${xnTuyen==='bo'?'selected':''}>Đường bộ</option>
+      </select></div>
       <div class="field"><label>Khách hàng</label><select onchange="setXacNhan('khachhang',this.value)">
         <option value="">— Tất cả —</option>
         ${khachHangOptions.map(k=>`<option value="${k}" ${k===xnKhachHang?'selected':''}>${k}</option>`).join('')}
       </select></div>
+    </div>
+    <div class="inline-form" style="grid-template-columns:${xnTuyen==='bo'?'1fr 1fr':'1fr'};max-width:420px">
+      ${xnTuyen==='bo' ? `
+      <div class="field"><label>Từ ngày</label><input type="date" value="${xnTuNgayBo}" onchange="setXacNhan('tunngaybo',this.value)"></div>
+      <div class="field"><label>Đến ngày</label><input type="date" value="${xnDenNgayBo}" min="${xnTuNgayBo}" onchange="setXacNhan('denngaybo',this.value)"></div>
+      ` : `
       <div class="field"><label>Tên tàu</label><select onchange="setXacNhan('tau',this.value)">
         ${chuyenOptions.length ? chuyenOptions.map(c=>{
           const key = xnTauKey(c.tau,c.tuNgay,c.denNgay);
@@ -1963,9 +2000,10 @@ function renderXacNhan(body){
           return `<option value="${key}" ${key===xnTau?'selected':''}>${label}</option>`;
         }).join('') : '<option value="">— chưa có dữ liệu tàu —</option>'}
       </select></div>
+      `}
     </div>
-    ${!xnTau || !groups.length ? `<p style="font-size:12.5px;color:var(--ink-soft)">Chưa có phiếu cân đường thủy nào cho lựa chọn này. Vào tab ${xnHuong==='nhap'?'Nhập hàng':'Xuất hàng'}, mục "Nhập số liệu từ file cân" để nạp dữ liệu tàu này trước.</p>` : (() => {
-      const nccGroups = nhomNhaCungCapTheoTau(xnHuong, xnTau, xnKhachHang);
+    ${!coDuLieuKy || !groups.length ? `<p style="font-size:12.5px;color:var(--ink-soft)">Chưa có phiếu cân ${xnTuyen==='bo'?'đường bộ':'đường thủy'} nào cho lựa chọn này. Vào tab ${xnHuong==='nhap'?'Nhập hàng':'Xuất hàng'}, mục "Nhập số liệu từ file cân" để nạp dữ liệu trước.</p>` : (() => {
+      const nccGroups = nhomNhaCungCapTheoKy(xnHuong, tuyenVal, tau, tuNgay, denNgay, xnKhachHang);
       return `
     <div class="table-wrap">
       <table><thead><tr><th>Stt</th><th>Khách hàng</th><th>Loại hàng</th>${coTach ? '<th>Thời gian</th>' : ''}<th style="text-align:right">Số lượng xe (chuyến)</th><th style="text-align:right">Khối lượng hàng (kg)</th><th>Ghi chú</th><th></th></tr></thead>
@@ -1996,7 +2034,8 @@ function renderXacNhan(body){
 }
 function inBangXacNhan(khOverride){
   const khLoc = khOverride !== undefined ? khOverride : xnKhachHang;
-  const {groups, tau, tuNgay, denNgay, coTach} = nhomXacNhanTheoTau(xnHuong, xnTau, khLoc, xnNgayTach);
+  const {tuyenVal, tau, tuNgay, denNgay} = layKyXacNhanHienTai();
+  const {groups, coTach} = nhomXacNhanTheoKy(xnHuong, tuyenVal, tau, tuNgay, denNgay, khLoc, xnNgayTach);
   if(!groups.length){ alert('Chưa có dữ liệu để in.'); return; }
   const tongKg = groups.reduce((s,g)=>s+g.kg,0);
   const tongXe = groups.reduce((s,g)=>s+g.xe,0);
@@ -2005,7 +2044,7 @@ function inBangXacNhan(khOverride){
   const khMatch = khNames.length===1 ? state.khachhang.find(k=>k.ten===khNames[0]) : null;
   const win = window.open('', '_blank');
   if(!win){ alert('Trình duyệt đã chặn cửa sổ in — cho phép popup rồi thử lại.'); return; }
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bảng xác nhận — ${tau}</title>
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bảng xác nhận — ${tau || ('Đường bộ '+formatNgayVN(tuNgay))}</title>
   <style>
     body{font-family:'Times New Roman',Times,serif;font-size:13px;color:#111;margin:30px 45px;}
     .head{display:flex;align-items:center;gap:16px;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:16px;line-height:1.5}
@@ -2028,7 +2067,7 @@ function inBangXacNhan(khOverride){
     <div class="head"><img src="${ALPHAPI_LOGO_DATAURI}"><div><b>CÔNG TY CỔ PHẦN ALPHA PI</b><br>Địa chỉ trụ sở: Số 99 Nội khu Hưng Thái 2, P. Tân Hưng, TP.Hồ Chí Minh, Việt Nam.<br>Mã số thuế: 0105860806<br>Email: accountant@alphapi.com.vn</div></div>
     <h1>Bảng xác nhận khối lượng hàng ${xnHuong==='nhap'?'nhập':'xuất'} qua cân</h1>
     <table class="meta">
-      <tr><td>Tên tàu:</td><td>${tau}</td></tr>
+      ${tau ? `<tr><td>Tên tàu:</td><td>${tau}</td></tr>` : `<tr><td>Tuyến:</td><td>Đường bộ</td></tr>`}
       <tr><td>Ngày bắt đầu làm hàng:</td><td>${formatNgayVN(tuNgay)}</td></tr>
       <tr><td>Ngày kết thúc làm hàng:</td><td>${formatNgayVN(denNgay)}</td></tr>
     </table>
@@ -2046,10 +2085,10 @@ function inBangXacNhan(khOverride){
   win.document.close();
 }
 function inBangXacNhanNhaXe(nccKey){
-  const nccGroups = nhomNhaCungCapTheoTau(xnHuong, xnTau, xnKhachHang);
+  const {tuyenVal, tau, tuNgay, denNgay} = layKyXacNhanHienTai();
+  const nccGroups = nhomNhaCungCapTheoKy(xnHuong, tuyenVal, tau, tuNgay, denNgay, xnKhachHang);
   const g = nccGroups.find(x=>x.nccKey===nccKey);
   if(!g || !g.ncc){ alert('Không tìm thấy dữ liệu.'); return; }
-  const {tau, tuNgay, denNgay} = parseXnTauKey(xnTau);
   const ncc = g.ncc;
   const xeSorted = g.xeList.slice().sort((a,b)=>b.kg-a.kg);
   const win = window.open('', '_blank');
@@ -2079,8 +2118,7 @@ function inBangXacNhanNhaXe(nccKey){
     <h1>Bảng xác nhận</h1>
     <h2>Tổng hợp khối lượng ${xnHuong==='nhap'?'nhập':'xuất'} bãi Alpha Pi</h2>
     <div class="party">THỜI GIAN: TỪ NGÀY ${formatNgayVN(tuNgay)} ĐẾN NGÀY ${formatNgayVN(denNgay)}<br>
-    ĐƠN VỊ VẬN CHUYỂN: ${ncc.ten}<br>
-    TÊN TÀU: ${tau}${xnTuyenDuong ? `<br>\n    TUYẾN ĐƯỜNG: ${xnTuyenDuong}` : ''}</div>
+    ĐƠN VỊ VẬN CHUYỂN: ${ncc.ten}${tau ? `<br>\n    TÊN TÀU: ${tau}` : ''}${xnTuyenDuong ? `<br>\n    TUYẾN ĐƯỜNG: ${xnTuyenDuong}` : ''}</div>
     <div class="party"><b>Bên A (Bên thuê):</b> CÔNG TY CỔ PHẦN ALPHA PI<br>
     Địa chỉ: Số 99 Nội khu Hưng Thái 2, P. Tân Hưng, TP.Hồ Chí Minh, Việt Nam.<br>
     Mã số thuế: 0105860806</div>
@@ -2101,10 +2139,10 @@ function inBangXacNhanNhaXe(nccKey){
   </body></html>`);
   win.document.close();
 }
-function chiTietTheoLoc(huong, tauKey, khachHang, nccKey){
-  if(!tauKey) return [];
-  const {tau, tuNgay, denNgay} = parseXnTauKey(tauKey);
-  let recs = duongThuyTheoHuong(huong, khachHang).filter(r=>r.nguon===tau && r.ngay>=tuNgay && r.ngay<=denNgay);
+function chiTietTheoLoc(huong, tuyenVal, tau, tuNgay, denNgay, khachHang, nccKey){
+  if(!tuNgay || !denNgay) return [];
+  let recs = duongTheoTuyen(huong, khachHang, tuyenVal).filter(r=>r.ngay>=tuNgay && r.ngay<=denNgay);
+  if(tuyenVal==='Đường thủy') recs = recs.filter(r=>r.nguon===tau);
   if(nccKey !== undefined){
     recs = recs.filter(r=>{
       const ncc = nhaCungCapCuaBienSo(r.bienSo);
@@ -2134,11 +2172,11 @@ function chiTietTheoLoc(huong, tauKey, khachHang, nccKey){
     };
   }).sort((a,b)=> a.ngay===b.ngay ? a.soPhieu.localeCompare(b.soPhieu) : a.ngay.localeCompare(b.ngay));
 }
-function chiTietTheoNhaCungCap(huong, tauKey, khachHang, nccKey){
-  return chiTietTheoLoc(huong, tauKey, khachHang, nccKey);
+function chiTietTheoNhaCungCap(huong, tuyenVal, tau, tuNgay, denNgay, khachHang, nccKey){
+  return chiTietTheoLoc(huong, tuyenVal, tau, tuNgay, denNgay, khachHang, nccKey);
 }
-function chiTietTheoKhachHang(huong, tauKey, khachHang){
-  return chiTietTheoLoc(huong, tauKey, khachHang, undefined);
+function chiTietTheoKhachHang(huong, tuyenVal, tau, tuNgay, denNgay, khachHang){
+  return chiTietTheoLoc(huong, tuyenVal, tau, tuNgay, denNgay, khachHang, undefined);
 }
 function inBangKeChiTietPhieuCan(rows, titleSuffix, h2Line, tau, tuNgay, denNgay, signHtml){
   if(!rows.length){ alert('Chưa có dữ liệu chi tiết để in.'); return; }
@@ -2187,7 +2225,7 @@ function inBangKeChiTietPhieuCan(rows, titleSuffix, h2Line, tau, tuNgay, denNgay
       <h1>Bảng kê chi tiết cân hàng</h1>
       <h2>${h2Line}</h2>
       <table class="meta">
-        <tr><td>Tên Tàu:</td><td>${tau}</td></tr>
+        ${tau ? `<tr><td>Tên Tàu:</td><td>${tau}</td></tr>` : `<tr><td>Tuyến:</td><td>Đường bộ</td></tr>`}
         <tr><td>Ngày làm hàng:</td><td>${formatNgayVN(tuNgay)}</td><td style="padding-left:20px">Ngày kết thúc:</td><td>${formatNgayVN(denNgay)}</td></tr>
       </table>` : ''}
       <table>${theadHtml}<tbody>${bodyHtml}
@@ -2230,11 +2268,11 @@ function inBangKeChiTietPhieuCan(rows, titleSuffix, h2Line, tau, tuNgay, denNgay
   win.document.close();
 }
 function inBangKeChiTietNhaXe(nccKey){
-  const nccGroups = nhomNhaCungCapTheoTau(xnHuong, xnTau, xnKhachHang);
+  const {tuyenVal, tau, tuNgay, denNgay} = layKyXacNhanHienTai();
+  const nccGroups = nhomNhaCungCapTheoKy(xnHuong, tuyenVal, tau, tuNgay, denNgay, xnKhachHang);
   const g = nccGroups.find(x=>x.nccKey===nccKey);
   if(!g || !g.ncc){ alert('Không tìm thấy dữ liệu.'); return; }
-  const rows = chiTietTheoNhaCungCap(xnHuong, xnTau, xnKhachHang, nccKey);
-  const {tau, tuNgay, denNgay} = parseXnTauKey(xnTau);
+  const rows = chiTietTheoNhaCungCap(xnHuong, tuyenVal, tau, tuNgay, denNgay, xnKhachHang, nccKey);
   const ncc = g.ncc;
   const signHtml = `<div class="sign">
         <div>ĐẠI DIỆN BÊN A<div class="line"></div></div>
@@ -2243,10 +2281,10 @@ function inBangKeChiTietNhaXe(nccKey){
   inBangKeChiTietPhieuCan(rows, ncc.ten, `Đơn vị vận chuyển: ${ncc.ten}`, tau, tuNgay, denNgay, signHtml);
 }
 function inBangKeChiTietKhachHang(khTen){
-  if(!xnTau){ alert('Không tìm thấy dữ liệu.'); return; }
-  const rows = chiTietTheoKhachHang(xnHuong, xnTau, khTen);
+  const {tuyenVal, tau, tuNgay, denNgay} = layKyXacNhanHienTai();
+  if(!tuNgay || !denNgay){ alert('Không tìm thấy dữ liệu.'); return; }
+  const rows = chiTietTheoKhachHang(xnHuong, tuyenVal, tau, tuNgay, denNgay, khTen);
   if(!rows.length){ alert('Chưa có dữ liệu chi tiết để in.'); return; }
-  const {tau, tuNgay, denNgay} = parseXnTauKey(xnTau);
   const khMatch = state.khachhang.find(k=>k.ten===khTen);
   const khDayDu = tenDayDuKhachHang(khTen);
   const win = window.open('', '_blank');
@@ -2293,7 +2331,7 @@ function inBangKeChiTietKhachHang(khTen){
       <h1>Bảng kê chi tiết cân hàng</h1>
       <h2>Khách hàng: ${khDayDu}</h2>
       <table class="meta">
-        <tr><td>Tên Tàu:</td><td>${tau}</td></tr>
+        ${tau ? `<tr><td>Tên Tàu:</td><td>${tau}</td></tr>` : `<tr><td>Tuyến:</td><td>Đường bộ</td></tr>`}
         <tr><td>Ngày làm hàng:</td><td>${formatNgayVN(tuNgay)}</td><td style="padding-left:20px">Ngày kết thúc:</td><td>${formatNgayVN(denNgay)}</td></tr>
       </table>` : ''}
       <table>${theadHtml}<tbody>${bodyHtml}
