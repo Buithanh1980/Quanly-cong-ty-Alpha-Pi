@@ -1661,6 +1661,7 @@ function extractWeighTickets(rows){
     klHang: findWeighCol(header,['kl hàng']),
     gioCan: findWeighCol(header,['giờ cân tổng']),
     gioCanXe: findWeighCol(header,['cân xe']),
+    ghiChu: findWeighCol(header,['ghi chú']),
   };
   if(col.klHang===-1 || col.soPhieu===-1) throw new Error('File thiếu cột SỐ PHIẾU hoặc KL HÀNG — không đúng định dạng bảng kê cân hàng.');
   const tickets = [];
@@ -1690,6 +1691,7 @@ function extractWeighTickets(rows){
       khoiLuongTan: klHang/1000,
       gioCanTong: col.gioCan>=0 ? formatGioCan(r[col.gioCan]) : '',
       gioCanXe: col.gioCanXe>=0 ? formatGioCan(r[col.gioCanXe]) : '',
+      ghiChu: col.ghiChu>=0 ? String(r[col.ghiChu]||'').trim() : '',
       ngay,
     });
   }
@@ -1751,11 +1753,11 @@ function confirmWeighImport(){
     if(pw.huong === 'nhap'){
       state.nhap.push({id:'N'+(state.nextId++), lotId:pw.lotId, ngay:t.ngay||new Date().toISOString().slice(0,10),
         khoiLuong:t.khoiLuongTan, tuyen:pw.tuyen, phuongTien, bienSo:t.bienSo||'', roMoc:t.roMoc||'', nguoiNhap:currentUser.name, nguon:pw.tenTau||null, loaiXe,
-        hangHoaRaw:t.hangHoa||'', klCoHang:t.klCoHang||0, klXe:t.klXe||0, gioCanTong:t.gioCanTong||'', gioCanXe:t.gioCanXe||''});
+        hangHoaRaw:t.hangHoa||'', klCoHang:t.klCoHang||0, klXe:t.klXe||0, gioCanTong:t.gioCanTong||'', gioCanXe:t.gioCanXe||'', ghiChuPhieu:t.ghiChu||''});
     } else {
       state.xuat.push({id:'X'+(state.nextId++), lotId:pw.lotId, ngay:t.ngay||new Date().toISOString().slice(0,10),
         khoiLuong:t.khoiLuongTan, tuyen:pw.tuyen, phuongTien, bienSo:t.bienSo||'', roMoc:t.roMoc||'', nguoiTao:currentUser.name, nguon:pw.tenTau||null, loaiXe,
-        hangHoaRaw:t.hangHoa||'', klCoHang:t.klCoHang||0, klXe:t.klXe||0, gioCanTong:t.gioCanTong||'', gioCanXe:t.gioCanXe||''});
+        hangHoaRaw:t.hangHoa||'', klCoHang:t.klCoHang||0, klXe:t.klXe||0, gioCanTong:t.gioCanTong||'', gioCanXe:t.gioCanXe||'', ghiChuPhieu:t.ghiChu||''});
     }
     count++;
   });
@@ -2084,6 +2086,7 @@ function chiTietTheoLoc(huong, tauKey, khachHang, nccKey){
       klXe: r.klXe || 0,
       gioCanTong: r.gioCanTong || '',
       gioCanXe: r.gioCanXe || '',
+      ghiChu: r.ghiChuPhieu || '',
       kg: r.khoiLuong*1000,
     };
   }).sort((a,b)=> a.ngay===b.ngay ? a.soPhieu.localeCompare(b.soPhieu) : a.ngay.localeCompare(b.ngay));
@@ -2216,7 +2219,7 @@ function inBangKeChiTietKhachHang(khTen){
   let sttOffset = 0;
   const trangsHtml = trangs.map((trRows, idx) => {
     const laDauTien = idx===0, laCuoi = idx===tongSoTrang-1;
-    const bodyHtml = trRows.map((r,j)=>`<tr><td class="c">${sttOffset+j+1}</td><td class="c">${r.soPhieu}</td><td class="c">${r.bienSo}</td><td>${r.khachHang}</td><td>${r.hangHoaRaw}</td><td class="num">${fmt(r.klCoHang)}</td><td class="num">${fmt(r.klXe)}</td><td class="num">${fmt(r.kg)}</td><td class="c">${r.gioCanTong}</td><td class="c">${r.gioCanXe}</td><td></td></tr>`).join('');
+    const bodyHtml = trRows.map((r,j)=>`<tr><td class="c">${sttOffset+j+1}</td><td class="c">${r.soPhieu}</td><td class="c">${r.bienSo}</td><td>${r.khachHang}</td><td>${r.hangHoaRaw}</td><td class="num">${fmt(r.klCoHang)}</td><td class="num">${fmt(r.klXe)}</td><td class="num">${fmt(r.kg)}</td><td class="c">${r.gioCanTong}</td><td class="c">${r.gioCanXe}</td><td>${r.ghiChu}</td></tr>`).join('');
     sttOffset += trRows.length;
     return `<div class="pg">
       ${laDauTien ? `<div class="head"><img src="${ALPHAPI_LOGO_DATAURI}"><div><b>CÔNG TY CỔ PHẦN ALPHA PI</b><br>Địa chỉ trụ sở: Số 99 Nội khu Hưng Thái 2, P. Tân Hưng, TP.Hồ Chí Minh, Việt Nam.<br>Mã số thuế: 0105860806<br>Email: accountant@alphapi.com.vn</div></div>
