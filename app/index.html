@@ -1361,12 +1361,12 @@ function renderNhap(body){
     <div class="panel-head"><h3>Phiếu nhập hàng</h3></div>
     ${renderWeighImportBlock('nhap')}
     <div class="table-wrap"><table>
-      <thead><tr><th>Số TT</th><th>Ngày nhập</th><th>Chủ Hàng</th><th>Bãi nhận hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th style="text-align:right">Khối lượng hàng</th><th>Phương tiện</th><th></th></tr></thead>
+      <thead><tr><th>Số TT</th><th>Ngày nhập</th><th>Số phiếu</th><th>Chủ Hàng</th><th>Bãi nhận hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">Khối lượng hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Phương tiện</th><th></th></tr></thead>
       <tbody>
         ${rows.map((n,i) => { const lot = state.lots.find(l=>l.id===n.lotId);
-          return `<tr><td class="mono">${i+1}</td><td class="mono">${n.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${n.tuyen}</td><td>${n.bienSo||n.nguon||''}</td><td>${n.roMoc||''}</td><td class="num">${fmt(n.khoiLuong)}</td><td>${n.loaiXe||''}</td>
+          return `<tr><td class="mono">${i+1}</td><td class="mono">${n.ngay}</td><td class="mono">${n.soPhieu||''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${n.tuyen}</td><td>${n.bienSo||n.nguon||''}</td><td>${n.roMoc||''}</td><td>${n.hangHoaRaw||''}</td><td class="num">${n.klCoHang?fmt(n.klCoHang):''}</td><td class="num">${n.klXe?fmt(n.klXe):''}</td><td class="num">${fmt(n.khoiLuong)}</td><td class="mono">${n.gioCanTong||''}</td><td class="mono">${n.gioCanXe||''}</td><td>${n.ghiChuPhieu||''}</td><td>${n.loaiXe||''}</td>
             <td>${canEnter('M1') ? `<div class="row-actions">${actionButtons('nhap', n.id)}</div>` : ''}</td></tr>`;
-        }).join('') || `<tr class="empty-row"><td colspan="10">Chưa có phiếu nhập nào</td></tr>`}
+        }).join('') || `<tr class="empty-row"><td colspan="17">Chưa có phiếu nhập nào</td></tr>`}
       </tbody>
     </table></div>`;
   initWeighDropzone('nhap');
@@ -1422,11 +1422,11 @@ function renderBaoCaoChiTietNhap(){
       </select></div>` : ''}
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Số TT</th><th>Ngày nhập</th><th>Chủ Hàng</th><th>Bãi nhận hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th style="text-align:right">Khối lượng hàng</th><th>Phương tiện</th></tr></thead>
+      <thead><tr><th>Số TT</th><th>Ngày nhập</th><th>Số phiếu</th><th>Chủ Hàng</th><th>Bãi nhận hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">Khối lượng hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Phương tiện</th></tr></thead>
       <tbody>
-        ${rows.length ? rows.map((n,i)=>{ const lot=state.lots.find(l=>l.id===n.lotId); return `<tr><td class="mono">${i+1}</td><td class="mono">${n.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${n.tuyen}</td><td>${n.bienSo||n.nguon||''}</td><td>${n.roMoc||''}</td><td class="num">${fmt(n.khoiLuong)}</td><td>${n.loaiXe||''}</td></tr>`; }).join('') : `<tr class="empty-row"><td colspan="9">Không có phiếu nhập nào khớp bộ lọc</td></tr>`}
+        ${rows.length ? rows.map((n,i)=>{ const lot=state.lots.find(l=>l.id===n.lotId); return `<tr><td class="mono">${i+1}</td><td class="mono">${n.ngay}</td><td class="mono">${n.soPhieu||''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${n.tuyen}</td><td>${n.bienSo||n.nguon||''}</td><td>${n.roMoc||''}</td><td>${n.hangHoaRaw||''}</td><td class="num">${n.klCoHang?fmt(n.klCoHang):''}</td><td class="num">${n.klXe?fmt(n.klXe):''}</td><td class="num">${fmt(n.khoiLuong)}</td><td class="mono">${n.gioCanTong||''}</td><td class="mono">${n.gioCanXe||''}</td><td>${n.ghiChuPhieu||''}</td><td>${n.loaiXe||''}</td></tr>`; }).join('') : `<tr class="empty-row"><td colspan="16">Không có phiếu nhập nào khớp bộ lọc</td></tr>`}
       </tbody>
-      ${rows.length ? `<tfoot><tr style="font-weight:700;background:var(--grey-tint)"><td colspan="7">Tổng khối lượng</td><td class="num">${fmt(tongKL)}</td><td></td></tr></tfoot>` : ''}
+      ${rows.length ? `<tfoot><tr style="font-weight:700;background:var(--grey-tint)"><td colspan="11">Tổng khối lượng</td><td class="num">${fmt(tongKL)}</td><td colspan="4"></td></tr></tfoot>` : ''}
     </table></div>`;
 }
 function renderBaoCaoChiTietXuat(){
@@ -1480,11 +1480,11 @@ function renderBaoCaoChiTietXuat(){
       </select></div>` : ''}
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Số TT</th><th>Ngày xuất</th><th>Chủ Hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th style="text-align:right">Khối lượng hàng</th><th>Phương tiện</th></tr></thead>
+      <thead><tr><th>Số TT</th><th>Ngày xuất</th><th>Số phiếu</th><th>Chủ Hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">Khối lượng hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Phương tiện</th></tr></thead>
       <tbody>
-        ${rows.length ? rows.map((x,i)=>{ const lot=state.lots.find(l=>l.id===x.lotId); return `<tr><td class="mono">${i+1}</td><td class="mono">${x.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${x.tuyen}</td><td>${x.bienSo||x.nguon||''}</td><td>${x.roMoc||''}</td><td class="num">${fmt(x.khoiLuong)}</td><td>${x.loaiXe||''}</td></tr>`; }).join('') : `<tr class="empty-row"><td colspan="9">Không có phiếu xuất nào khớp bộ lọc</td></tr>`}
+        ${rows.length ? rows.map((x,i)=>{ const lot=state.lots.find(l=>l.id===x.lotId); return `<tr><td class="mono">${i+1}</td><td class="mono">${x.ngay}</td><td class="mono">${x.soPhieu||''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${x.tuyen}</td><td>${x.bienSo||x.nguon||''}</td><td>${x.roMoc||''}</td><td>${x.hangHoaRaw||''}</td><td class="num">${x.klCoHang?fmt(x.klCoHang):''}</td><td class="num">${x.klXe?fmt(x.klXe):''}</td><td class="num">${fmt(x.khoiLuong)}</td><td class="mono">${x.gioCanTong||''}</td><td class="mono">${x.gioCanXe||''}</td><td>${x.ghiChuPhieu||''}</td><td>${x.loaiXe||''}</td></tr>`; }).join('') : `<tr class="empty-row"><td colspan="16">Không có phiếu xuất nào khớp bộ lọc</td></tr>`}
       </tbody>
-      ${rows.length ? `<tfoot><tr style="font-weight:700;background:var(--grey-tint)"><td colspan="7">Tổng khối lượng</td><td class="num">${fmt(tongKL)}</td><td></td></tr></tfoot>` : ''}
+      ${rows.length ? `<tfoot><tr style="font-weight:700;background:var(--grey-tint)"><td colspan="11">Tổng khối lượng</td><td class="num">${fmt(tongKL)}</td><td colspan="4"></td></tr></tfoot>` : ''}
     </table></div>`;
 }
 
@@ -1496,12 +1496,12 @@ function renderXuat(body){
     <div class="panel-head"><h3>Phiếu xuất hàng</h3></div>
     ${renderWeighImportBlock('xuat')}
     <div class="table-wrap"><table>
-      <thead><tr><th>Số TT</th><th>Ngày xuất</th><th>Chủ Hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th style="text-align:right">Khối lượng hàng</th><th>Phương tiện</th><th></th></tr></thead>
+      <thead><tr><th>Số TT</th><th>Ngày xuất</th><th>Số phiếu</th><th>Chủ Hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">Khối lượng hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Phương tiện</th><th></th></tr></thead>
       <tbody>
         ${rows.map((x,i) => { const lot = state.lots.find(l=>l.id===x.lotId);
-          return `<tr><td class="mono">${i+1}</td><td class="mono">${x.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${x.tuyen}</td><td>${x.bienSo||x.nguon||''}</td><td>${x.roMoc||''}</td><td class="num">${fmt(x.khoiLuong)}</td><td>${x.loaiXe||''}</td>
+          return `<tr><td class="mono">${i+1}</td><td class="mono">${x.ngay}</td><td class="mono">${x.soPhieu||''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${x.tuyen}</td><td>${x.bienSo||x.nguon||''}</td><td>${x.roMoc||''}</td><td>${x.hangHoaRaw||''}</td><td class="num">${x.klCoHang?fmt(x.klCoHang):''}</td><td class="num">${x.klXe?fmt(x.klXe):''}</td><td class="num">${fmt(x.khoiLuong)}</td><td class="mono">${x.gioCanTong||''}</td><td class="mono">${x.gioCanXe||''}</td><td>${x.ghiChuPhieu||''}</td><td>${x.loaiXe||''}</td>
             <td>${canEnter('M1') ? `<div class="row-actions">${actionButtons('xuat', x.id)}</div>` : ''}</td></tr>`;
-        }).join('') || `<tr class="empty-row"><td colspan="10">Chưa có phiếu xuất nào</td></tr>`}
+        }).join('') || `<tr class="empty-row"><td colspan="17">Chưa có phiếu xuất nào</td></tr>`}
       </tbody>
     </table></div>`;
   initWeighDropzone('xuat');
@@ -1753,11 +1753,11 @@ function confirmWeighImport(){
     if(pw.huong === 'nhap'){
       state.nhap.push({id:'N'+(state.nextId++), lotId:pw.lotId, ngay:t.ngay||new Date().toISOString().slice(0,10),
         khoiLuong:t.khoiLuongTan, tuyen:pw.tuyen, phuongTien, bienSo:t.bienSo||'', roMoc:t.roMoc||'', nguoiNhap:currentUser.name, nguon:pw.tenTau||null, loaiXe,
-        hangHoaRaw:t.hangHoa||'', klCoHang:t.klCoHang||0, klXe:t.klXe||0, gioCanTong:t.gioCanTong||'', gioCanXe:t.gioCanXe||'', ghiChuPhieu:t.ghiChu||''});
+        hangHoaRaw:t.hangHoa||'', klCoHang:t.klCoHang||0, klXe:t.klXe||0, gioCanTong:t.gioCanTong||'', gioCanXe:t.gioCanXe||'', ghiChuPhieu:t.ghiChu||'', soPhieu:t.soPhieu||''});
     } else {
       state.xuat.push({id:'X'+(state.nextId++), lotId:pw.lotId, ngay:t.ngay||new Date().toISOString().slice(0,10),
         khoiLuong:t.khoiLuongTan, tuyen:pw.tuyen, phuongTien, bienSo:t.bienSo||'', roMoc:t.roMoc||'', nguoiTao:currentUser.name, nguon:pw.tenTau||null, loaiXe,
-        hangHoaRaw:t.hangHoa||'', klCoHang:t.klCoHang||0, klXe:t.klXe||0, gioCanTong:t.gioCanTong||'', gioCanXe:t.gioCanXe||'', ghiChuPhieu:t.ghiChu||''});
+        hangHoaRaw:t.hangHoa||'', klCoHang:t.klCoHang||0, klXe:t.klXe||0, gioCanTong:t.gioCanTong||'', gioCanXe:t.gioCanXe||'', ghiChuPhieu:t.ghiChu||'', soPhieu:t.soPhieu||''});
     }
     count++;
   });
@@ -2074,7 +2074,7 @@ function chiTietTheoLoc(huong, tauKey, khachHang, nccKey){
     const xk = state.xekhachhang.find(x=>x.bienSo===r.bienSo);
     const m = (r.phuongTien||'').match(/\(phiếu ([^)]+)\)/);
     return {
-      soPhieu: m ? m[1] : '',
+      soPhieu: r.soPhieu || (m ? m[1] : ''),
       ngay: r.ngay,
       bienSo: r.bienSo||'',
       taiXe: xk ? xk.taiXe : '',
@@ -2349,21 +2349,35 @@ const FIELD_SCHEMAS = {
   ]},
   nhap: {ten:'phiếu nhập hàng', fields:[
     {key:'ngay', label:'Ngày nhập', type:'date'},
+    {key:'soPhieu', label:'Số phiếu cân', type:'text'},
     {key:'khoiLuong', label:'Khối lượng (tấn)', type:'number'},
     {key:'tuyen', label:'Tuyến', type:'select', options:[{v:'Đường bộ',t:'Đường bộ'},{v:'Đường thủy',t:'Đường thủy'},{v:'Khác',t:'Khác'}]},
     {key:'bienSo', label:'Biển số xe', type:'text'},
     {key:'roMoc', label:'Biển số mooc', type:'text'},
     {key:'loaiXe', label:'Loại xe / phương tiện', type:'select', options:LOAI_XE_OPTIONS},
     {key:'nguon', label:'Tên lệnh / tàu (để gộp báo cáo)', type:'text'},
+    {key:'hangHoaRaw', label:'Tên hàng hóa (theo phiếu cân)', type:'text'},
+    {key:'klCoHang', label:'KL có hàng (kg)', type:'number'},
+    {key:'klXe', label:'KL xe (kg)', type:'number'},
+    {key:'gioCanTong', label:'Giờ cân tổng', type:'text'},
+    {key:'gioCanXe', label:'Giờ cân xe', type:'text'},
+    {key:'ghiChuPhieu', label:'Ghi chú', type:'text'},
   ]},
   xuat: {ten:'phiếu xuất hàng', guard:'xuat', fields:[
     {key:'ngay', label:'Ngày xuất', type:'date'},
+    {key:'soPhieu', label:'Số phiếu cân', type:'text'},
     {key:'khoiLuong', label:'Khối lượng (tấn)', type:'number'},
     {key:'tuyen', label:'Tuyến', type:'select', options:[{v:'Đường bộ',t:'Đường bộ'},{v:'Đường thủy',t:'Đường thủy'},{v:'Khác',t:'Khác'}]},
     {key:'bienSo', label:'Tên tàu/BS xe', type:'text'},
     {key:'roMoc', label:'Biển số mooc', type:'text'},
     {key:'loaiXe', label:'Loại xe / phương tiện', type:'select', options:LOAI_XE_OPTIONS},
     {key:'nguon', label:'Tên lệnh / tàu (để gộp báo cáo)', type:'text'},
+    {key:'hangHoaRaw', label:'Tên hàng hóa (theo phiếu cân)', type:'text'},
+    {key:'klCoHang', label:'KL có hàng (kg)', type:'number'},
+    {key:'klXe', label:'KL xe (kg)', type:'number'},
+    {key:'gioCanTong', label:'Giờ cân tổng', type:'text'},
+    {key:'gioCanXe', label:'Giờ cân xe', type:'text'},
+    {key:'ghiChuPhieu', label:'Ghi chú', type:'text'},
   ]},
   dichvu: {ten:'dịch vụ tại bãi', fields:[
     {key:'ngay', label:'Ngày', type:'date'},
