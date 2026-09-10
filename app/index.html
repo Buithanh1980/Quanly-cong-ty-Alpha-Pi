@@ -1643,27 +1643,54 @@ function formatGioCan(g){
   }
   return String(g);
 }
+function findWeighColAfter(headerRow, keywords, fromIdx, excludeIdx){
+  for(let i=Math.max(0,fromIdx);i<headerRow.length;i++){
+    if(i===excludeIdx) continue;
+    const cell = String(headerRow[i]||'').toLowerCase();
+    if(keywords.some(k=>cell.includes(k))) return i;
+  }
+  return -1;
+}
+function timGiaTriHeaderBlock(rows, headerIdx, nhanDang){
+  for(let i=0;i<headerIdx;i++){
+    const r = rows[i];
+    if(!Array.isArray(r)) continue;
+    for(let j=0;j<r.length;j++){
+      const cell = String(r[j]||'').toLowerCase().trim();
+      if(nhanDang.some(k=>cell.startsWith(k))){
+        for(let k=j+1;k<r.length;k++){
+          const v = String(r[k]||'').trim();
+          if(v) return v;
+        }
+      }
+    }
+  }
+  return '';
+}
 function extractWeighTickets(rows){
   let headerIdx = -1;
   for(let i=0;i<rows.length;i++){
-    if(Array.isArray(rows[i]) && rows[i].some(c=>String(c||'').toLowerCase().includes('số phiếu'))){ headerIdx = i; break; }
+    if(Array.isArray(rows[i]) && rows[i].some(c=>{ const s=String(c||'').toLowerCase(); return s.includes('số phiếu') || s.includes('s.phiếu'); })){ headerIdx = i; break; }
   }
   if(headerIdx===-1) throw new Error('Không tìm thấy dòng tiêu đề "SỐ PHIẾU" trong file — kiểm tra lại đúng file bảng kê cân hàng chưa.');
   const header = rows[headerIdx];
   const col = {
-    soPhieu: findWeighCol(header,['số phiếu']),
-    bienSo: findWeighCol(header,['biển số xe']),
-    roMoc: findWeighCol(header,['rơ móc']),
-    khachHang: findWeighCol(header,['tên khách hàng','tên kh']),
-    hangHoa: findWeighCol(header,['tên hàng hóa']),
-    klCoHang: findWeighCol(header,['kl có hàng']),
-    klXe: findWeighCol(header,['kl xe']),
-    klHang: findWeighCol(header,['kl hàng']),
-    gioCan: findWeighCol(header,['giờ cân tổng']),
-    gioCanXe: findWeighCol(header,['cân xe']),
+    soPhieu: findWeighCol(header,['số phiếu','s.phiếu']),
+    bienSo: findWeighCol(header,['biển số xe','số xe']),
+    roMoc: findWeighCol(header,['rơ móc','r.mooc','romoc']),
+    khachHang: findWeighCol(header,['tên khách hàng','tên kh','tên k.hàng']),
+    hangHoa: findWeighCol(header,['tên hàng hóa','loại hàng']),
+    klCoHang: findWeighCol(header,['kl có hàng','lượng ra','kl tổng']),
+    klXe: findWeighCol(header,['kl xe','lượng vào','kl bì']),
+    klHang: findWeighCol(header,['kl hàng','lượng hàng']),
+    ngayCan: findWeighCol(header,['ngày cân']),
     ghiChu: findWeighCol(header,['ghi chú']),
   };
+  col.gioCan = findWeighColAfter(header,['giờ cân tổng','giờ cân ra','giờ cân'], col.klCoHang, -1);
+  col.gioCanXe = findWeighColAfter(header,['cân xe','giờ cân vào','giờ cân'], col.klXe, col.gioCan);
   if(col.klHang===-1 || col.soPhieu===-1) throw new Error('File thiếu cột SỐ PHIẾU hoặc KL HÀNG — không đúng định dạng bảng kê cân hàng.');
+  const khachHangHeaderBlock = col.khachHang===-1 ? timGiaTriHeaderBlock(rows, headerIdx, ['khách hàng']) : '';
+  const hangHoaHeaderBlock = col.hangHoa===-1 ? timGiaTriHeaderBlock(rows, headerIdx, ['loại hàng']) : '';
   const tickets = [];
   for(let i=headerIdx+1;i<rows.length;i++){
     const r = rows[i];
@@ -1674,18 +1701,26 @@ function extractWeighTickets(rows){
     const klHang = parseFloat(r[col.klHang]);
     if(!soPhieu || isNaN(klHang) || klHang<=0) continue;
     let ngay = '';
-    const g = col.gioCan>=0 ? r[col.gioCan] : null;
-    if(g instanceof Date){ ngay = g.toISOString().slice(0,10); }
-    else if(typeof g === 'string'){
-      const m = g.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-      if(m){ const yr = m[3].length===2 ? '20'+m[3] : m[3]; ngay = `${yr}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
+    const nc = col.ngayCan>=0 ? r[col.ngayCan] : null;
+    if(nc instanceof Date){ ngay = nc.toISOString().slice(0,10); }
+    else if(typeof nc === 'string' && nc.trim()){
+      const mnc = nc.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+      if(mnc){ const yr = mnc[3].length===2 ? '20'+mnc[3] : mnc[3]; ngay = `${yr}-${mnc[2].padStart(2,'0')}-${mnc[1].padStart(2,'0')}`; }
+    }
+    if(!ngay){
+      const g = col.gioCan>=0 ? r[col.gioCan] : null;
+      if(g instanceof Date){ ngay = g.toISOString().slice(0,10); }
+      else if(typeof g === 'string'){
+        const m = g.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+        if(m){ const yr = m[3].length===2 ? '20'+m[3] : m[3]; ngay = `${yr}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
+      }
     }
     tickets.push({
       soPhieu: String(soPhieu),
       bienSo: col.bienSo>=0 ? String(r[col.bienSo]||'').trim() : '',
       roMoc: col.roMoc>=0 ? String(r[col.roMoc]||'').trim() : '',
-      khachHang: col.khachHang>=0 ? String(r[col.khachHang]||'').trim() : '',
-      hangHoa: col.hangHoa>=0 ? String(r[col.hangHoa]||'').trim() : '',
+      khachHang: col.khachHang>=0 ? String(r[col.khachHang]||'').trim() : khachHangHeaderBlock,
+      hangHoa: col.hangHoa>=0 ? String(r[col.hangHoa]||'').trim() : hangHoaHeaderBlock,
       klCoHang: col.klCoHang>=0 ? (parseFloat(r[col.klCoHang])||0) : 0,
       klXe: col.klXe>=0 ? (parseFloat(r[col.klXe])||0) : 0,
       khoiLuongTan: klHang/1000,
