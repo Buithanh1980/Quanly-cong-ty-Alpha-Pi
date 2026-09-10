@@ -1816,7 +1816,7 @@ function confirmWeighImport(){
 }
 
 /* ---- Xác nhận với KH: tổng hợp khối lượng hàng qua cân theo tàu, in bảng ký xác nhận ---- */
-let xnHuong = 'xuat', xnKhachHang = '', xnTau = '';
+let xnHuong = 'xuat', xnKhachHang = '', xnTau = '', xnNgayTach = '';
 function formatNgayNganNam(iso){
   if(!iso) return '';
   const [y,m,d] = iso.split('-');
@@ -1863,28 +1863,34 @@ function danhSachChuyenTauTheo(huong, khachHang){
   return chuyens.sort((a,b)=>b.denNgay.localeCompare(a.denNgay));
 }
 function setXacNhan(key, val){
-  if(key==='huong'){ xnHuong = val; xnKhachHang = ''; xnTau = ''; }
-  else if(key==='khachhang'){ xnKhachHang = val; xnTau = ''; }
-  else if(key==='tau') xnTau = val;
+  if(key==='huong'){ xnHuong = val; xnKhachHang = ''; xnTau = ''; xnNgayTach = ''; }
+  else if(key==='khachhang'){ xnKhachHang = val; xnTau = ''; xnNgayTach = ''; }
+  else if(key==='tau'){ xnTau = val; xnNgayTach = ''; }
+  else if(key==='ngaytach') xnNgayTach = val;
   renderM1();
 }
-function nhomXacNhanTheoTau(huong, tauKey, khachHang){
-  if(!tauKey) return {groups:[], tau:'', tuNgay:'', denNgay:''};
+function nhomXacNhanTheoTau(huong, tauKey, khachHang, ngayTach){
+  if(!tauKey) return {groups:[], tau:'', tuNgay:'', denNgay:'', coTach:false};
   const {tau, tuNgay, denNgay} = parseXnTauKey(tauKey);
   const recs = duongThuyTheoHuong(huong, khachHang).filter(r=>r.nguon===tau && r.ngay>=tuNgay && r.ngay<=denNgay);
+  const coTach = !!(ngayTach && ngayTach>tuNgay && ngayTach<=denNgay);
   const groups = [];
   recs.forEach(r=>{
     const lot = state.lots.find(l=>l.id===r.lotId);
     const kh = lot ? lot.chuHang : '';
     const loai = lot ? lot.loaiHang : '';
-    let g = groups.find(g=>g.kh===kh && g.loai===loai);
-    if(!g){ g = {kh, loai, kg:0, xe:0, baiSet:new Set()}; groups.push(g); }
+    const ky = coTach ? (r.ngay < ngayTach ? 0 : 1) : 0;
+    let g = groups.find(g=>g.kh===kh && g.loai===loai && g.ky===ky);
+    if(!g){ g = {kh, loai, ky, kg:0, xe:0, baiSet:new Set(), kyTuNgay:r.ngay, kyDenNgay:r.ngay}; groups.push(g); }
     g.kg += r.khoiLuong*1000;
     g.xe += 1;
     if(lot && lot.viTri) g.baiSet.add(lot.viTri);
+    if(r.ngay < g.kyTuNgay) g.kyTuNgay = r.ngay;
+    if(r.ngay > g.kyDenNgay) g.kyDenNgay = r.ngay;
   });
   groups.forEach(g=>{ g.bai = [...g.baiSet].join(', '); });
-  return {groups, tau, tuNgay, denNgay};
+  groups.sort((a,b)=> a.ky-b.ky || a.kh.localeCompare(b.kh));
+  return {groups, tau, tuNgay, denNgay, coTach};
 }
 function formatNgayVN(iso){
   if(!iso) return '';
@@ -1934,7 +1940,7 @@ function renderXacNhan(body){
   const validKeys = chuyenOptions.map(c=>xnTauKey(c.tau,c.tuNgay,c.denNgay));
   if(xnTau && !validKeys.includes(xnTau)) xnTau = '';
   if(!xnTau && chuyenOptions.length) xnTau = validKeys[0];
-  const {groups, tuNgay, denNgay} = nhomXacNhanTheoTau(xnHuong, xnTau, xnKhachHang);
+  const {groups, tuNgay, denNgay, coTach} = nhomXacNhanTheoTau(xnHuong, xnTau, xnKhachHang, xnNgayTach);
   const tongKg = groups.reduce((s,g)=>s+g.kg,0);
   const tongXe = groups.reduce((s,g)=>s+g.xe,0);
   body.innerHTML = `
@@ -1957,14 +1963,17 @@ function renderXacNhan(body){
         }).join('') : '<option value="">— chưa có dữ liệu tàu —</option>'}
       </select></div>
     </div>
+    ${xnTau ? `<div class="inline-form" style="grid-template-columns:1fr;max-width:320px">
+      <div class="field"><label>Tách theo ngày (tùy chọn — nếu giá dịch vụ thay đổi giữa chuyến)</label><input type="date" min="${tuNgay}" max="${denNgay}" value="${xnNgayTach}" onchange="setXacNhan('ngaytach',this.value)"></div>
+    </div>` : ''}
     ${!xnTau || !groups.length ? `<p style="font-size:12.5px;color:var(--ink-soft)">Chưa có phiếu cân đường thủy nào cho lựa chọn này. Vào tab ${xnHuong==='nhap'?'Nhập hàng':'Xuất hàng'}, mục "Nhập số liệu từ file cân" để nạp dữ liệu tàu này trước.</p>` : (() => {
       const nccGroups = nhomNhaCungCapTheoTau(xnHuong, xnTau, xnKhachHang);
       return `
     <div class="table-wrap">
-      <table><thead><tr><th>Stt</th><th>Khách hàng</th><th>Loại hàng</th><th style="text-align:right">Số lượng xe (chuyến)</th><th style="text-align:right">Khối lượng hàng (kg)</th><th>Ghi chú</th><th></th></tr></thead>
-      <tbody>${groups.map((g,i)=>`<tr><td class="mono">${i+1}</td><td>${g.kh}</td><td>${g.loai}</td><td class="num">${g.xe}</td><td class="num">${fmt(g.kg)}</td><td>${g.bai}</td>
+      <table><thead><tr><th>Stt</th><th>Khách hàng</th><th>Loại hàng</th>${coTach ? '<th>Thời gian</th>' : ''}<th style="text-align:right">Số lượng xe (chuyến)</th><th style="text-align:right">Khối lượng hàng (kg)</th><th>Ghi chú</th><th></th></tr></thead>
+      <tbody>${groups.map((g,i)=>`<tr><td class="mono">${i+1}</td><td>${g.kh}</td><td>${g.loai}</td>${coTach ? `<td>${formatNgayVN(g.kyTuNgay)}${g.kyDenNgay!==g.kyTuNgay ? ' - '+formatNgayVN(g.kyDenNgay) : ''}</td>` : ''}<td class="num">${g.xe}</td><td class="num">${fmt(g.kg)}</td><td>${g.bai}</td>
         <td><div class="row-actions"><button type="button" class="mini-btn" onclick="inBangXacNhan('${g.kh}')">In bảng xác nhận</button><button type="button" class="mini-btn" onclick="inBangKeChiTietKhachHang('${g.kh}')">In bảng kê chi tiết</button></div></td></tr>`).join('')}
-      <tr style="font-weight:700"><td colspan="3">Tổng</td><td class="num">${tongXe}</td><td class="num">${fmt(tongKg)}</td><td></td><td></td></tr></tbody></table>
+      <tr style="font-weight:700"><td colspan="${coTach?4:3}">Tổng</td><td class="num">${tongXe}</td><td class="num">${fmt(tongKg)}</td><td></td><td></td></tr></tbody></table>
     </div>
 
     <div class="panel-head" style="margin-top:28px"><h3>Xác nhận với nhà cung cấp dịch vụ</h3></div>
@@ -1981,7 +1990,7 @@ function renderXacNhan(body){
 }
 function inBangXacNhan(khOverride){
   const khLoc = khOverride !== undefined ? khOverride : xnKhachHang;
-  const {groups, tau, tuNgay, denNgay} = nhomXacNhanTheoTau(xnHuong, xnTau, khLoc);
+  const {groups, tau, tuNgay, denNgay, coTach} = nhomXacNhanTheoTau(xnHuong, xnTau, khLoc, xnNgayTach);
   if(!groups.length){ alert('Chưa có dữ liệu để in.'); return; }
   const tongKg = groups.reduce((s,g)=>s+g.kg,0);
   const tongXe = groups.reduce((s,g)=>s+g.xe,0);
@@ -2017,9 +2026,9 @@ function inBangXacNhan(khOverride){
       <tr><td>Ngày bắt đầu làm hàng:</td><td>${formatNgayVN(tuNgay)}</td></tr>
       <tr><td>Ngày kết thúc làm hàng:</td><td>${formatNgayVN(denNgay)}</td></tr>
     </table>
-    <table><thead><tr><th>Stt</th><th>Khách Hàng</th><th>Loại hàng</th><th class="num">Số lượng xe (chuyến)</th><th class="num">Khối lượng hàng (kg)</th><th>Ghi chú</th></tr></thead>
-    <tbody>${groups.map((g,i)=>`<tr><td class="c">${i+1}</td><td>${tenDayDuKhachHang(g.kh)}</td><td>${g.loai}</td><td class="num">${g.xe}</td><td class="num">${fmt(g.kg)}</td><td>${g.bai}</td></tr>`).join('')}
-    <tr style="font-weight:700"><td colspan="3" class="c">Tổng</td><td class="num">${tongXe}</td><td class="num">${fmt(tongKg)}</td><td></td></tr>
+    <table><thead><tr><th>Stt</th><th>Khách Hàng</th><th>Loại hàng</th>${coTach ? '<th>Thời gian</th>' : ''}<th class="num">Số lượng xe (chuyến)</th><th class="num">Khối lượng hàng (kg)</th><th>Ghi chú</th></tr></thead>
+    <tbody>${groups.map((g,i)=>`<tr><td class="c">${i+1}</td><td>${tenDayDuKhachHang(g.kh)}</td><td>${g.loai}</td>${coTach ? `<td class="c">${formatNgayVN(g.kyTuNgay)}${g.kyDenNgay!==g.kyTuNgay ? ' - '+formatNgayVN(g.kyDenNgay) : ''}</td>` : ''}<td class="num">${g.xe}</td><td class="num">${fmt(g.kg)}</td><td>${g.bai}</td></tr>`).join('')}
+    <tr style="font-weight:700"><td colspan="${coTach?4:3}" class="c">Tổng</td><td class="num">${tongXe}</td><td class="num">${fmt(tongKg)}</td><td></td></tr>
     </tbody></table>
     <p style="margin-top:10px">Đính kèm bảng kê chi tiết.</p>
     <div class="sign">
