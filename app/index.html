@@ -2105,6 +2105,26 @@ function inBangKeChiTietPhieuCan(rows, titleSuffix, h2Line, tau, tuNgay, denNgay
   const win = window.open('', '_blank');
   if(!win){ alert('Trình duyệt đã chặn cửa sổ in — cho phép popup rồi thử lại.'); return; }
 
+  const xeMap = {};
+  rows.forEach(r=>{
+    if(!xeMap[r.bienSo]) xeMap[r.bienSo] = {bienSo:r.bienSo, kg:0, chuyen:0};
+    xeMap[r.bienSo].kg += r.kg;
+    xeMap[r.bienSo].chuyen += 1;
+  });
+  const xeSummary = Object.values(xeMap).sort((a,b)=>a.bienSo.localeCompare(b.bienSo));
+  let xeSummaryHtml = '';
+  if(xeSummary.length > 1){
+    const baiTitle = (rows.find(r=>r.bai)||{}).bai || '';
+    const tongChuyenXe = xeSummary.reduce((s,x)=>s+x.chuyen,0);
+    xeSummaryHtml = `<table class="xesum">
+      <thead><tr><th colspan="4">${baiTitle.toUpperCase()}</th></tr>
+      <tr><th>Stt</th><th>BKS</th><th class="num">Khối lượng</th><th class="num">Số chuyến</th></tr></thead>
+      <tbody>${xeSummary.map((x,i)=>`<tr><td class="c">${i+1}</td><td class="c">${x.bienSo}</td><td class="num">${fmt(x.kg)}</td><td class="num">${x.chuyen}</td></tr>`).join('')}
+      <tr style="font-weight:700"><td colspan="2" class="c">TC</td><td class="num">${fmt(tongKg)}</td><td class="num">${tongChuyenXe}</td></tr>
+      </tbody>
+    </table>`;
+  }
+
   const SO_DONG_TRANG_DAU = 18, SO_DONG_TRANG_SAU = 28;
   const trangs = [];
   for(let i=0; i<rows.length; ){
@@ -2113,11 +2133,11 @@ function inBangKeChiTietPhieuCan(rows, titleSuffix, h2Line, tau, tuNgay, denNgay
     i += soDong;
   }
   const tongSoTrang = trangs.length;
-  const theadHtml = `<thead><tr><th>Stt</th><th>Số phiếu</th><th>Biển số xe</th><th>Tên khách hàng</th><th>Tên hàng hóa</th><th class="num">KL có hàng</th><th class="num">KL xe</th><th class="num">KL hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Tài xế</th></tr></thead>`;
+  const theadHtml = `<thead><tr><th>Stt</th><th>Số phiếu</th><th>Biển số xe</th><th>Tên khách hàng</th><th>Tên hàng hóa</th><th class="num">KL có hàng</th><th class="num">KL xe</th><th class="num">KL hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th></tr></thead>`;
   let sttOffset = 0;
   const trangsHtml = trangs.map((trRows, idx) => {
     const laDauTien = idx===0, laCuoi = idx===tongSoTrang-1;
-    const bodyHtml = trRows.map((r,j)=>`<tr><td class="c">${sttOffset+j+1}</td><td class="c">${r.soPhieu}</td><td class="c">${r.bienSo}</td><td>${r.khachHang}</td><td>${r.hangHoaRaw}</td><td class="num">${fmt(r.klCoHang)}</td><td class="num">${fmt(r.klXe)}</td><td class="num">${fmt(r.kg)}</td><td class="c">${r.gioCanTong}</td><td class="c">${r.gioCanXe}</td><td>${r.ghiChu}</td><td>${r.taiXe}</td></tr>`).join('');
+    const bodyHtml = trRows.map((r,j)=>`<tr><td class="c">${sttOffset+j+1}</td><td class="c">${r.soPhieu}</td><td class="c">${r.bienSo}</td><td>${r.khachHang}</td><td>${r.hangHoaRaw}</td><td class="num">${fmt(r.klCoHang)}</td><td class="num">${fmt(r.klXe)}</td><td class="num">${fmt(r.kg)}</td><td class="c">${r.gioCanTong}</td><td class="c">${r.gioCanXe}</td><td>${r.ghiChu}</td></tr>`).join('');
     sttOffset += trRows.length;
     return `<div class="pg">
       ${laDauTien ? `<div class="head"><img src="${ALPHAPI_LOGO_DATAURI}"><div><b>CÔNG TY CỔ PHẦN ALPHA PI</b><br>Địa chỉ trụ sở: Số 99 Nội khu Hưng Thái 2, P. Tân Hưng, TP.Hồ Chí Minh, Việt Nam.<br>Mã số thuế: 0105860806<br>Email: accountant@alphapi.com.vn</div></div>
@@ -2128,8 +2148,9 @@ function inBangKeChiTietPhieuCan(rows, titleSuffix, h2Line, tau, tuNgay, denNgay
         <tr><td>Ngày làm hàng:</td><td>${formatNgayVN(tuNgay)}</td><td style="padding-left:20px">Ngày kết thúc:</td><td>${formatNgayVN(denNgay)}</td></tr>
       </table>` : ''}
       <table>${theadHtml}<tbody>${bodyHtml}
-      ${laCuoi ? `<tr style="font-weight:700"><td colspan="5" class="c">TỔNG CỘNG</td><td class="num">${fmt(tongKlCoHang)}</td><td class="num">${fmt(tongKlXe)}</td><td class="num">${fmt(tongKg)}</td><td colspan="4"></td></tr>` : ''}
+      ${laCuoi ? `<tr style="font-weight:700"><td colspan="5" class="c">TỔNG CỘNG</td><td class="num">${fmt(tongKlCoHang)}</td><td class="num">${fmt(tongKlXe)}</td><td class="num">${fmt(tongKg)}</td><td colspan="3"></td></tr>` : ''}
       </tbody></table>
+      ${laCuoi ? xeSummaryHtml : ''}
       ${laCuoi ? signHtml : ''}
       <div class="pagefoot">Trang ${idx+1}/${tongSoTrang}</div>
     </div>`;
@@ -2153,6 +2174,7 @@ function inBangKeChiTietPhieuCan(rows, titleSuffix, h2Line, tau, tuNgay, denNgay
     td.num, th.num{text-align:right}
     td.c{text-align:center}
     tr{page-break-inside:avoid}
+    table.xesum{width:320px;margin:24px 0 0;}
     .sign{display:flex;justify-content:space-between;margin-top:40px;text-align:center;}
     .sign > div{width:45%}
     .sign .line{margin-top:60px;font-weight:700}
