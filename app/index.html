@@ -1963,9 +1963,6 @@ function renderXacNhan(body){
         }).join('') : '<option value="">— chưa có dữ liệu tàu —</option>'}
       </select></div>
     </div>
-    ${xnTau ? `<div class="inline-form" style="grid-template-columns:1fr;max-width:320px">
-      <div class="field"><label>Tách theo ngày (tùy chọn — nếu giá dịch vụ thay đổi giữa chuyến)</label><input type="date" min="${tuNgay}" max="${denNgay}" value="${xnNgayTach}" onchange="setXacNhan('ngaytach',this.value)"></div>
-    </div>` : ''}
     ${!xnTau || !groups.length ? `<p style="font-size:12.5px;color:var(--ink-soft)">Chưa có phiếu cân đường thủy nào cho lựa chọn này. Vào tab ${xnHuong==='nhap'?'Nhập hàng':'Xuất hàng'}, mục "Nhập số liệu từ file cân" để nạp dữ liệu tàu này trước.</p>` : (() => {
       const nccGroups = nhomNhaCungCapTheoTau(xnHuong, xnTau, xnKhachHang);
       return `
@@ -1975,6 +1972,11 @@ function renderXacNhan(body){
         <td><div class="row-actions"><button type="button" class="mini-btn" onclick="inBangXacNhan('${g.kh}')">In bảng xác nhận</button><button type="button" class="mini-btn" onclick="inBangKeChiTietKhachHang('${g.kh}')">In bảng kê chi tiết</button></div></td></tr>`).join('')}
       <tr style="font-weight:700"><td colspan="${coTach?4:3}">Tổng</td><td class="num">${tongXe}</td><td class="num">${fmt(tongKg)}</td><td></td><td></td></tr></tbody></table>
     </div>
+    <details class="add-details" style="margin-top:10px" ${xnNgayTach ? 'open' : ''}><summary class="add-summary">Tách theo ngày (nếu giá dịch vụ thay đổi giữa chuyến)${xnNgayTach ? ` — đang tách tại ${formatNgayVN(xnNgayTach)}` : ''}</summary>
+      <div class="inline-form" style="grid-template-columns:1fr;max-width:320px">
+        <div class="field"><label>Ngày tách</label><input type="date" min="${tuNgay}" max="${denNgay}" value="${xnNgayTach}" onchange="setXacNhan('ngaytach',this.value)"></div>
+      </div>
+    </details>
 
     <div class="panel-head" style="margin-top:28px"><h3>Xác nhận với nhà cung cấp dịch vụ</h3></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 10px">Tự động nhóm theo biển số xe đã đăng ký ở module "Thông tin khách hàng" (loại "Nhà cung cấp dịch vụ"). Biển số chưa đăng ký sẽ gộp vào dòng "Chưa rõ nhà xe" — vào M6 đăng ký biển số cho đúng nhà xe để tách ra.</p>
