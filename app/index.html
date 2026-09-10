@@ -1927,10 +1927,6 @@ function renderXacNhan(body){
     ${!xnTau || !groups.length ? `<p style="font-size:12.5px;color:var(--ink-soft)">Chưa có phiếu cân đường thủy nào cho lựa chọn này. Vào tab ${xnHuong==='nhap'?'Nhập hàng':'Xuất hàng'}, mục "Nhập số liệu từ file cân" để nạp dữ liệu tàu này trước.</p>` : (() => {
       const nccGroups = nhomNhaCungCapTheoTau(xnHuong, xnTau, xnKhachHang);
       return `
-    <div class="inline-form" style="grid-template-columns:1fr 1fr;margin-bottom:16px">
-      <div class="field"><label>Đại diện Alpha Pi ký</label><input value="${xnDaiDien}" onchange="setXacNhan('daidien',this.value)"></div>
-      <div class="field"><label>Chức vụ</label><input value="${xnChucVu}" onchange="setXacNhan('chucvu',this.value)"></div>
-    </div>
     <div class="table-wrap">
       <table><thead><tr><th>Stt</th><th>Khách hàng</th><th>Loại hàng</th><th style="text-align:right">Số lượng xe (chuyến)</th><th style="text-align:right">Khối lượng hàng (kg)</th><th>Ghi chú</th><th></th></tr></thead>
       <tbody>${groups.map((g,i)=>`<tr><td class="mono">${i+1}</td><td>${g.kh}</td><td>${g.loai}</td><td class="num">${g.xe}</td><td class="num">${fmt(g.kg)}</td><td>${g.bai}</td>
@@ -1940,6 +1936,10 @@ function renderXacNhan(body){
 
     <div class="panel-head" style="margin-top:28px"><h3>Xác nhận với nhà cung cấp dịch vụ</h3></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 10px">Tự động nhóm theo biển số xe đã đăng ký ở module "Thông tin khách hàng" (loại "Nhà cung cấp dịch vụ"). Biển số chưa đăng ký sẽ gộp vào dòng "Chưa rõ nhà xe" — vào M6 đăng ký biển số cho đúng nhà xe để tách ra.</p>
+    <div class="inline-form" style="grid-template-columns:1fr 1fr;margin-bottom:16px">
+      <div class="field"><label>Đại diện Alpha Pi ký</label><input value="${xnDaiDien}" onchange="setXacNhan('daidien',this.value)"></div>
+      <div class="field"><label>Chức vụ</label><input value="${xnChucVu}" onchange="setXacNhan('chucvu',this.value)"></div>
+    </div>
     <div class="table-wrap">
       <table><thead><tr><th>Nhà cung cấp dịch vụ</th><th style="text-align:right">Số xe</th><th style="text-align:right">Tổng chuyến</th><th style="text-align:right">Tổng khối lượng (Kg)</th><th></th></tr></thead>
       <tbody>${nccGroups.map(g=>`<tr><td>${g.ncc ? g.ncc.ten : 'Chưa rõ nhà xe'}</td><td class="num">${g.xeList.length}</td><td class="num">${g.tongChuyen}</td><td class="num">${fmt(g.tongKg)}</td>
