@@ -2132,7 +2132,7 @@ function inBangXacNhanNhaXe(nccKey){
     <div class="party"><b>Bên A (Bên thuê):</b> CÔNG TY CỔ PHẦN ALPHA PI<br>
     Địa chỉ: Số 99 Nội khu Hưng Thái 2, P. Tân Hưng, TP.Hồ Chí Minh, Việt Nam.<br>
     Mã số thuế: 0105860806</div>
-    <div class="party"><b>Bên B:</b> ${ncc.ten}<br>
+    <div class="party"><b>Bên B (Bên cho thuê):</b> ${ncc.ten}<br>
     ${ncc.diaChi?`Địa chỉ: ${ncc.diaChi}<br>`:''}${ncc.maSoThue?`Mã số thuế: ${ncc.maSoThue}<br>`:''}${ncc.nguoiDaiDien?`Đại diện: ${ncc.nguoiDaiDien}${ncc.chucVu?' — Chức vụ: '+ncc.chucVu:''}`:''}</div>
     <p>Hai bên cùng nhau thống nhất ký xác nhận tổng khối lượng ${xnHuong==='nhap'?'nhập':'xuất'} bãi của Công ty cổ phần Alpha Pi từ ngày ${formatNgayVN(tuNgay)} đến ngày ${formatNgayVN(denNgay)} như sau:</p>
     <table><thead><tr><th>Stt</th><th>BKS</th><th>Tài xế</th><th class="num">Khối lượng (Kg)</th><th class="num">Số chuyến</th></tr></thead>
