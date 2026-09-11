@@ -3743,12 +3743,13 @@ function renderM7(){
 
 function renderTaiChinhTongQuan(body){
   const canDuyet = currentUser.id==='BLD' ? [
-    ...state.dexuatmuahang.filter(x=>x.trangThai==='Chờ duyệt').map(x=>`Đề xuất mua hàng — ${x.noiDung} (${fmt(x.soLuong*x.donGia)} đ)`),
+    ...state.dexuatmuahang.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>`Đề xuất mua hàng — ${x.noiDung} (${fmt(x.soLuong*x.donGia)} đ)`),
     ...state.denghithanhtoan.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>`Đề nghị thanh toán — ${x.noiDung} (${fmt(x.soTien)} đ)`),
     ...state.tamung.filter(x=>x.trangThai==='Chờ duyệt').map(x=>`Tạm ứng — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
   ] : [];
   const canKiemTra = currentUser.id==='TC' ? [
-    ...state.denghithanhtoan.filter(x=>x.trangThai==='Chờ kiểm tra').map(x=>`Kiểm tra hồ sơ — ${x.noiDung} (${fmt(x.soTien)} đ)`),
+    ...state.dexuatmuahang.filter(x=>x.trangThai==='Chờ kiểm tra').map(x=>`Kiểm tra hồ sơ (đề xuất mua hàng) — ${x.noiDung} (${fmt(x.soLuong*x.donGia)} đ)`),
+    ...state.denghithanhtoan.filter(x=>x.trangThai==='Chờ kiểm tra').map(x=>`Kiểm tra hồ sơ (đề nghị thanh toán) — ${x.noiDung} (${fmt(x.soTien)} đ)`),
     ...state.denghithanhtoan.filter(x=>x.trangThai==='Đã duyệt').map(x=>`Thực hiện thanh toán — ${x.noiDung} (${fmt(x.soTien)} đ)`),
     ...state.tamung.filter(x=>x.trangThai==='Đã duyệt').map(x=>`Chi tạm ứng — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
   ] : [];
@@ -3815,7 +3816,8 @@ function renderDeXuatMuaHang(body){
   const canAdd = canEnter('M7');
   body.innerHTML = `
     <div class="panel-head"><h3>Đề xuất mua hàng</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Bộ phận có nhu cầu lập đề xuất kèm nhà cung cấp/đơn giá dự kiến; Ban lãnh đạo phê duyệt trước khi đặt hàng.</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Bộ phận có nhu cầu lập đề xuất kèm nhà cung cấp/đơn giá dự kiến. Luồng: Chờ kiểm tra → Kế toán kiểm tra hồ sơ → Ban lãnh đạo phê duyệt trước khi đặt hàng.</p>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:-10px 0 14px;font-style:italic">Ghi chú: bản demo chưa có server dùng chung nên chưa thể báo (mở máy/tin nhắn) cho cấp duyệt — cấp duyệt cần chủ động vào tab này để xem việc chờ xử lý. Tính năng thông báo tự động sẽ làm khi công ty triển khai server thật.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Lập đề xuất mua hàng</summary>
       <form class="inline-form" onsubmit="return submitDeXuat(event)">
         <div class="field"><label>Ngày</label><input type="date" required id="dx-ngay"></div>
@@ -3833,10 +3835,11 @@ function renderDeXuatMuaHang(body){
       <thead><tr><th>Ngày</th><th>Nội dung</th><th>Người đề xuất</th><th>Bộ phận</th><th>NCC</th><th style="text-align:right">Thành tiền</th><th>Trạng thái</th><th></th></tr></thead>
       <tbody>${state.dexuatmuahang.map(x => {
         const thanhTien = x.soLuong * x.donGia;
-        const pillClass = x.trangThai==='Đã duyệt' ? 'approved' : x.trangThai==='Từ chối' ? 'rejected' : 'pending';
+        const pillClass = x.trangThai==='Đã duyệt' ? 'approved' : x.trangThai==='Từ chối' ? 'rejected' : x.trangThai==='Đã kiểm tra' ? 'done' : 'pending';
         let action = '';
-        if(currentUser.id==='BLD' && x.trangThai==='Chờ duyệt'){
-          action = `<button class="mini-btn approve" onclick="duyetDeXuat('${x.id}',true)">Duyệt</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetDeXuat('${x.id}',false)">Từ chối</button>`;
+        if(currentUser.id==='TC' && x.trangThai==='Chờ kiểm tra') action += `<button class="mini-btn approve" onclick="kiemTraDeXuat('${x.id}')">Kiểm tra hồ sơ</button>`;
+        if(currentUser.id==='BLD' && x.trangThai==='Đã kiểm tra'){
+          action += `<button class="mini-btn approve" onclick="duyetDeXuat('${x.id}',true)">Duyệt</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetDeXuat('${x.id}',false)">Từ chối</button>`;
         }
         if(canAdd) action += actionButtons('dexuatmuahang', x.id);
         return `<tr><td class="mono">${x.ngay}</td><td>${x.noiDung}</td><td>${x.nguoiDeXuat}</td><td>${x.boPhan}</td><td>${x.nhaCungCap||''}</td>
@@ -3851,9 +3854,15 @@ function submitDeXuat(e){
     nguoiDeXuat:document.getElementById('dx-nguoi').value, boPhan:document.getElementById('dx-bophan').value,
     noiDung, donViTinh:document.getElementById('dx-dvt').value, soLuong:parseFloat(document.getElementById('dx-sl').value)||1,
     donGia:parseFloat(document.getElementById('dx-dg').value)||0, nhaCungCap:document.getElementById('dx-ncc').value,
-    mucDich:document.getElementById('dx-mucdich').value, trangThai:'Chờ duyệt', nguoiDuyet:null});
+    mucDich:document.getElementById('dx-mucdich').value, trangThai:'Chờ kiểm tra', nguoiKiemTra:null, nguoiDuyet:null});
   logActivity(`Gửi đề xuất mua hàng "${noiDung}"`);
   renderM7(); return false;
+}
+function kiemTraDeXuat(id){
+  const x = state.dexuatmuahang.find(x=>x.id===id); if(!x) return;
+  x.trangThai = 'Đã kiểm tra'; x.nguoiKiemTra = currentUser.name;
+  logActivity(`Kế toán kiểm tra hồ sơ đề xuất mua hàng "${x.noiDung}"`);
+  renderM7();
 }
 function duyetDeXuat(id, dong){
   const x = state.dexuatmuahang.find(x=>x.id===id); if(!x) return;
@@ -3868,6 +3877,7 @@ function renderDeNghiThanhToan(body){
   body.innerHTML = `
     <div class="panel-head"><h3>Đề nghị thanh toán</h3></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Áp dụng cho cả thanh toán nội bộ và thanh toán nhà cung cấp. Luồng: Chờ kiểm tra → Kế toán kiểm tra → Ban lãnh đạo duyệt → Kế toán/Thủ quỹ thực hiện chi.</p>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:-10px 0 14px;font-style:italic">Ghi chú: bản demo chưa có server dùng chung nên chưa thể báo (mở máy/tin nhắn) cho cấp duyệt — cấp duyệt cần chủ động vào tab này để xem việc chờ xử lý. Tính năng thông báo tự động sẽ làm khi công ty triển khai server thật.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Lập đề nghị thanh toán</summary>
       <form class="inline-form" onsubmit="return submitDeNghi(event)">
         <div class="field"><label>Ngày</label><input type="date" required id="tt-ngay"></div>
