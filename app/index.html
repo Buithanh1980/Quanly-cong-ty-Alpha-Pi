@@ -453,7 +453,7 @@ function seedState(){
     vattu: [],
     kiemke: [],
     khachhang: [
-      {id:'KH-NAMTIEN', ten:'Nam Tiến', loaiDoiTac:'Khách hàng thuê bãi (chủ hàng)', danhSachBai:'Bãi Alpha Pi, Bãi Phú Thái, Bãi Vinalift', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''},
+      {id:'KH-NAMTIEN', ten:'Nam Tiến', tenDayDu:'CÔNG TY TNHH NAM TIẾN', loaiDoiTac:'Khách hàng thuê bãi (chủ hàng)', danhSachBai:'Bãi Alpha Pi, Bãi Phú Thái, Bãi Vinalift', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''},
       {id:'KH-COALIMEX', ten:'Coalimex', tenDayDu:'CTY CỔ PHẦN XUẤT NHẬP KHẨU THAN VINACOMIN', loaiDoiTac:'Khách hàng thuê bãi (chủ hàng)', danhSachBai:'Bãi Coalimex', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''},
     ],
     xekhachhang: [],
@@ -516,7 +516,7 @@ function loadState(){
       else if(k.loaiDoiTac==='Nhà cung cấp vận chuyển') k.loaiDoiTac = 'Nhà cung cấp dịch vụ';
     });
     if(!state.khachhang.some(k=>k.ten==='Nam Tiến' && k.loaiDoiTac==='Khách hàng thuê bãi (chủ hàng)')){
-      state.khachhang.push({id:'KH-NAMTIEN', ten:'Nam Tiến', loaiDoiTac:'Khách hàng thuê bãi (chủ hàng)', danhSachBai:'Bãi Alpha Pi, Bãi Phú Thái, Bãi Vinalift', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''});
+      state.khachhang.push({id:'KH-NAMTIEN', ten:'Nam Tiến', tenDayDu:'CÔNG TY TNHH NAM TIẾN', loaiDoiTac:'Khách hàng thuê bãi (chủ hàng)', danhSachBai:'Bãi Alpha Pi, Bãi Phú Thái, Bãi Vinalift', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''});
     }
     if(!state.khachhang.some(k=>k.ten==='Coalimex' && k.loaiDoiTac==='Khách hàng thuê bãi (chủ hàng)')){
       state.khachhang.push({id:'KH-COALIMEX', ten:'Coalimex', tenDayDu:'CTY CỔ PHẦN XUẤT NHẬP KHẨU THAN VINACOMIN', loaiDoiTac:'Khách hàng thuê bãi (chủ hàng)', danhSachBai:'Bãi Coalimex', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''});
@@ -531,6 +531,7 @@ function loadState(){
       if(k.danhSachBai===undefined) k.danhSachBai = '';
       if(k.tenDayDu===undefined) k.tenDayDu = '';
       if(k.ten==='Coalimex' && !k.tenDayDu) k.tenDayDu = 'CTY CỔ PHẦN XUẤT NHẬP KHẨU THAN VINACOMIN';
+      if(k.ten==='Nam Tiến' && !k.tenDayDu) k.tenDayDu = 'CÔNG TY TNHH NAM TIẾN';
     });
     if(state.lots) state.lots.forEach(l=>{
       if(l.loaiHang && /^\S+\s+(xuất|nhập)\s+tàu/i.test(l.loaiHang)) l.loaiHang = l.loaiHang.trim().split(/\s+/)[0];
