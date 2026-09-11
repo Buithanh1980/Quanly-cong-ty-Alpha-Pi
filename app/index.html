@@ -1238,7 +1238,8 @@ function renderGiaoViec(body){
           </div>
           <div class="field" style="grid-column:1/-1"><label>Ghi chú</label><input id="dx-ghichu" placeholder="VD: Ưu tiên sửa chữa thiết bị"></div>
           <div class="form-actions" style="grid-column:1/-1"><button type="submit" class="add-btn">Lưu</button></div>
-        </form></details>` : ''}
+        </form></details>
+      ${renderNhapDoiXeBlock()}` : ''}
       <div class="table-wrap"><table>
         <thead><tr><th>Họ tên</th><th>Vận hành được</th><th>Ghi chú</th><th></th></tr></thead>
         <tbody>${state.doixe.map(d => `<tr><td>${d.hoTen}</td><td>${d.thietBi.map(t=>`<span class="eq-tag">${t}</span>`).join('')}</td><td>${d.ghiChu||''}</td>
@@ -1265,6 +1266,73 @@ function submitDoiXe(e){
   logActivity(`Thêm tài xế "${hoTen}"`);
   renderM1(); return false;
 }
+let pendingDoiXeImport = null;
+const UU_TIEN_NHAN_DANG = {'không có':'', '':'', 'ưu tiên vun hàng':'vun_hang', 'vun_hang':'vun_hang', 'ưu tiên sửa chữa':'sua_chua', 'sua_chua':'sua_chua'};
+function renderNhapDoiXeBlock(){
+  if(!pendingDoiXeImport){
+    return `<details class="add-details"><summary class="add-summary">Nhập nhanh từ file Excel (điền theo mẫu, dùng 1 lần)</summary>
+      <div class="inline-form" style="grid-template-columns:1fr">
+        <div class="field"><label>Chọn file Excel đã điền theo mẫu</label><input type="file" accept=".xlsx,.xls" onchange="parseDoiXeExcelFile(this)"></div>
+      </div>
+      <p style="font-size:12px;color:var(--ink-soft);margin:8px 0 0">Cột "Vận hành được" ghi các loại thiết bị cách nhau bởi dấu phẩy, trong số: ${THIET_BI_VAN_HANH_LIST.join(', ')}. Cột "Ưu tiên": Không có / Ưu tiên vun hàng / Ưu tiên sửa chữa.</p>
+    </details>`;
+  }
+  const rows = pendingDoiXeImport.rows;
+  return `<div class="add-details" style="border-color:var(--brand)">
+    <div class="add-summary" style="cursor:default">Xem trước ${rows.length} tài xế/người vận hành từ file — kiểm tra rồi bấm Xác nhận nhập</div>
+    <div class="table-wrap" style="margin-top:10px"><table>
+      <thead><tr><th>Họ tên</th><th>Vận hành được</th><th>Ưu tiên</th><th>Ghi chú</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr><td>${r.hoTen}</td><td>${r.thietBi.join(', ')}</td><td style="font-size:12px">${r.uuTien==='vun_hang'?'Ưu tiên vun hàng':r.uuTien==='sua_chua'?'Ưu tiên sửa chữa':'Không có'}</td><td>${r.ghiChu}</td></tr>`).join('')}</tbody>
+    </table></div>
+    <div class="form-actions" style="margin-top:12px">
+      <button type="button" class="add-btn" onclick="xacNhanNhapDoiXe()">Xác nhận nhập ${rows.length} người</button>
+      <button type="button" class="mini-btn" onclick="huyNhapDoiXe()">Hủy</button>
+    </div>
+  </div>`;
+}
+function parseDoiXeExcelFile(input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const aoa = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:''});
+      const headerIdx = timDongTieuDe(aoa, 'Họ tên');
+      if(headerIdx===-1) throw new Error('Không tìm thấy dòng tiêu đề "Họ tên" trong file — kiểm tra lại đúng file mẫu chưa.');
+      const raw = XLSX.utils.sheet_to_json(ws, {range: headerIdx, defval:''});
+      const rows = raw.map(r=>{
+        const thietBiRaw = String(layGiaTriDong(r,'Vận hành được')).trim();
+        const thietBi = thietBiRaw.split(',').map(s=>s.trim()).filter(s=>THIET_BI_VAN_HANH_LIST.includes(s));
+        const uuTienRaw = String(layGiaTriDong(r,'Ưu tiên')).trim().toLowerCase();
+        return {
+          hoTen: String(layGiaTriDong(r,'Họ tên')).trim(),
+          thietBi,
+          uuTien: UU_TIEN_NHAN_DANG[uuTienRaw] !== undefined ? UU_TIEN_NHAN_DANG[uuTienRaw] : '',
+          ghiChu: String(layGiaTriDong(r,'Ghi chú')).trim(),
+        };
+      }).filter(r=>r.hoTen);
+      if(!rows.length) throw new Error('Không đọc được dòng nào hợp lệ — kiểm tra lại cột "Họ tên".');
+      pendingDoiXeImport = {rows};
+      renderM1();
+    }catch(err){
+      alert('Không đọc được file: ' + err.message);
+    }
+  };
+  reader.onerror = function(){ alert('Không đọc được file.'); };
+  reader.readAsArrayBuffer(file);
+  input.value = '';
+}
+function xacNhanNhapDoiXe(){
+  if(!pendingDoiXeImport) return;
+  pendingDoiXeImport.rows.forEach(r=>{
+    state.doixe.push({id:'DX'+(state.nextId++), hoTen:r.hoTen, thietBi:r.thietBi, uuTien:r.uuTien, ghiChu:r.ghiChu});
+  });
+  logActivity(`Nhập nhanh ${pendingDoiXeImport.rows.length} tài xế/người vận hành từ file Excel`);
+  pendingDoiXeImport = null;
+  renderM1();
+}
+function huyNhapDoiXe(){ pendingDoiXeImport = null; renderM1(); }
 function submitCongViec(e){
   e.preventDefault();
   const loaiViec = document.getElementById('cv-loai').value;
