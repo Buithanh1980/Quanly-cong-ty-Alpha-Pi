@@ -397,9 +397,7 @@ const REF_DATE = new Date('2026-08-24');
 
 const ROLES = [
   {id:'BLD', name:'Ban lãnh đạo',                  note:'TGĐ, Phó TGĐ, HĐQT — xem toàn hệ thống, phê duyệt quyết định vượt cấp phòng ban.'},
-  {id:'KT',  name:'Phòng Khai thác',        note:'Quản lý vận hành bãi, thiết bị và kiểm kê kho.'},
-  {id:'DD',  name:'Điều độ / Trưởng ca bãi',       note:'Nhập liệu vận hành hàng ngày tại bãi.'},
-  {id:'CC',  name:'Trạm cân',                       note:'Ghi nhận phiếu cân nhập / xuất.'},
+  {id:'KT',  name:'Phòng Khai thác',        note:'Quản lý vận hành bãi, thiết bị và kiểm kê kho. Gồm chung cả công việc Điều độ/Trưởng ca bãi và Trạm cân.'},
   {id:'TC',  name:'Kế toán — tài chính',           note:'Quản lý công nợ, hóa đơn, chi phí.'},
   {id:'NS',  name:'Nhân sự — hành chính',          note:'Quản lý hồ sơ nhân sự, chứng chỉ đào tạo.'},
   {id:'VT',  name:'Phòng Vận tải liên vận', note:'Quản lý đội xe liên vận, dịch vụ vận tải liên vận.'},
@@ -424,8 +422,6 @@ function defaultPermissions(){
   return {
     BLD:{M1:'X',M2:'X',M3:'D',M4:'X',M5:'X',M6:'X',M7:'D',M8:'X',M9:'X'},
     KT: {M1:'D',M2:'D',M3:'N',M6:'D',M7:'N'},
-    DD: {M1:'N',M2:'N',M3:'N'},
-    CC: {M1:'N',M2:'X'},
     VT: {M1:'X',M4:'D',M7:'N'},
     DV: {M2:'X',M5:'D',M7:'N'},
     TC: {M1:'X',M2:'N',M3:'X',M4:'X',M5:'X',M6:'X',M7:'D'},
@@ -485,6 +481,8 @@ function loadState(){
     if(!state.permissions) state.permissions = defaultPermissions();
     if(state.permissions.KT) delete state.permissions.KT.M4;
     if(state.permissions.VT) delete state.permissions.VT.M2;
+    delete state.permissions.DD;
+    delete state.permissions.CC;
     if(state.permissions.KT && state.permissions.KT.M6===undefined) state.permissions.KT.M6 = 'D';
     if(state.permissions.TC && state.permissions.TC.M6===undefined) state.permissions.TC.M6 = 'X';
     if(state.permissions.BLD && state.permissions.BLD.M6===undefined) state.permissions.BLD.M6 = 'X';
@@ -589,7 +587,7 @@ function roleCardHtml(r, sub){
 }
 function renderLogin(){
   const grid = document.getElementById('role-grid');
-  const cards = ROLES.filter(r => r.id!=='DD' && r.id!=='CC').map(r => roleCardHtml(r, false));
+  const cards = ROLES.map(r => roleCardHtml(r, false));
   grid.innerHTML = cards.join('');
 }
 
@@ -662,28 +660,23 @@ function renderContent(){
 /* ===================== M1: VẬN HÀNH BÃI ===================== */
 function renderM1(){
   const content = document.getElementById('content');
-  const laDieuDo = currentUser.id === 'DD';
   const laKT = currentUser.id === 'KT';
-  const coGiaoViec = laDieuDo || laKT;
   const tabs = [
     {id:'tongquan', label:'Tổng quan'},
-    ...(laDieuDo ? [] : [
-      {id:'nhap', label:'Nhập hàng'},
-      {id:'xuat', label:'Xuất hàng'},
-      {id:'dichvu', label:'Dịch vụ tại bãi'},
-    ]),
-    ...(coGiaoViec ? [{id:'giaoviec', label:'Giao việc'}] : []),
+    {id:'nhap', label:'Nhập hàng'},
+    {id:'xuat', label:'Xuất hàng'},
+    {id:'dichvu', label:'Dịch vụ tại bãi'},
+    ...(laKT ? [{id:'giaoviec', label:'Giao việc'}] : []),
     ...(laKT ? [{id:'xacnhan', label:'Xác nhận KL với KH/ nhà CCDV'}] : []),
   ];
-  if(currentTab === 'giaoviec' && !coGiaoViec) currentTab = 'tongquan';
+  if(currentTab === 'giaoviec' && !laKT) currentTab = 'tongquan';
   if(currentTab === 'xacnhan' && !laKT) currentTab = 'tongquan';
-  if(['nhap','xuat','dichvu'].includes(currentTab) && laDieuDo) currentTab = 'tongquan';
   content.innerHTML = `<div class="tabs">` + tabs.map(t =>
     `<button class="tab-btn ${t.id===currentTab?'active':''}" onclick="currentTab='${t.id}';renderM1()">${t.label}</button>`
   ).join('') + `</div><div id="tab-body"></div>`;
   const body = document.getElementById('tab-body');
   if(currentTab === 'tongquan') return renderTongQuan(body);
-  if(currentTab === 'giaoviec' && coGiaoViec) return renderGiaoViec(body);
+  if(currentTab === 'giaoviec' && laKT) return renderGiaoViec(body);
   if(currentTab === 'xacnhan' && laKT) return renderXacNhan(body);
   if(currentTab === 'nhap') return renderNhap(body);
   if(currentTab === 'xuat') return renderXuat(body);
