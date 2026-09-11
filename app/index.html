@@ -1817,7 +1817,7 @@ function confirmWeighImport(){
 }
 
 /* ---- Xác nhận với KH: tổng hợp khối lượng hàng qua cân theo tàu (đường thủy) hoặc theo kỳ (đường bộ), in bảng ký xác nhận ---- */
-let xnHuong = 'xuat', xnKhachHang = '', xnTuyen = 'thuy', xnTau = '', xnTuNgayBo = '', xnDenNgayBo = '', xnNgayTach = '', xnTuyenDuong = '';
+let xnHuong = 'xuat', xnKhachHang = '', xnTuyen = 'thuy', xnTau = '', xnTuNgayBo = '', xnDenNgayBo = '', xnNgayTachList = [], xnTuyenDuong = '';
 function formatNgayNganNam(iso){
   if(!iso) return '';
   const [y,m,d] = iso.split('-');
@@ -1877,27 +1877,30 @@ function danhSachChuyenTauTheo(huong, khachHang){
   return chuyens.sort((a,b)=>b.denNgay.localeCompare(a.denNgay));
 }
 function setXacNhan(key, val){
-  if(key==='huong'){ xnHuong = val; xnKhachHang = ''; xnTau = ''; xnTuNgayBo = ''; xnDenNgayBo = ''; xnNgayTach = ''; xnTuyenDuong = ''; }
-  else if(key==='khachhang'){ xnKhachHang = val; xnTau = ''; xnTuNgayBo = ''; xnDenNgayBo = ''; xnNgayTach = ''; xnTuyenDuong = ''; }
-  else if(key==='tuyen'){ xnTuyen = val; xnKhachHang = ''; xnTau = ''; xnTuNgayBo = ''; xnDenNgayBo = ''; xnNgayTach = ''; xnTuyenDuong = ''; }
-  else if(key==='tau'){ xnTau = val; xnNgayTach = ''; xnTuyenDuong = ''; }
-  else if(key==='tunngaybo'){ xnTuNgayBo = val; xnNgayTach = ''; xnTuyenDuong = ''; }
-  else if(key==='denngaybo'){ xnDenNgayBo = val; xnNgayTach = ''; xnTuyenDuong = ''; }
-  else if(key==='ngaytach') xnNgayTach = val;
+  if(key==='huong'){ xnHuong = val; xnKhachHang = ''; xnTau = ''; xnTuNgayBo = ''; xnDenNgayBo = ''; xnNgayTachList = []; xnTuyenDuong = ''; }
+  else if(key==='khachhang'){ xnKhachHang = val; xnTau = ''; xnTuNgayBo = ''; xnDenNgayBo = ''; xnNgayTachList = []; xnTuyenDuong = ''; }
+  else if(key==='tuyen'){ xnTuyen = val; xnKhachHang = ''; xnTau = ''; xnTuNgayBo = ''; xnDenNgayBo = ''; xnNgayTachList = []; xnTuyenDuong = ''; }
+  else if(key==='tau'){ xnTau = val; xnNgayTachList = []; xnTuyenDuong = ''; }
+  else if(key==='tunngaybo'){ xnTuNgayBo = val; xnNgayTachList = []; xnTuyenDuong = ''; }
+  else if(key==='denngaybo'){ xnDenNgayBo = val; xnNgayTachList = []; xnTuyenDuong = ''; }
   else if(key==='tuyenduong') xnTuyenDuong = val;
   renderM1();
 }
-function nhomXacNhanTheoKy(huong, tuyenVal, tau, tuNgay, denNgay, khachHang, ngayTach){
+function themMocTach(){ xnNgayTachList.push(''); renderM1(); }
+function xoaMocTach(idx){ xnNgayTachList.splice(idx,1); renderM1(); }
+function suaMocTach(idx, val){ xnNgayTachList[idx] = val; renderM1(); }
+function nhomXacNhanTheoKy(huong, tuyenVal, tau, tuNgay, denNgay, khachHang, ngayTachList){
   if(!tuNgay || !denNgay) return {groups:[], coTach:false};
   let recs = duongTheoTuyen(huong, khachHang, tuyenVal).filter(r=>r.ngay>=tuNgay && r.ngay<=denNgay);
   if(tuyenVal==='Đường thủy') recs = recs.filter(r=>r.nguon===tau);
-  const coTach = !!(ngayTach && ngayTach>tuNgay && ngayTach<=denNgay);
+  const mocTach = [...new Set((ngayTachList||[]).filter(d=>d && d>tuNgay && d<=denNgay))].sort();
+  const coTach = mocTach.length > 0;
   const groups = [];
   recs.forEach(r=>{
     const lot = state.lots.find(l=>l.id===r.lotId);
     const kh = lot ? lot.chuHang : '';
     const loai = lot ? lot.loaiHang : '';
-    const ky = coTach ? (r.ngay < ngayTach ? 0 : 1) : 0;
+    const ky = mocTach.filter(m=>m<=r.ngay).length;
     let g = groups.find(g=>g.kh===kh && g.loai===loai && g.ky===ky);
     if(!g){ g = {kh, loai, ky, kg:0, xe:0, baiSet:new Set(), kyTuNgay:r.ngay, kyDenNgay:r.ngay}; groups.push(g); }
     g.kg += r.khoiLuong*1000;
@@ -1969,7 +1972,7 @@ function renderXacNhan(body){
     if(xnTau){ const p = parseXnTauKey(xnTau); tau = p.tau; tuNgay = p.tuNgay; denNgay = p.denNgay; }
   }
   const coDuLieuKy = xnTuyen==='bo' ? !!(tuNgay && denNgay) : !!xnTau;
-  const {groups, coTach} = nhomXacNhanTheoKy(xnHuong, tuyenVal, tau, tuNgay, denNgay, xnKhachHang, xnNgayTach);
+  const {groups, coTach} = nhomXacNhanTheoKy(xnHuong, tuyenVal, tau, tuNgay, denNgay, xnKhachHang, xnNgayTachList);
   const tongKg = groups.reduce((s,g)=>s+g.kg,0);
   const tongXe = groups.reduce((s,g)=>s+g.xe,0);
   body.innerHTML = `
@@ -2012,9 +2015,14 @@ function renderXacNhan(body){
         <td><div class="row-actions"><button type="button" class="mini-btn" onclick="inBangXacNhan('${g.kh}')">In bảng xác nhận</button><button type="button" class="mini-btn" onclick="inBangKeChiTietKhachHang('${g.kh}')">In bảng kê chi tiết</button></div></td></tr>`).join('')}
       <tr style="font-weight:700"><td colspan="${coTach?4:3}">Tổng</td><td class="num">${tongXe}</td><td class="num">${fmt(tongKg)}</td><td></td><td></td></tr></tbody></table>
     </div>
-    <details class="add-details" style="margin-top:10px" ${xnNgayTach ? 'open' : ''}><summary class="add-summary">Tách theo ngày (nếu giá dịch vụ thay đổi trong thời gian ${xnHuong==='nhap'?'nhập':'xuất'} hàng)${xnNgayTach ? ` — đang tách tại ${formatNgayVN(xnNgayTach)}` : ''}</summary>
-      <div class="inline-form" style="grid-template-columns:1fr;max-width:320px">
-        <div class="field"><label>Ngày tách</label><input type="date" min="${tuNgay}" max="${denNgay}" value="${xnNgayTach}" onchange="setXacNhan('ngaytach',this.value)"></div>
+    <details class="add-details" style="margin-top:10px" ${xnNgayTachList.length ? 'open' : ''}><summary class="add-summary">Tách theo ngày (nếu giá dịch vụ thay đổi trong thời gian ${xnHuong==='nhap'?'nhập':'xuất'} hàng)${xnNgayTachList.filter(Boolean).length ? ` — đang tách tại ${xnNgayTachList.filter(Boolean).map(formatNgayVN).join(', ')}` : ''}</summary>
+      <div style="display:flex;flex-direction:column;gap:8px;max-width:360px">
+        ${xnNgayTachList.map((d,i)=>`
+        <div style="display:flex;align-items:flex-end;gap:8px">
+          <div class="field" style="flex:1;margin:0"><label>Mốc tách ${i+1}</label><input type="date" min="${tuNgay}" max="${denNgay}" value="${d}" onchange="suaMocTach(${i},this.value)"></div>
+          <button type="button" class="mini-btn" onclick="xoaMocTach(${i})">Xóa</button>
+        </div>`).join('')}
+        <button type="button" class="mini-btn" style="align-self:flex-start" onclick="themMocTach()">+ Thêm mốc tách</button>
       </div>
     </details>
 
@@ -2036,7 +2044,7 @@ function renderXacNhan(body){
 function inBangXacNhan(khOverride){
   const khLoc = khOverride !== undefined ? khOverride : xnKhachHang;
   const {tuyenVal, tau, tuNgay, denNgay} = layKyXacNhanHienTai();
-  const {groups, coTach} = nhomXacNhanTheoKy(xnHuong, tuyenVal, tau, tuNgay, denNgay, khLoc, xnNgayTach);
+  const {groups, coTach} = nhomXacNhanTheoKy(xnHuong, tuyenVal, tau, tuNgay, denNgay, khLoc, xnNgayTachList);
   if(!groups.length){ alert('Chưa có dữ liệu để in.'); return; }
   const tongKg = groups.reduce((s,g)=>s+g.kg,0);
   const tongXe = groups.reduce((s,g)=>s+g.xe,0);
