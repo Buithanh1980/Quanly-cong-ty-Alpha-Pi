@@ -518,6 +518,7 @@ function loadState(){
     if(!state.tamung) state.tamung = seedState().tamung;
     if(!state.soquy) state.soquy = seedState().soquy;
     if(!state.hoadon) state.hoadon = seedState().hoadon;
+    state.hoadon.forEach(h=>{ if(h.trangThaiThanhToan===undefined) h.trangThaiThanhToan = 'Chưa thanh toán'; });
     state.khachhang.forEach(k=>{
       if(k.loaiDoiTac==='Khách hàng thuê bãi' || k.loaiDoiTac==='Chủ hàng') k.loaiDoiTac = 'Khách hàng thuê bãi (chủ hàng)';
       else if(k.loaiDoiTac==='Nhà cung cấp vận chuyển') k.loaiDoiTac = 'Nhà cung cấp dịch vụ';
@@ -2666,6 +2667,7 @@ const FIELD_SCHEMAS = {
     {key:'loai', label:'Loại', type:'select', options:[{v:'Doanh thu',t:'Doanh thu (hóa đơn đầu ra)'},{v:'Chi phí',t:'Chi phí (hóa đơn đầu vào)'}]},
     {key:'giaTriTruocThue', label:'Giá trị trước thuế (đ)', type:'number'},
     {key:'soTienVAT', label:'Tiền thuế VAT (đ)', type:'number'},
+    {key:'trangThaiThanhToan', label:'Trạng thái thanh toán', type:'select', options:[{v:'Chưa thanh toán',t:'Chưa thanh toán'},{v:'Đã thanh toán',t:'Đã thanh toán'}]},
     {key:'ghiChu', label:'Ghi chú', type:'text'},
   ]},
   kiemke: {ten:'biên bản kiểm kê', fields:[
@@ -3995,14 +3997,18 @@ function submitSoQuy(e){
 /* ---- Công nợ ---- */
 function renderCongNo(body){
   const canAdd = canEnter('M7'); const canAppr = canApprove('M7');
-  const phaiThu = state.congno.filter(c=>c.trangThai==='Chưa thu').reduce((s,c)=>s+c.soTien,0);
+  const phaiThuHoaDon = state.hoadon.filter(h=>h.loai==='Doanh thu' && h.trangThaiThanhToan!=='Đã thanh toán').reduce((s,h)=>s+(h.giaTriTruocThue||0)+(h.soTienVAT||0), 0);
+  const phaiThuKhac = state.congno.filter(c=>c.trangThai==='Chưa thu').reduce((s,c)=>s+c.soTien,0);
+  const phaiThu = phaiThuHoaDon + phaiThuKhac;
   const phaiTraNCC = state.denghithanhtoan.filter(t=>t.loai==='Nhà cung cấp' && t.trangThai!=='Đã thanh toán').reduce((s,t)=>s+t.soTien,0);
   body.innerHTML = `
     <div class="stat-row">
       <div class="stat-card"><div class="slabel">Phải thu (khách hàng)</div><div class="sval warn">${fmt(phaiThu)} <span class="sunit">đ</span></div></div>
       <div class="stat-card"><div class="slabel">Phải trả NCC</div><div class="sval warn">${fmt(phaiTraNCC)} <span class="sunit">đ</span></div></div>
     </div>
-    <div class="panel-head"><h3>Công nợ khách hàng</h3></div>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:8px 0 0">Phải thu gồm: <b>${fmt(phaiThuHoaDon)} đ</b> từ hóa đơn đã xuất chưa thanh toán (xem tab Nhật ký hóa đơn) + <b>${fmt(phaiThuKhac)} đ</b> công nợ khác chưa có hóa đơn (bảng bên dưới).</p>
+    <div class="panel-head" style="margin-top:20px"><h3>Công nợ khác (chưa có hóa đơn)</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Dùng cho công nợ phát sinh trước khi có hóa đơn (ứng trước, công nợ cũ...). Khi đã xuất hóa đơn cho khoản này, ghi nhận bên tab Nhật ký hóa đơn thay vì ở đây để tránh trùng.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm công nợ</summary>
       <form class="inline-form" onsubmit="return submitCongNo(event)">
         <div class="field"><label>Chủ hàng</label><input required id="cn-chuhang"></div>
@@ -4062,11 +4068,12 @@ function renderNhatKyHoaDon(body){
         <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
       </form></details>` : ''}
     <div class="table-wrap"><table>
-      <thead><tr><th>Ngày</th><th>Số hóa đơn</th><th>Đối tác</th><th>Loại</th><th style="text-align:right">Trước thuế</th><th style="text-align:right">VAT</th><th style="text-align:right">Sau thuế</th><th>Ghi chú</th><th></th></tr></thead>
+      <thead><tr><th>Ngày</th><th>Số hóa đơn</th><th>Đối tác</th><th>Loại</th><th style="text-align:right">Trước thuế</th><th style="text-align:right">VAT</th><th style="text-align:right">Sau thuế</th><th>Thanh toán</th><th>Ghi chú</th><th></th></tr></thead>
       <tbody>${rows.map(h=>`<tr><td class="mono">${h.ngay}</td><td class="mono">${h.soHoaDon}</td><td>${h.doiTac}</td><td>${h.loai}</td>
-        <td class="num">${fmt(h.giaTriTruocThue)}</td><td class="num">${fmt(h.soTienVAT)}</td><td class="num">${fmt(h.giaTriTruocThue+h.soTienVAT)}</td><td>${h.ghiChu||''}</td>
-        <td>${canAdd ? `<div class="row-actions">${actionButtons('hoadon', h.id)}</div>` : ''}</td></tr>`).join('')
-        || `<tr class="empty-row"><td colspan="9">Chưa có hóa đơn nào được ghi nhận</td></tr>`}</tbody>
+        <td class="num">${fmt(h.giaTriTruocThue)}</td><td class="num">${fmt(h.soTienVAT)}</td><td class="num">${fmt(h.giaTriTruocThue+h.soTienVAT)}</td>
+        <td><span class="pill ${h.trangThaiThanhToan==='Đã thanh toán'?'approved':'pending'}">${h.trangThaiThanhToan}</span></td><td>${h.ghiChu||''}</td>
+        <td><div class="row-actions">${(canAdd && h.trangThaiThanhToan!=='Đã thanh toán') ? `<button class="mini-btn approve" onclick="ghiNhanThanhToanHoaDon('${h.id}')">Ghi nhận thanh toán</button>` : ''}${canAdd ? actionButtons('hoadon', h.id) : ''}</div></td></tr>`).join('')
+        || `<tr class="empty-row"><td colspan="10">Chưa có hóa đơn nào được ghi nhận</td></tr>`}</tbody>
     </table></div>`;
 }
 function submitHoaDon(e){
@@ -4078,10 +4085,20 @@ function submitHoaDon(e){
     loai: document.getElementById('hd-loai').value,
     giaTriTruocThue: parseFloat(document.getElementById('hd-truocthue').value)||0,
     soTienVAT: parseFloat(document.getElementById('hd-vat').value)||0,
+    trangThaiThanhToan: 'Chưa thanh toán',
     ghiChu: document.getElementById('hd-ghichu').value.trim(),
   });
   logActivity(`Ghi nhận hóa đơn "${soHoaDon}" (${doiTac})`);
   renderM7(); return false;
+}
+function ghiNhanThanhToanHoaDon(id){
+  const h = state.hoadon.find(h=>h.id===id); if(!h) return;
+  h.trangThaiThanhToan = 'Đã thanh toán';
+  const tongTien = (h.giaTriTruocThue||0) + (h.soTienVAT||0);
+  const loaiQuy = h.loai==='Doanh thu' ? 'Thu' : 'Chi';
+  themSoQuy(loaiQuy, tongTien, 'Chuyển khoản', `${loaiQuy} theo hóa đơn ${h.soHoaDon} — ${h.doiTac}`, `Hóa đơn ${h.id}`);
+  logActivity(`Ghi nhận thanh toán hóa đơn "${h.soHoaDon}" (${fmt(tongTien)} đ) — đã ghi sổ quỹ`);
+  renderM7();
 }
 
 /* ===================== M8: NHÂN SỰ — HÀNH CHÍNH ===================== */
