@@ -2102,8 +2102,9 @@ function inBangXacNhanNhaXe(nccKey){
   const xeSorted = g.xeList.slice().sort((a,b)=>b.kg-a.kg);
   const win = window.open('', '_blank');
   if(!win){ alert('Trình duyệt đã chặn cửa sổ in — cho phép popup rồi thử lại.'); return; }
-  const homNay = new Date();
-  const ngayKy = `ngày ${homNay.getDate()} tháng ${homNay.getMonth()+1} năm ${homNay.getFullYear()}`;
+  const [ndY, ndM, ndD] = denNgay.split('-').map(Number);
+  const ngayKyDate = new Date(ndY, ndM-1, ndD+1);
+  const ngayKy = `ngày ${ngayKyDate.getDate()} tháng ${ngayKyDate.getMonth()+1} năm ${ngayKyDate.getFullYear()}`;
   win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bảng xác nhận — ${ncc.ten}</title>
   <style>
     body{font-family:'Times New Roman',Times,serif;font-size:13px;color:#111;margin:30px 45px;}
