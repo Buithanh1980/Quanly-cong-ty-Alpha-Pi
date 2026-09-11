@@ -3696,6 +3696,19 @@ function doanhThuPhatSinhTrongKy(tuNgay, denNgay){
 function doanhThuHoaDonTrongKy(tuNgay, denNgay){
   return state.hoadon.filter(h=>h.loai==='Doanh thu' && h.ngay>=tuNgay && h.ngay<=denNgay).reduce((s,h)=>s+(h.giaTriTruocThue||0), 0);
 }
+function hoaDonChuaThanhToan(loai){
+  return state.hoadon.filter(h=>h.loai===loai && h.trangThaiThanhToan!=='Đã thanh toán').sort((a,b)=>a.ngay.localeCompare(b.ngay));
+}
+function tongTienHoaDon(list){
+  return list.reduce((s,h)=>s+(h.giaTriTruocThue||0)+(h.soTienVAT||0), 0);
+}
+function bangChiTietHoaDon(list, tenCotDoiTac){
+  return `<div class="table-wrap"><table>
+    <thead><tr><th>Ngày xuất HD</th><th>Số HD</th><th>${tenCotDoiTac}</th><th>Nội dung hóa đơn</th><th style="text-align:right">Số tiền</th></tr></thead>
+    <tbody>${list.map(h=>`<tr><td class="mono">${h.ngay}</td><td class="mono">${h.soHoaDon}</td><td>${h.doiTac}</td><td>${h.ghiChu||''}</td><td class="num">${fmt((h.giaTriTruocThue||0)+(h.soTienVAT||0))}</td></tr>`).join('')
+      || `<tr class="empty-row"><td colspan="5">Không có</td></tr>`}</tbody>
+  </table></div>`;
+}
 
 function renderM7(){
   const content = document.getElementById('content');
@@ -3745,6 +3758,13 @@ function renderTaiChinhTongQuan(body){
   const hdThang = doanhThuHoaDonTrongKy(dauThangIso, homNayIso);
   const hdNam = doanhThuHoaDonTrongKy(dauNamIso, homNayIso);
 
+  const phaiThuHoaDonList = hoaDonChuaThanhToan('Doanh thu');
+  const phaiThuHoaDon = tongTienHoaDon(phaiThuHoaDonList);
+  const phaiThuKhac = state.congno.filter(c=>c.trangThai==='Chưa thu').reduce((s,c)=>s+c.soTien,0);
+  const phaiThu = phaiThuHoaDon + phaiThuKhac;
+  const phaiTraNCCList = hoaDonChuaThanhToan('Chi phí');
+  const phaiTraNCC = tongTienHoaDon(phaiTraNCCList);
+
   body.innerHTML = `
     <div class="panel-head"><h3 style="font-size:14px">Doanh thu</h3></div>
     <div class="stat-row">
@@ -3758,6 +3778,21 @@ function renderTaiChinhTongQuan(body){
       <div class="stat-card" style="background:var(--grey-tint)"><div class="slabel">Chưa xuất hóa đơn — ${nhanNam}</div><div class="sval" style="font-weight:700">${fmt(psNam-hdNam)} <span class="sunit">đ</span></div></div>
     </div>
     <p style="font-size:11.5px;color:var(--ink-soft);margin:8px 0 0">"Doanh thu phát sinh" = khối lượng nhập/xuất trong kỳ × đơn giá đã khai báo ở M10, cộng doanh thu cho thuê bãi theo diện tích — là số <b>ước tính nội bộ</b>, không phải doanh thu kế toán chính thức. "Đã xuất hóa đơn" lấy từ tab Nhật ký hóa đơn (Kế toán tự ghi nhận mỗi khi xuất hóa đơn thật qua phần mềm hóa đơn điện tử).</p>
+
+    <div class="panel-head" style="margin-top:24px"><h3 style="font-size:14px">Công nợ</h3></div>
+    <div class="stat-row">
+      <div class="stat-card"><div class="slabel">Phải thu (khách hàng)</div><div class="sval warn">${fmt(phaiThu)} <span class="sunit">đ</span></div></div>
+      <div class="stat-card"><div class="slabel">Phải trả NCC</div><div class="sval warn">${fmt(phaiTraNCC)} <span class="sunit">đ</span></div></div>
+    </div>
+    <div class="section-block" style="margin-top:16px">
+      <h3 style="font-size:13.5px">Chi tiết phải thu (hóa đơn chưa thanh toán)</h3>
+      ${bangChiTietHoaDon(phaiThuHoaDonList, 'Tên khách hàng')}
+      ${phaiThuKhac>0 ? `<p style="font-size:11.5px;color:var(--ink-soft);margin-top:6px">+ ${fmt(phaiThuKhac)} đ công nợ khác chưa có hóa đơn — xem chi tiết ở tab Công nợ.</p>` : ''}
+    </div>
+    <div class="section-block" style="margin-top:16px">
+      <h3 style="font-size:13.5px">Chi tiết phải trả (hóa đơn chưa thanh toán)</h3>
+      ${bangChiTietHoaDon(phaiTraNCCList, 'Tên NCC')}
+    </div>
 
     ${viecCanXuLy.length ? `<div class="section-block" style="margin-top:24px"><h3 style="font-size:14px">Việc đang chờ bạn xử lý (${viecCanXuLy.length})</h3>
       <div class="table-wrap" style="padding:4px 18px"><div class="log-list">${viecCanXuLy.map(v=>`<div class="log-item">${v}</div>`).join('')}</div></div>
@@ -3997,16 +4032,18 @@ function submitSoQuy(e){
 /* ---- Công nợ ---- */
 function renderCongNo(body){
   const canAdd = canEnter('M7'); const canAppr = canApprove('M7');
-  const phaiThuHoaDon = state.hoadon.filter(h=>h.loai==='Doanh thu' && h.trangThaiThanhToan!=='Đã thanh toán').reduce((s,h)=>s+(h.giaTriTruocThue||0)+(h.soTienVAT||0), 0);
+  const phaiThuHoaDonList = hoaDonChuaThanhToan('Doanh thu');
+  const phaiThuHoaDon = tongTienHoaDon(phaiThuHoaDonList);
   const phaiThuKhac = state.congno.filter(c=>c.trangThai==='Chưa thu').reduce((s,c)=>s+c.soTien,0);
   const phaiThu = phaiThuHoaDon + phaiThuKhac;
-  const phaiTraNCC = state.denghithanhtoan.filter(t=>t.loai==='Nhà cung cấp' && t.trangThai!=='Đã thanh toán').reduce((s,t)=>s+t.soTien,0);
+  const phaiTraNCCList = hoaDonChuaThanhToan('Chi phí');
+  const phaiTraNCC = tongTienHoaDon(phaiTraNCCList);
   body.innerHTML = `
     <div class="stat-row">
       <div class="stat-card"><div class="slabel">Phải thu (khách hàng)</div><div class="sval warn">${fmt(phaiThu)} <span class="sunit">đ</span></div></div>
       <div class="stat-card"><div class="slabel">Phải trả NCC</div><div class="sval warn">${fmt(phaiTraNCC)} <span class="sunit">đ</span></div></div>
     </div>
-    <p style="font-size:11.5px;color:var(--ink-soft);margin:8px 0 0">Phải thu gồm: <b>${fmt(phaiThuHoaDon)} đ</b> từ hóa đơn đã xuất chưa thanh toán (xem tab Nhật ký hóa đơn) + <b>${fmt(phaiThuKhac)} đ</b> công nợ khác chưa có hóa đơn (bảng bên dưới).</p>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:8px 0 0">Phải thu gồm: <b>${fmt(phaiThuHoaDon)} đ</b> từ hóa đơn đã xuất chưa thanh toán (xem tab Nhật ký hóa đơn) + <b>${fmt(phaiThuKhac)} đ</b> công nợ khác chưa có hóa đơn (bảng bên dưới). Phải trả NCC tính từ hóa đơn chi phí chưa thanh toán (xem tab Nhật ký hóa đơn) — riêng đề nghị thanh toán nội bộ xem ở tab Đề nghị thanh toán.</p>
     <div class="panel-head" style="margin-top:20px"><h3>Công nợ khác (chưa có hóa đơn)</h3></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Dùng cho công nợ phát sinh trước khi có hóa đơn (ứng trước, công nợ cũ...). Khi đã xuất hóa đơn cho khoản này, ghi nhận bên tab Nhật ký hóa đơn thay vì ở đây để tránh trùng.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm công nợ</summary>
