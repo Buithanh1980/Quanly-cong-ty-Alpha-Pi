@@ -3975,12 +3975,18 @@ function parseBangGiaExcelFile(input){
       const aoa = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:''});
       let headerIdx = -1;
       for(let i=0;i<aoa.length;i++){
-        if(Array.isArray(aoa[i]) && aoa[i].some(c=>String(c||'').trim()==='Tên đối tác')){ headerIdx = i; break; }
+        if(Array.isArray(aoa[i]) && aoa[i].some(c=>String(c||'').trim().startsWith('Tên đối tác'))){ headerIdx = i; break; }
       }
       if(headerIdx===-1) throw new Error('Không tìm thấy dòng tiêu đề "Tên đối tác" trong file — kiểm tra lại đúng file mẫu chưa.');
       const raw = XLSX.utils.sheet_to_json(ws, {range: headerIdx, defval:''});
       const rows = raw.map(r=>{
-        const layGiaTri = (...keys) => { for(const k of keys){ if(r[k]!==undefined && r[k]!=='') return r[k]; } return ''; };
+        const layGiaTri = (...keys) => {
+          for(const k of keys){
+            const rk = Object.keys(r).find(x=>x.trim().startsWith(k));
+            if(rk!==undefined && r[rk]!==undefined && r[rk]!=='') return r[rk];
+          }
+          return '';
+        };
         let ngayHieuLuc = layGiaTri('Ngày hiệu lực');
         if(ngayHieuLuc instanceof Date) ngayHieuLuc = ngayHieuLuc.toISOString().slice(0,10);
         else if(typeof ngayHieuLuc === 'string' && ngayHieuLuc){
