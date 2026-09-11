@@ -2832,7 +2832,8 @@ function renderM2(){
           <div class="field"><label>Tên thiết bị/phương tiện</label><select required id="tb-ten">${THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('')}</select></div>
           <div class="field"><label>Biển số</label><input id="tb-bienso" placeholder="VD: 43H-060.50"></div>
           <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
-        </form></details>` : ''}
+        </form></details>
+      ${renderNhapThietBiBlock()}` : ''}
       <div class="table-wrap"><table>
         <thead><tr><th>Thiết bị/phương tiện</th><th>Biển số</th><th>Trạng thái</th><th>Bảo dưỡng theo hạng mục (hiện tại/mốc tiếp theo)</th><th>Nhiên liệu</th><th>Kiểm định</th><th></th></tr></thead>
         <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td class="mono">${t.bienSo||''}</td><td>${trangThaiHoatDongPill(t.trangThaiHoatDong)}</td><td>${baoDuongPill(t.bienSo)}</td><td>${tieuHaoPill(t.bienSo)}</td><td>${kiemDinhPill(t.id)}</td>
@@ -2876,6 +2877,72 @@ function submitThietBi(e){
   logActivity(`Thêm thiết bị/phương tiện "${ten}"`);
   renderM2(); return false;
 }
+let pendingThietBiImport = null;
+function renderNhapThietBiBlock(){
+  if(!pendingThietBiImport){
+    return `<details class="add-details"><summary class="add-summary">Nhập nhanh từ file Excel (điền theo mẫu, dùng 1 lần)</summary>
+      <div class="inline-form" style="grid-template-columns:1fr">
+        <div class="field"><label>Chọn file Excel đã điền theo mẫu</label><input type="file" accept=".xlsx,.xls" onchange="parseThietBiExcelFile(this)"></div>
+      </div>
+      <p style="font-size:12px;color:var(--ink-soft);margin:8px 0 0">Cột "Tên thiết bị/phương tiện" phải đúng 1 trong các loại: ${THIETBI_TEN_OPTIONS.map(o=>o.v).join(', ')}. Biển số đã có sẵn trong danh mục sẽ được bỏ qua để tránh trùng.</p>
+    </details>`;
+  }
+  const rows = pendingThietBiImport.rows;
+  return `<div class="add-details" style="border-color:var(--brand)">
+    <div class="add-summary" style="cursor:default">Xem trước ${rows.length} thiết bị/phương tiện từ file — kiểm tra rồi bấm Xác nhận nhập</div>
+    <div class="table-wrap" style="margin-top:10px"><table>
+      <thead><tr><th>Tên thiết bị/phương tiện</th><th>Biển số</th><th>Trạng thái hoạt động</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr><td>${r.ten}</td><td class="mono">${r.bienSo}</td><td>${r.trangThaiHoatDong}</td></tr>`).join('')}</tbody>
+    </table></div>
+    <div class="form-actions" style="margin-top:12px">
+      <button type="button" class="add-btn" onclick="xacNhanNhapThietBi()">Xác nhận nhập ${rows.length} thiết bị</button>
+      <button type="button" class="mini-btn" onclick="huyNhapThietBi()">Hủy</button>
+    </div>
+  </div>`;
+}
+function parseThietBiExcelFile(input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const aoa = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:''});
+      const headerIdx = timDongTieuDe(aoa, 'Tên thiết bị');
+      if(headerIdx===-1) throw new Error('Không tìm thấy dòng tiêu đề "Tên thiết bị/phương tiện" trong file — kiểm tra lại đúng file mẫu chưa.');
+      const raw = XLSX.utils.sheet_to_json(ws, {range: headerIdx, defval:''});
+      const tenHopLe = THIETBI_TEN_OPTIONS.map(o=>o.v);
+      const rows = raw.map(r=>({
+        ten: String(layGiaTriDong(r,'Tên thiết bị')).trim(),
+        bienSo: String(layGiaTriDong(r,'Biển số')).trim(),
+        trangThaiHoatDong: String(layGiaTriDong(r,'Trạng thái hoạt động','Trạng thái')).trim() || 'Đang hoạt động',
+      })).filter(r=>tenHopLe.includes(r.ten));
+      if(!rows.length) throw new Error('Không đọc được dòng nào hợp lệ — kiểm tra lại cột "Tên thiết bị/phương tiện" đúng 1 trong các loại cho phép chưa.');
+      pendingThietBiImport = {rows};
+      renderM2();
+    }catch(err){
+      alert('Không đọc được file: ' + err.message);
+    }
+  };
+  reader.onerror = function(){ alert('Không đọc được file.'); };
+  reader.readAsArrayBuffer(file);
+  input.value = '';
+}
+function xacNhanNhapThietBi(){
+  if(!pendingThietBiImport) return;
+  let count = 0;
+  pendingThietBiImport.rows.forEach(r=>{
+    if(r.bienSo && state.thietbi.some(t=>t.bienSo===r.bienSo)) return;
+    state.thietbi.push({id:'TB'+(state.nextId++), ten:r.ten, loai:'', boPhan:'Khai thác',
+      bienSo:r.bienSo, trangThaiHoatDong:TRANG_THAI_HOAT_DONG_OPTIONS.some(o=>o.v===r.trangThaiHoatDong) ? r.trangThaiHoatDong : 'Đang hoạt động',
+      viTri:'Nội bộ bãi'});
+    count++;
+  });
+  logActivity(`Nhập nhanh ${count} thiết bị/phương tiện từ file Excel`);
+  pendingThietBiImport = null;
+  renderM2();
+}
+function huyNhapThietBi(){ pendingThietBiImport = null; renderM2(); }
 const NHATKY_CONFIG = {
   nhienlieu: {ten:'nhiên liệu', placeholder:'VD: Đổ dầu diesel 120 lít'},
 };
