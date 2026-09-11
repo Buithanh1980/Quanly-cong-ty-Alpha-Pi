@@ -3703,7 +3703,7 @@ function renderM7(){
     {id:'denghi', label:'Đề nghị thanh toán'},
     {id:'tuquy', label:'Tạm ứng'},
     {id:'soquy', label:'Sổ quỹ'},
-    {id:'congno', label:'Công nợ phải thu'},
+    {id:'congno', label:'Công nợ'},
     {id:'hoadon', label:'Nhật ký hóa đơn'},
   ];
   if(!tabs.some(t=>t.id===currentTab)) currentTab = 'tqtc';
@@ -3721,9 +3721,6 @@ function renderM7(){
 }
 
 function renderTaiChinhTongQuan(body){
-  const phaiThu = state.congno.filter(c=>c.trangThai==='Chưa thu').reduce((s,c)=>s+c.soTien,0);
-  const phaiTraNCC = state.denghithanhtoan.filter(t=>t.loai==='Nhà cung cấp' && t.trangThai!=='Đã thanh toán').reduce((s,t)=>s+t.soTien,0);
-  const tamUngChuaQuyetToan = state.tamung.filter(t=>t.trangThai!=='Đã quyết toán').reduce((s,t)=>s+t.soTienTamUng,0);
   const canDuyet = currentUser.id==='BLD' ? [
     ...state.dexuatmuahang.filter(x=>x.trangThai==='Chờ duyệt').map(x=>`Đề xuất mua hàng — ${x.noiDung} (${fmt(x.soLuong*x.donGia)} đ)`),
     ...state.denghithanhtoan.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>`Đề nghị thanh toán — ${x.noiDung} (${fmt(x.soTien)} đ)`),
@@ -3760,14 +3757,7 @@ function renderTaiChinhTongQuan(body){
     </div>
     <p style="font-size:11.5px;color:var(--ink-soft);margin:8px 0 0">"Doanh thu phát sinh" = khối lượng nhập/xuất trong kỳ × đơn giá đã khai báo ở M10, cộng doanh thu cho thuê bãi theo diện tích — là số <b>ước tính nội bộ</b>, không phải doanh thu kế toán chính thức. "Đã xuất hóa đơn" lấy từ tab Nhật ký hóa đơn (Kế toán tự ghi nhận mỗi khi xuất hóa đơn thật qua phần mềm hóa đơn điện tử).</p>
 
-    <div class="panel-head" style="margin-top:24px"><h3 style="font-size:14px">Công nợ &amp; quỹ</h3></div>
-    <div class="stat-row">
-      <div class="stat-card"><div class="slabel">Phải thu (khách hàng)</div><div class="sval">${fmt(phaiThu)} <span class="sunit">đ</span></div></div>
-      <div class="stat-card"><div class="slabel">Phải trả NCC</div><div class="sval warn">${fmt(phaiTraNCC)} <span class="sunit">đ</span></div></div>
-      <div class="stat-card"><div class="slabel">Tạm ứng chưa quyết toán</div><div class="sval">${fmt(tamUngChuaQuyetToan)} <span class="sunit">đ</span></div></div>
-      <div class="stat-card"><div class="slabel">Tồn quỹ (tiền mặt + chuyển khoản)</div><div class="sval">${fmt(soDuQuy())} <span class="sunit">đ</span></div></div>
-    </div>
-    ${viecCanXuLy.length ? `<div class="section-block"><h3 style="font-size:14px">Việc đang chờ bạn xử lý (${viecCanXuLy.length})</h3>
+    ${viecCanXuLy.length ? `<div class="section-block" style="margin-top:24px"><h3 style="font-size:14px">Việc đang chờ bạn xử lý (${viecCanXuLy.length})</h3>
       <div class="table-wrap" style="padding:4px 18px"><div class="log-list">${viecCanXuLy.map(v=>`<div class="log-item">${v}</div>`).join('')}</div></div>
     </div>` : `<p style="font-size:13px;color:var(--ink-soft)">Không có việc nào đang chờ bạn xử lý.</p>`}
     <div class="info-box">
@@ -3895,7 +3885,11 @@ function thanhToanDeNghi(id){
 /* ---- Tạm ứng ---- */
 function renderTamUng(body){
   const canAdd = canEnter('M7');
+  const tamUngChuaQuyetToan = state.tamung.filter(t=>t.trangThai!=='Đã quyết toán').reduce((s,t)=>s+t.soTienTamUng,0);
   body.innerHTML = `
+    <div class="stat-row">
+      <div class="stat-card"><div class="slabel">Tạm ứng chưa quyết toán</div><div class="sval">${fmt(tamUngChuaQuyetToan)} <span class="sunit">đ</span></div></div>
+    </div>
     <div class="panel-head"><h3>Tạm ứng</h3></div>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Đề nghị tạm ứng</summary>
       <form class="inline-form" onsubmit="return submitTamUng(event)">
@@ -3967,7 +3961,7 @@ function renderSoQuy(body){
   const withBalance = rows.map(q => { running += (q.loai==='Thu'?q.soTien:-q.soTien); return {...q, running}; }).reverse();
   body.innerHTML = `
     <div class="stat-row">
-      <div class="stat-card"><div class="slabel">Tồn quỹ hiện tại</div><div class="sval">${fmt(soDuQuy())} <span class="sunit">đ</span></div></div>
+      <div class="stat-card"><div class="slabel">Tồn quỹ (tiền mặt + chuyển khoản)</div><div class="sval">${fmt(soDuQuy())} <span class="sunit">đ</span></div></div>
     </div>
     <div class="panel-head"><h3>Sổ quỹ (tiền mặt + chuyển khoản)</h3></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Các dòng từ đề nghị thanh toán/tạm ứng được ghi tự động khi thực hiện chi; có thể bổ sung thu/chi khác thủ công.</p>
@@ -3998,13 +3992,15 @@ function submitSoQuy(e){
   renderM7(); return false;
 }
 
-/* ---- Công nợ phải thu ---- */
+/* ---- Công nợ ---- */
 function renderCongNo(body){
   const canAdd = canEnter('M7'); const canAppr = canApprove('M7');
-  const tongChuaThu = state.congno.filter(c=>c.trangThai==='Chưa thu').reduce((s,c)=>s+c.soTien,0);
+  const phaiThu = state.congno.filter(c=>c.trangThai==='Chưa thu').reduce((s,c)=>s+c.soTien,0);
+  const phaiTraNCC = state.denghithanhtoan.filter(t=>t.loai==='Nhà cung cấp' && t.trangThai!=='Đã thanh toán').reduce((s,t)=>s+t.soTien,0);
   body.innerHTML = `
     <div class="stat-row">
-      <div class="stat-card"><div class="slabel">Công nợ chưa thu</div><div class="sval warn">${fmt(tongChuaThu)} <span class="sunit">đ</span></div></div>
+      <div class="stat-card"><div class="slabel">Phải thu (khách hàng)</div><div class="sval warn">${fmt(phaiThu)} <span class="sunit">đ</span></div></div>
+      <div class="stat-card"><div class="slabel">Phải trả NCC</div><div class="sval warn">${fmt(phaiTraNCC)} <span class="sunit">đ</span></div></div>
     </div>
     <div class="panel-head"><h3>Công nợ khách hàng</h3></div>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm công nợ</summary>
