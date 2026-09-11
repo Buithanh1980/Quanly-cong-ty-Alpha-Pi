@@ -416,17 +416,18 @@ const MODULES = [
   {code:'M7', name:'Tài chính — kế toán',       desc:'Đề xuất mua hàng, thanh toán, tạm ứng, sổ quỹ, công nợ'},
   {code:'M8', name:'Nhân sự — hành chính',      desc:'Hồ sơ nhân sự, chứng chỉ'},
   {code:'M9', name:'Quản trị hệ thống',         desc:'Tài khoản, phân quyền, nhật ký'},
+  {code:'M10', name:'Bảng giá dịch vụ bãi',     desc:'Đơn giá dịch vụ & diện tích thuê bãi — cho thuê ra và đi thuê vào'},
 ];
 
 function defaultPermissions(){
   return {
-    BLD:{M1:'X',M2:'X',M3:'D',M4:'X',M5:'X',M6:'X',M7:'D',M8:'X',M9:'X'},
-    KT: {M1:'D',M2:'D',M3:'N',M6:'D',M7:'N'},
+    BLD:{M1:'X',M2:'X',M3:'D',M4:'X',M5:'X',M6:'X',M7:'D',M8:'X',M9:'X',M10:'X'},
+    KT: {M1:'D',M2:'D',M3:'N',M6:'D',M7:'N',M10:'D'},
     VT: {M1:'X',M4:'D',M7:'N'},
     DV: {M2:'X',M5:'D',M7:'N'},
-    TC: {M1:'X',M2:'N',M3:'X',M4:'X',M5:'X',M6:'X',M7:'D'},
+    TC: {M1:'X',M2:'N',M3:'X',M4:'X',M5:'X',M6:'X',M7:'D',M10:'X'},
     NS: {M2:'X',M8:'D'},
-    IT: {M1:'X',M2:'X',M3:'X',M4:'X',M5:'X',M6:'X',M7:'X',M8:'X',M9:'Q'},
+    IT: {M1:'X',M2:'X',M3:'X',M4:'X',M5:'X',M6:'X',M7:'X',M8:'X',M9:'Q',M10:'X'},
     CH: {M1:'X',M3:'X'},
   };
 }
@@ -453,6 +454,7 @@ function seedState(){
       {id:'KH-COALIMEX', ten:'Coalimex', tenDayDu:'CTY CỔ PHẦN XUẤT NHẬP KHẨU THAN VINACOMIN', loaiDoiTac:'Khách hàng thuê bãi (chủ hàng)', danhSachBai:'Bãi Coalimex', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''},
     ],
     xekhachhang: [],
+    banggia: [],
     vantai: [],
     xevantai: [],
     goithau: [],
@@ -487,6 +489,10 @@ function loadState(){
     if(state.permissions.TC && state.permissions.TC.M6===undefined) state.permissions.TC.M6 = 'X';
     if(state.permissions.BLD && state.permissions.BLD.M6===undefined) state.permissions.BLD.M6 = 'X';
     if(state.permissions.IT && state.permissions.IT.M6===undefined) state.permissions.IT.M6 = 'X';
+    if(state.permissions.KT && state.permissions.KT.M10===undefined) state.permissions.KT.M10 = 'D';
+    if(state.permissions.TC && state.permissions.TC.M10===undefined) state.permissions.TC.M10 = 'X';
+    if(state.permissions.BLD && state.permissions.BLD.M10===undefined) state.permissions.BLD.M10 = 'X';
+    if(state.permissions.IT && state.permissions.IT.M10===undefined) state.permissions.IT.M10 = 'X';
     if(!state.log) state.log = [];
     if(!state.doixe) state.doixe = seedState().doixe;
     if(!state.congviec) state.congviec = seedState().congviec;
@@ -497,6 +503,7 @@ function loadState(){
     if(!state.dangkiem) state.dangkiem = seedState().dangkiem;
     if(!state.khachhang) state.khachhang = seedState().khachhang;
     if(!state.xekhachhang) state.xekhachhang = seedState().xekhachhang;
+    if(!state.banggia) state.banggia = seedState().banggia;
     if(state.thietbi) state.thietbi.forEach(t=>{ if(t.boPhan===undefined) t.boPhan='Khai thác'; if(t.bienSo===undefined) t.bienSo=''; if(!t.trangThaiHoatDong) t.trangThaiHoatDong='Đang hoạt động'; });
     if(!state.thietBiSoLuong) state.thietBiSoLuong = seedState().thietBiSoLuong;
     if(state.thietBiSoLuong['Máy múc'] !== undefined){
@@ -637,7 +644,7 @@ function selectModule(code){
 
 const MODULE_RENDERERS = {
   M1:renderM1, M2:renderM2, M3:renderM3, M4:renderM4,
-  M5:renderM5, M6:renderM6, M7:renderM7, M8:renderM8, M9:renderM9,
+  M5:renderM5, M6:renderM6, M7:renderM7, M8:renderM8, M9:renderM9, M10:renderM10,
 };
 
 function renderContent(){
@@ -2536,6 +2543,7 @@ const FIELD_SCHEMAS = {
       {v:'', t:'— Chưa phân loại —'},
       {v:'Khách hàng thuê bãi (chủ hàng)', t:'Khách hàng thuê bãi (chủ hàng)'},
       {v:'Nhà cung cấp dịch vụ', t:'Nhà cung cấp dịch vụ'},
+      {v:'Đơn vị cho Alpha Pi thuê bãi', t:'Đơn vị cho Alpha Pi thuê bãi'},
     ]},
     {key:'ten', label:'Tên khách hàng', type:'text'},
     {key:'tenDayDu', label:'Tên đầy đủ để in trên chứng từ (bỏ trống nếu giống tên ở trên)', type:'text'},
@@ -2557,6 +2565,29 @@ const FIELD_SCHEMAS = {
   dangkiem: {ten:'đăng kiểm', fields:[
     {key:'soDangKiem', label:'Số đăng kiểm', type:'text'},
     {key:'hanDangKiem', label:'Hạn đăng kiểm', type:'date'},
+  ]},
+  banggia: {ten:'dòng giá dịch vụ', fields:[
+    {key:'doiTac', label:'Tên đối tác (khách hàng / đơn vị cho thuê) — nên trùng tên đã khai báo ở M6', type:'text'},
+    {key:'chieuThue', label:'Chiều thuê', type:'select', options:[
+      {v:'Cho thuê', t:'Cho thuê (Alpha Pi cung cấp dịch vụ — doanh thu)'},
+      {v:'Đi thuê vào', t:'Đi thuê vào (Alpha Pi đi thuê của đơn vị khác — chi phí)'},
+    ]},
+    {key:'nhomDichVu', label:'Nhóm dịch vụ', type:'select', options:[
+      {v:'Cho thuê bãi', t:'Cho thuê bãi'},
+      {v:'Dịch vụ nhập bãi', t:'Dịch vụ nhập bãi'},
+      {v:'Dịch vụ xuất hàng', t:'Dịch vụ xuất hàng'},
+      {v:'Khác', t:'Khác'},
+    ]},
+    {key:'tenDichVu', label:'Tên dịch vụ', type:'text'},
+    {key:'dvt', label:'Đơn vị tính', type:'select', options:[
+      {v:'Vnđ/m²/tháng', t:'Vnđ/m²/tháng'},
+      {v:'Vnđ/tấn', t:'Vnđ/tấn'},
+      {v:'Khác', t:'Khác'},
+    ]},
+    {key:'dienTich', label:'Diện tích (m² — chỉ điền nếu ĐVT là m²/tháng)', type:'number'},
+    {key:'donGia', label:'Đơn giá (Vnđ)', type:'number'},
+    {key:'ngayHieuLuc', label:'Ngày hiệu lực', type:'date'},
+    {key:'ghiChu', label:'Ghi chú', type:'text'},
   ]},
   kiemke: {ten:'biên bản kiểm kê', fields:[
     {key:'ngay', label:'Ngày kiểm kê', type:'date'},
@@ -3249,7 +3280,7 @@ function capNhatTienDoGT(id){
 
 /* ===================== M6: KHÁCH HÀNG ===================== */
 let m6SelectedKH = '', m6LocLoai = '';
-const LOAI_DOI_TAC_LIST = ['Khách hàng thuê bãi (chủ hàng)', 'Nhà cung cấp dịch vụ'];
+const LOAI_DOI_TAC_LIST = ['Khách hàng thuê bãi (chủ hàng)', 'Nhà cung cấp dịch vụ', 'Đơn vị cho Alpha Pi thuê bãi'];
 function xeCuaKhachHang(khachHangId){
   return state.xekhachhang.filter(x=>x.khachHangId===khachHangId);
 }
@@ -3905,6 +3936,189 @@ function nhapDuLieuFile(input){
   };
   reader.readAsText(file);
   input.value = '';
+}
+
+/* ===================== M10: BẢNG GIÁ DỊCH VỤ BÃI ===================== */
+let m10LocChieu = '', m10LocNhom = '';
+let pendingBangGiaImport = null;
+function setM10LocChieu(v){ m10LocChieu = v; renderM10(); }
+function setM10LocNhom(v){ m10LocNhom = v; renderM10(); }
+function renderNhapBangGiaBlock(){
+  if(!pendingBangGiaImport){
+    return `<details class="add-details"><summary class="add-summary">Nhập nhanh từ file Excel (điền theo file mẫu, dùng 1 lần)</summary>
+      <div class="inline-form" style="grid-template-columns:1fr">
+        <div class="field"><label>Chọn file Excel đã điền theo mẫu</label><input type="file" accept=".xlsx,.xls" onchange="parseBangGiaExcelFile(this)"></div>
+      </div>
+      <p style="font-size:12px;color:var(--ink-soft);margin:8px 0 0">File cần đúng các cột: Tên đối tác, Loại đối tác, Chiều thuê, Nhóm dịch vụ, Tên dịch vụ, ĐVT, Diện tích (m²), Đơn giá (Vnđ), Ngày hiệu lực, Ghi chú. Đối tác chưa có trong M6 · Thông tin khách hàng sẽ được tự tạo mới theo đúng loại đối tác đã điền.</p>
+    </details>`;
+  }
+  const rows = pendingBangGiaImport.rows;
+  return `<div class="add-details" style="border-color:var(--brand)">
+    <div class="add-summary" style="cursor:default">Xem trước ${rows.length} dòng giá từ file — kiểm tra rồi bấm Xác nhận nhập</div>
+    <div class="table-wrap" style="margin-top:10px"><table>
+      <thead><tr><th>Đối tác</th><th>Loại đối tác</th><th>Chiều thuê</th><th>Nhóm dịch vụ</th><th>Tên dịch vụ</th><th>ĐVT</th><th style="text-align:right">Diện tích</th><th style="text-align:right">Đơn giá</th><th>Hiệu lực</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr><td>${r.doiTac}</td><td style="font-size:11.5px">${r.loaiDoiTacGoiY||''}</td><td>${r.chieuThue}</td><td style="font-size:12px">${r.nhomDichVu}</td><td>${r.tenDichVu}</td><td class="mono" style="font-size:11.5px">${r.dvt}</td><td class="num">${r.dienTich?fmt(r.dienTich):''}</td><td class="num">${fmt(r.donGia)}</td><td class="mono">${formatNgayVN(r.ngayHieuLuc)}</td></tr>`).join('')}</tbody>
+    </table></div>
+    <div class="form-actions" style="margin-top:12px">
+      <button type="button" class="add-btn" onclick="xacNhanNhapBangGia()">Xác nhận nhập ${rows.length} dòng</button>
+      <button type="button" class="mini-btn" onclick="huyNhapBangGia()">Hủy</button>
+    </div>
+  </div>`;
+}
+function parseBangGiaExcelFile(input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, {defval:''});
+      const rows = raw.map(r=>{
+        const layGiaTri = (...keys) => { for(const k of keys){ if(r[k]!==undefined && r[k]!=='') return r[k]; } return ''; };
+        let ngayHieuLuc = layGiaTri('Ngày hiệu lực');
+        if(ngayHieuLuc instanceof Date) ngayHieuLuc = ngayHieuLuc.toISOString().slice(0,10);
+        else if(typeof ngayHieuLuc === 'string' && ngayHieuLuc){
+          const m = ngayHieuLuc.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+          if(m){ const yr = m[3].length===2?'20'+m[3]:m[3]; ngayHieuLuc = `${yr}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
+        }
+        return {
+          doiTac: String(layGiaTri('Tên đối tác')).trim(),
+          loaiDoiTacGoiY: String(layGiaTri('Loại đối tác')).trim(),
+          chieuThue: String(layGiaTri('Chiều thuê')).trim() || 'Cho thuê',
+          nhomDichVu: String(layGiaTri('Nhóm dịch vụ')).trim() || 'Khác',
+          tenDichVu: String(layGiaTri('Tên dịch vụ')).trim(),
+          dvt: String(layGiaTri('ĐVT','Đơn vị tính')).trim(),
+          dienTich: parseFloat(layGiaTri('Diện tích (m²)','Diện tích')) || 0,
+          donGia: parseFloat(layGiaTri('Đơn giá (Vnđ)','Đơn giá')) || 0,
+          ngayHieuLuc: ngayHieuLuc || '',
+          ghiChu: String(layGiaTri('Ghi chú')).trim(),
+        };
+      }).filter(r=>r.doiTac && r.tenDichVu);
+      if(!rows.length) throw new Error('Không đọc được dòng nào hợp lệ — kiểm tra lại tên cột trong file.');
+      pendingBangGiaImport = {rows};
+      renderM10();
+    }catch(err){
+      alert('Không đọc được file: ' + err.message);
+    }
+  };
+  reader.onerror = function(){ alert('Không đọc được file.'); };
+  reader.readAsArrayBuffer(file);
+  input.value = '';
+}
+function xacNhanNhapBangGia(){
+  if(!pendingBangGiaImport) return;
+  let count = 0;
+  pendingBangGiaImport.rows.forEach(r=>{
+    if(!state.khachhang.some(k=>k.ten===r.doiTac)){
+      const loai = LOAI_DOI_TAC_LIST.includes(r.loaiDoiTacGoiY) ? r.loaiDoiTacGoiY : '';
+      state.khachhang.push({id:'KH'+(state.nextId++), ten:r.doiTac, loaiDoiTac:loai, tenDayDu:'', danhSachBai:'', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''});
+    }
+    state.banggia.push({id:'BG'+(state.nextId++), doiTac:r.doiTac, chieuThue:r.chieuThue, nhomDichVu:r.nhomDichVu, tenDichVu:r.tenDichVu, dvt:r.dvt, dienTich:r.dienTich, donGia:r.donGia, ngayHieuLuc:r.ngayHieuLuc, ghiChu:r.ghiChu});
+    count++;
+  });
+  rebuildBaiTheoKhachHang();
+  logActivity(`Nhập nhanh ${count} dòng giá dịch vụ từ file Excel`);
+  pendingBangGiaImport = null;
+  renderM10();
+}
+function huyNhapBangGia(){ pendingBangGiaImport = null; renderM10(); }
+function submitBangGia(e){
+  e.preventDefault();
+  const doiTac = document.getElementById('bg-doitac').value.trim();
+  const tenDichVu = document.getElementById('bg-ten').value.trim();
+  if(!doiTac || !tenDichVu){ alert('Nhập tên đối tác và tên dịch vụ.'); return false; }
+  state.banggia.push({
+    id:'BG'+(state.nextId++), doiTac,
+    chieuThue: document.getElementById('bg-chieu').value,
+    nhomDichVu: document.getElementById('bg-nhom').value,
+    tenDichVu,
+    dvt: document.getElementById('bg-dvt').value,
+    dienTich: parseFloat(document.getElementById('bg-dientich').value) || 0,
+    donGia: parseFloat(document.getElementById('bg-dongia').value) || 0,
+    ngayHieuLuc: document.getElementById('bg-ngayhieuluc').value,
+    ghiChu: document.getElementById('bg-ghichu').value.trim(),
+  });
+  logActivity(`Thêm dòng giá "${tenDichVu}" cho đối tác "${doiTac}"`);
+  renderM10();
+  return false;
+}
+function renderM10(){
+  const content = document.getElementById('content');
+  const canAdd = canEnter('M10');
+  const doiTacOptions = [...new Set(state.khachhang.map(k=>k.ten))];
+  let rows = state.banggia.slice();
+  if(m10LocChieu) rows = rows.filter(r=>r.chieuThue===m10LocChieu);
+  if(m10LocNhom) rows = rows.filter(r=>r.nhomDichVu===m10LocNhom);
+  rows.sort((a,b)=> a.doiTac.localeCompare(b.doiTac) || (b.ngayHieuLuc||'').localeCompare(a.ngayHieuLuc||''));
+
+  const baiRows = state.banggia.filter(r=>r.nhomDichVu==='Cho thuê bãi');
+  const tongDienTichChoThue = baiRows.filter(r=>r.chieuThue==='Cho thuê').reduce((s,r)=>s+(r.dienTich||0),0);
+  const tongTienChoThue = baiRows.filter(r=>r.chieuThue==='Cho thuê').reduce((s,r)=>s+(r.dienTich||0)*(r.donGia||0),0);
+  const tongDienTichThueVao = baiRows.filter(r=>r.chieuThue==='Đi thuê vào').reduce((s,r)=>s+(r.dienTich||0),0);
+  const tongTienThueVao = baiRows.filter(r=>r.chieuThue==='Đi thuê vào').reduce((s,r)=>s+(r.dienTich||0)*(r.donGia||0),0);
+
+  content.innerHTML = `
+    <div class="panel-head"><h3>Bảng giá dịch vụ bãi</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 14px">Mỗi khách hàng/đơn vị có thể có nhiều dòng giá khác nhau (thuê bãi theo m², dịch vụ nhập/xuất theo tấn...). "Cho thuê" = Alpha Pi cung cấp dịch vụ/diện tích cho khách (doanh thu). "Đi thuê vào" = Alpha Pi đi thuê diện tích của đơn vị khác rồi cho thuê lại (chi phí).</p>
+
+    <div class="stat-row">
+      <div class="stat-card"><div class="slabel">Diện tích cho thuê ra</div><div class="sval">${fmt(tongDienTichChoThue)} <span class="sunit">m²</span></div></div>
+      <div class="stat-card"><div class="slabel">Ước tính doanh thu thuê bãi/tháng</div><div class="sval">${fmt(tongTienChoThue)} <span class="sunit">đ</span></div></div>
+      <div class="stat-card"><div class="slabel">Diện tích đi thuê vào</div><div class="sval">${fmt(tongDienTichThueVao)} <span class="sunit">m²</span></div></div>
+      <div class="stat-card"><div class="slabel">Ước tính chi phí thuê vào/tháng</div><div class="sval">${fmt(tongTienThueVao)} <span class="sunit">đ</span></div></div>
+      <div class="stat-card" style="background:var(--grey-tint)"><div class="slabel">Chênh lệch ước tính/tháng</div><div class="sval" style="font-weight:700">${fmt(tongTienChoThue-tongTienThueVao)} <span class="sunit">đ</span></div></div>
+    </div>
+
+    <div class="inline-form" style="grid-template-columns:1fr 1fr;max-width:520px">
+      <div class="field"><label>Lọc theo chiều thuê</label><select onchange="setM10LocChieu(this.value)">
+        <option value="">— Tất cả —</option>
+        <option value="Cho thuê" ${m10LocChieu==='Cho thuê'?'selected':''}>Cho thuê</option>
+        <option value="Đi thuê vào" ${m10LocChieu==='Đi thuê vào'?'selected':''}>Đi thuê vào</option>
+      </select></div>
+      <div class="field"><label>Lọc theo nhóm dịch vụ</label><select onchange="setM10LocNhom(this.value)">
+        <option value="">— Tất cả —</option>
+        <option value="Cho thuê bãi" ${m10LocNhom==='Cho thuê bãi'?'selected':''}>Cho thuê bãi</option>
+        <option value="Dịch vụ nhập bãi" ${m10LocNhom==='Dịch vụ nhập bãi'?'selected':''}>Dịch vụ nhập bãi</option>
+        <option value="Dịch vụ xuất hàng" ${m10LocNhom==='Dịch vụ xuất hàng'?'selected':''}>Dịch vụ xuất hàng</option>
+        <option value="Khác" ${m10LocNhom==='Khác'?'selected':''}>Khác</option>
+      </select></div>
+    </div>
+
+    ${canAdd ? `<datalist id="bg-doitac-list">${doiTacOptions.map(t=>`<option value="${t}">`).join('')}</datalist>
+    <details class="add-details"><summary class="add-summary">Thêm dòng giá</summary>
+      <form class="inline-form" onsubmit="return submitBangGia(event)">
+        <div class="field"><label>Tên đối tác</label><input required id="bg-doitac" list="bg-doitac-list" placeholder="VD: Nam Tiến"></div>
+        <div class="field"><label>Chiều thuê</label><select id="bg-chieu">
+          <option value="Cho thuê">Cho thuê</option>
+          <option value="Đi thuê vào">Đi thuê vào</option>
+        </select></div>
+        <div class="field"><label>Nhóm dịch vụ</label><select id="bg-nhom">
+          <option value="Cho thuê bãi">Cho thuê bãi</option>
+          <option value="Dịch vụ nhập bãi">Dịch vụ nhập bãi</option>
+          <option value="Dịch vụ xuất hàng">Dịch vụ xuất hàng</option>
+          <option value="Khác">Khác</option>
+        </select></div>
+        <div class="field" style="grid-column:1/-1"><label>Tên dịch vụ</label><input required id="bg-ten" placeholder="VD: Bãi ngoại quan / Phí cân hàng nhập bãi..."></div>
+        <div class="field"><label>Đơn vị tính</label><select id="bg-dvt">
+          <option value="Vnđ/m²/tháng">Vnđ/m²/tháng</option>
+          <option value="Vnđ/tấn">Vnđ/tấn</option>
+          <option value="Khác">Khác</option>
+        </select></div>
+        <div class="field"><label>Diện tích (m²)</label><input type="number" step="0.01" id="bg-dientich"></div>
+        <div class="field"><label>Đơn giá (Vnđ)</label><input required type="number" step="0.01" id="bg-dongia"></div>
+        <div class="field"><label>Ngày hiệu lực</label><input type="date" id="bg-ngayhieuluc" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div class="field" style="grid-column:1/-1"><label>Ghi chú</label><input id="bg-ghichu"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+      </form></details>
+    ${renderNhapBangGiaBlock()}` : ''}
+
+    <div class="table-wrap"><table>
+      <thead><tr><th>Đối tác</th><th>Chiều thuê</th><th>Nhóm dịch vụ</th><th>Tên dịch vụ</th><th>ĐVT</th><th style="text-align:right">Diện tích</th><th style="text-align:right">Đơn giá</th><th>Hiệu lực</th><th>Ghi chú</th><th></th></tr></thead>
+      <tbody>${rows.map(r=>`<tr><td>${r.doiTac}</td><td>${r.chieuThue}</td><td style="font-size:12px">${r.nhomDichVu}</td><td>${r.tenDichVu}</td><td class="mono" style="font-size:11.5px">${r.dvt}</td><td class="num">${r.dienTich?fmt(r.dienTich):''}</td><td class="num">${fmt(r.donGia)}</td><td class="mono">${formatNgayVN(r.ngayHieuLuc)}</td><td>${r.ghiChu||''}</td>
+        <td><div class="row-actions">${canAdd ? actionButtons('banggia', r.id) : ''}</div></td></tr>`).join('')
+        || `<tr class="empty-row"><td colspan="10">Chưa có dòng giá nào</td></tr>`}</tbody>
+    </table></div>
+  `;
 }
 
 /* ===================== TRỢ LÝ AI CLAUDE (BLĐ / Khai thác / Kế toán) ============ */
