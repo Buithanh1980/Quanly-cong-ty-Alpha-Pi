@@ -408,15 +408,15 @@ const ROLES = [
 
 const MODULES = [
   {code:'M1', name:'Vận hành bãi',              desc:'Xuất / Nhập / Tồn kho'},
-  {code:'M2', name:'Thiết bị & Bảo trì',        desc:'Kiểm định thiết bị, chứng chỉ vận hành'},
-  {code:'M3', name:'Kiểm kê & Đối soát kho',    desc:'Kiểm kê định kỳ, xử lý chênh lệch'},
-  {code:'M4', name:'Vận tải liên vận',          desc:'Xe tự có & thuê ngoài back-to-back'},
-  {code:'M5', name:'Dịch vụ kỹ thuật',          desc:'Gói thầu sửa chữa cảng'},
-  {code:'M6', name:'Thông tin khách hàng',       desc:'Thông tin khách hàng và xe của khách hàng'},
   {code:'M7', name:'Tài chính — kế toán',       desc:'Đề xuất mua hàng, thanh toán, tạm ứng, sổ quỹ, công nợ'},
   {code:'M8', name:'Nhân sự — hành chính',      desc:'Hồ sơ nhân sự, chứng chỉ'},
-  {code:'M9', name:'Quản trị hệ thống',         desc:'Tài khoản, phân quyền, nhật ký'},
+  {code:'M5', name:'Dịch vụ kỹ thuật',          desc:'Gói thầu sửa chữa cảng'},
+  {code:'M4', name:'Vận tải liên vận',          desc:'Xe tự có & thuê ngoài back-to-back'},
+  {code:'M2', name:'Thiết bị & Bảo trì',        desc:'Kiểm định thiết bị, chứng chỉ vận hành'},
+  {code:'M6', name:'Thông tin khách hàng',       desc:'Thông tin khách hàng và xe của khách hàng'},
   {code:'M10', name:'Bảng giá dịch vụ bãi',     desc:'Đơn giá dịch vụ & diện tích thuê bãi — cho thuê ra và đi thuê vào'},
+  {code:'M3', name:'Kiểm kê & Đối soát kho',    desc:'Kiểm kê định kỳ, xử lý chênh lệch'},
+  {code:'M9', name:'Quản trị hệ thống',         desc:'Tài khoản, phân quyền, nhật ký'},
 ];
 
 function defaultPermissions(){
@@ -601,13 +601,19 @@ function renderLogin(){
   grid.innerHTML = cards.join('');
 }
 
+function moduleMacDinhChoRole(roleId){
+  const coQuyenDuyet = MODULES.find(m => ['D','Q'].includes(getPerm(roleId, m.code)));
+  if(coQuyenDuyet) return coQuyenDuyet.code;
+  const coQuyenBatKy = MODULES.find(m => !!getPerm(roleId, m.code));
+  return coQuyenBatKy ? coQuyenBatKy.code : 'M1';
+}
 function login(roleId){
   currentUser = ROLES.find(r => r.id === roleId);
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-screen').classList.add('active');
   document.getElementById('user-name').textContent = currentUser.name;
   document.getElementById('user-role').textContent = currentUser.id;
-  currentModule = 'M1';
+  currentModule = moduleMacDinhChoRole(currentUser.id);
   currentTab = 'tongquan';
   renderSidebar();
   renderContent();
