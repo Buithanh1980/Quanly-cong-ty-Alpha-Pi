@@ -2011,7 +2011,7 @@ function renderXacNhan(body){
         <td><div class="row-actions"><button type="button" class="mini-btn" onclick="inBangXacNhan('${g.kh}')">In bảng xác nhận</button><button type="button" class="mini-btn" onclick="inBangKeChiTietKhachHang('${g.kh}')">In bảng kê chi tiết</button></div></td></tr>`).join('')}
       <tr style="font-weight:700"><td colspan="${coTach?4:3}">Tổng</td><td class="num">${tongXe}</td><td class="num">${fmt(tongKg)}</td><td></td><td></td></tr></tbody></table>
     </div>
-    <details class="add-details" style="margin-top:10px" ${xnNgayTach ? 'open' : ''}><summary class="add-summary">Tách theo ngày (nếu giá dịch vụ thay đổi giữa chuyến)${xnNgayTach ? ` — đang tách tại ${formatNgayVN(xnNgayTach)}` : ''}</summary>
+    <details class="add-details" style="margin-top:10px" ${xnNgayTach ? 'open' : ''}><summary class="add-summary">Tách theo ngày (nếu giá dịch vụ thay đổi trong thời gian ${xnHuong==='nhap'?'nhập':'xuất'} hàng)${xnNgayTach ? ` — đang tách tại ${formatNgayVN(xnNgayTach)}` : ''}</summary>
       <div class="inline-form" style="grid-template-columns:1fr;max-width:320px">
         <div class="field"><label>Ngày tách</label><input type="date" min="${tuNgay}" max="${denNgay}" value="${xnNgayTach}" onchange="setXacNhan('ngaytach',this.value)"></div>
       </div>
