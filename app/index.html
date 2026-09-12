@@ -510,6 +510,7 @@ function loadState(){
     if(!state.khachhang) state.khachhang = seedState().khachhang;
     if(!state.xekhachhang) state.xekhachhang = seedState().xekhachhang;
     if(!state.banggia) state.banggia = seedState().banggia;
+    state.banggia.forEach(g=>{ if(g.trangThai===undefined) Object.assign(g, {trangThai:'Đã duyệt', nguoiDeXuat:'Dữ liệu cũ', nguoiDuyetTC:'Dữ liệu cũ', nguoiDuyetBLD:'Dữ liệu cũ'}); }); // dữ liệu cũ trước khi có bước Kế toán + BLD duyệt — coi như đã được chấp nhận để không mất hiệu lực đột ngột
     if(state.thietbi) state.thietbi.forEach(t=>{ if(t.boPhan===undefined) t.boPhan='Khai thác'; if(t.bienSo===undefined) t.bienSo=''; if(!t.trangThaiHoatDong) t.trangThaiHoatDong='Đang hoạt động'; });
     if(!state.thietBiSoLuong) state.thietBiSoLuong = seedState().thietBiSoLuong;
     if(state.thietBiSoLuong['Máy múc'] !== undefined){
@@ -534,6 +535,7 @@ function loadState(){
     if(!state.khoanvay) state.khoanvay = seedState().khoanvay;
     if(!state.lichtrano) state.lichtrano = seedState().lichtrano;
     if(!state.xacnhanhoanthanh) state.xacnhanhoanthanh = seedState().xacnhanhoanthanh;
+    state.xacnhanhoanthanh.forEach(x=>{ if(!x.trangThaiXacNhan) Object.assign(x, {trangThaiXacNhan:'Đã xác nhận', nguoiXacNhanLai:'Dữ liệu cũ', ngayXacNhanLai:x.ngayXacNhan, lyDoTuChoi:null}); }); // dữ liệu cũ trước khi có bước Kế toán xác nhận lại — coi như đã được chấp nhận
     state.hoadon.forEach(h=>{ if(h.trangThaiThanhToan===undefined) h.trangThaiThanhToan = 'Chưa thanh toán'; });
     state.khachhang.forEach(k=>{
       if(k.loaiDoiTac==='Khách hàng thuê bãi' || k.loaiDoiTac==='Chủ hàng') k.loaiDoiTac = 'Khách hàng thuê bãi (chủ hàng)';
@@ -2124,7 +2126,7 @@ function renderXacNhan(body){
       <tbody>${groups.map((g,i)=>{
         const daXN = timXacNhanHoanThanh('KH', g.kh, xnHuong, tuyenVal, tau, tuNgay, denNgay);
         return `<tr><td class="mono">${i+1}</td><td>${g.kh}</td><td>${g.loai}</td>${coTach ? `<td>${formatNgayVN(g.kyTuNgay)}${g.kyDenNgay!==g.kyTuNgay ? ' - '+formatNgayVN(g.kyDenNgay) : ''}</td>` : ''}<td class="num">${g.xe}</td><td class="num">${fmt(g.kg)}</td><td>${g.bai}</td>
-        <td><div class="row-actions"><button type="button" class="mini-btn" onclick="inBangXacNhan('${g.kh}')">In bảng xác nhận</button><button type="button" class="mini-btn" onclick="inBangKeChiTietKhachHang('${g.kh}')">In bảng kê chi tiết</button>${daXN ? `<span class="pill approved" style="margin-left:4px">Đã hoàn thành xác nhận</span>` : `<button type="button" class="mini-btn approve" onclick="hoanThanhXacNhanKH('${g.kh}')">Hoàn thành xác nhận</button>`}</div></td></tr>`;
+        <td><div class="row-actions"><button type="button" class="mini-btn" onclick="inBangXacNhan('${g.kh}')">In bảng xác nhận</button><button type="button" class="mini-btn" onclick="inBangKeChiTietKhachHang('${g.kh}')">In bảng kê chi tiết</button>${daXN ? badgeXacNhan(daXN) : `<button type="button" class="mini-btn approve" onclick="hoanThanhXacNhanKH('${g.kh}')">Hoàn thành xác nhận</button>`}</div></td></tr>`;
       }).join('')}
       <tr style="font-weight:700"><td colspan="${coTach?4:3}">Tổng</td><td class="num">${tongXe}</td><td class="num">${fmt(tongKg)}</td><td></td><td></td></tr></tbody></table>
     </div>
@@ -2149,7 +2151,7 @@ function renderXacNhan(body){
       <tbody>${nccGroups.map(g=>{
         const daXN = g.ncc ? timXacNhanHoanThanh('NCC', g.ncc.ten, xnHuong, tuyenVal, tau, tuNgay, denNgay) : null;
         return `<tr><td>${g.ncc ? g.ncc.ten : 'Chưa rõ nhà xe'}</td><td class="num">${g.xeList.length}</td><td class="num">${g.tongChuyen}</td><td class="num">${fmt(g.tongKg)}</td>
-        <td>${g.ncc ? `<div class="row-actions"><button type="button" class="mini-btn" onclick="inBangXacNhanNhaXe('${g.nccKey}')">In bảng xác nhận</button><button type="button" class="mini-btn" onclick="inBangKeChiTietNhaXe('${g.nccKey}')">In bảng kê chi tiết</button>${daXN ? `<span class="pill approved" style="margin-left:4px">Đã hoàn thành xác nhận</span>` : `<button type="button" class="mini-btn approve" onclick="hoanThanhXacNhanNCC('${g.nccKey}')">Hoàn thành xác nhận</button>`}</div>` : ''}</td></tr>`;
+        <td>${g.ncc ? `<div class="row-actions"><button type="button" class="mini-btn" onclick="inBangXacNhanNhaXe('${g.nccKey}')">In bảng xác nhận</button><button type="button" class="mini-btn" onclick="inBangKeChiTietNhaXe('${g.nccKey}')">In bảng kê chi tiết</button>${daXN ? badgeXacNhan(daXN) : `<button type="button" class="mini-btn approve" onclick="hoanThanhXacNhanNCC('${g.nccKey}')">Hoàn thành xác nhận</button>`}</div>` : ''}</td></tr>`;
       }).join('')
         || `<tr class="empty-row"><td colspan="5">Chưa có dữ liệu</td></tr>`}</tbody>
       </table>
@@ -2504,6 +2506,11 @@ function inBangKeChiTietKhachHang(khTen){
 function timXacNhanHoanThanh(loai, doiTac, huong, tuyenVal, tau, tuNgay, denNgay){
   return state.xacnhanhoanthanh.find(x=>x.loai===loai && x.doiTac===doiTac && x.huong===huong && x.tuyenVal===tuyenVal && x.tau===tau && x.tuNgay===tuNgay && x.denNgay===denNgay);
 }
+function badgeXacNhan(daXN){
+  if(daXN.trangThaiXacNhan==='Đã xác nhận') return `<span class="pill approved" style="margin-left:4px">Kế toán đã xác nhận</span>`;
+  if(daXN.trangThaiXacNhan==='Yêu cầu xem lại') return `<span class="pill rejected" style="margin-left:4px">Kế toán yêu cầu xem lại</span><button type="button" class="mini-btn" style="margin-left:4px" onclick="huyXacNhanDeLamLai('${daXN.id}')">Hủy để làm lại</button>`;
+  return `<span class="pill pending" style="margin-left:4px">Chờ Kế toán xác nhận lại</span>`;
+}
 function hoanThanhXacNhanKH(khOverride){
   const khLoc = khOverride !== undefined ? khOverride : xnKhachHang;
   const {tuyenVal, tau, tuNgay, denNgay} = layKyXacNhanHienTai();
@@ -2512,13 +2519,14 @@ function hoanThanhXacNhanKH(khOverride){
   if(timXacNhanHoanThanh('KH', khLoc, xnHuong, tuyenVal, tau, tuNgay, denNgay)){ alert('Đã hoàn thành xác nhận cho khách hàng này ở kỳ này rồi.'); return; }
   const tongKg = groups.reduce((s,g)=>s+g.kg,0);
   const tongXe = groups.reduce((s,g)=>s+g.xe,0);
-  if(!confirm(`Xác nhận đã hoàn thành xác nhận khối lượng ${xnHuong==='nhap'?'nhập':'xuất'} với "${khLoc}" (${fmt(tongKg)} kg) cho kỳ này?\n\nSau khi lưu, số liệu sẽ được chốt lại làm căn cứ xuất hóa đơn — không đổi theo dù sau này sửa số liệu nhập/xuất.`)) return;
+  if(!confirm(`Xác nhận đã hoàn thành xác nhận khối lượng ${xnHuong==='nhap'?'nhập':'xuất'} với "${khLoc}" (${fmt(tongKg)} kg) cho kỳ này?\n\nSau khi lưu, số liệu sẽ được chốt lại gửi Kế toán xác nhận lần cuối trước khi dùng làm căn cứ xuất hóa đơn.`)) return;
   state.xacnhanhoanthanh.push({id:'XN'+(state.nextId++), loai:'KH', huong:xnHuong, tuyenVal, tau, tuNgay, denNgay,
     doiTac:khLoc, tongKhoiLuongKg:tongKg, tongXe,
     chiTiet: groups.map(g=>({loai:g.loai, kg:g.kg, xe:g.xe, kyTuNgay:g.kyTuNgay, kyDenNgay:g.kyDenNgay})),
     ngayXacNhan: new Date().toISOString().slice(0,10), nguoiXacNhan: currentUser.name,
+    trangThaiXacNhan:'Chờ Kế toán xác nhận lại', nguoiXacNhanLai:null, ngayXacNhanLai:null, lyDoTuChoi:null,
     daXuatHoaDon:false, ngayXuatHoaDon:null});
-  logActivity(`Hoàn thành xác nhận khối lượng ${xnHuong==='nhap'?'nhập':'xuất'} với khách hàng "${khLoc}" (${fmt(tongKg)} kg)`);
+  logActivity(`Hoàn thành xác nhận khối lượng ${xnHuong==='nhap'?'nhập':'xuất'} với khách hàng "${khLoc}" (${fmt(tongKg)} kg) — chờ Kế toán xác nhận lại`);
   renderM1();
 }
 function hoanThanhXacNhanNCC(nccKey){
@@ -2527,17 +2535,40 @@ function hoanThanhXacNhanNCC(nccKey){
   const g = nccGroups.find(x=>x.nccKey===nccKey);
   if(!g || !g.ncc){ alert('Không tìm thấy dữ liệu.'); return; }
   if(timXacNhanHoanThanh('NCC', g.ncc.ten, xnHuong, tuyenVal, tau, tuNgay, denNgay)){ alert('Đã hoàn thành xác nhận cho nhà cung cấp này ở kỳ này rồi.'); return; }
-  if(!confirm(`Xác nhận đã hoàn thành xác nhận với nhà cung cấp "${g.ncc.ten}" (${fmt(g.tongKg)} kg) cho kỳ này?\n\nSau khi lưu, số liệu sẽ được chốt lại làm căn cứ ghi nhận chi phí — không đổi theo dù sau này sửa số liệu nhập/xuất.`)) return;
+  if(!confirm(`Xác nhận đã hoàn thành xác nhận với nhà cung cấp "${g.ncc.ten}" (${fmt(g.tongKg)} kg) cho kỳ này?\n\nSau khi lưu, số liệu sẽ được chốt lại gửi Kế toán xác nhận lần cuối trước khi dùng làm căn cứ ghi nhận chi phí.`)) return;
   state.xacnhanhoanthanh.push({id:'XN'+(state.nextId++), loai:'NCC', huong:xnHuong, tuyenVal, tau, tuNgay, denNgay,
     doiTac:g.ncc.ten, tongKhoiLuongKg:g.tongKg, tongXe:g.tongChuyen,
     chiTiet: g.xeList.map(x=>({bienSo:x.bienSo, taiXe:x.taiXe, kg:x.kg, chuyen:x.chuyen})),
     ngayXacNhan: new Date().toISOString().slice(0,10), nguoiXacNhan: currentUser.name,
+    trangThaiXacNhan:'Chờ Kế toán xác nhận lại', nguoiXacNhanLai:null, ngayXacNhanLai:null, lyDoTuChoi:null,
     daXuatHoaDon:false, ngayXuatHoaDon:null});
-  logActivity(`Hoàn thành xác nhận với nhà cung cấp dịch vụ "${g.ncc.ten}" (${fmt(g.tongKg)} kg)`);
+  logActivity(`Hoàn thành xác nhận với nhà cung cấp dịch vụ "${g.ncc.ten}" (${fmt(g.tongKg)} kg) — chờ Kế toán xác nhận lại`);
+  renderM1();
+}
+function huyXacNhanDeLamLai(id){
+  const x = state.xacnhanhoanthanh.find(x=>x.id===id); if(!x) return;
+  if(!confirm(`Hủy bản xác nhận với "${x.doiTac}" để làm lại theo yêu cầu của Kế toán?\n\nLý do Kế toán nêu: ${x.lyDoTuChoi||'(không ghi)'}\n\nSau khi hủy, có thể "Hoàn thành xác nhận" lại cho đúng kỳ này.`)) return;
+  state.xacnhanhoanthanh = state.xacnhanhoanthanh.filter(r=>r.id!==id);
+  logActivity(`Hủy xác nhận với "${x.doiTac}" để làm lại theo yêu cầu xem lại của Kế toán`);
+  renderM1();
+}
+function tcDongYXacNhan(id){
+  const x = state.xacnhanhoanthanh.find(x=>x.id===id); if(!x) return;
+  x.trangThaiXacNhan = 'Đã xác nhận'; x.nguoiXacNhanLai = currentUser.name; x.ngayXacNhanLai = new Date().toISOString().slice(0,10);
+  logActivity(`Kế toán đồng ý xác nhận khối lượng với "${x.doiTac}" (${fmt(x.tongKhoiLuongKg)} kg)`);
+  renderM1();
+}
+function tcYeuCauXemLai(id){
+  const x = state.xacnhanhoanthanh.find(x=>x.id===id); if(!x) return;
+  const ly = prompt('Nhập lý do yêu cầu Phòng Khai thác xem lại số liệu:', '');
+  if(ly===null || !ly.trim()) return;
+  x.trangThaiXacNhan = 'Yêu cầu xem lại'; x.lyDoTuChoi = ly.trim();
+  logActivity(`Kế toán yêu cầu xem lại xác nhận với "${x.doiTac}": ${ly.trim()}`);
   renderM1();
 }
 function danhDauDaXuatHoaDonXacNhan(id, daXuat){
   const x = state.xacnhanhoanthanh.find(x=>x.id===id); if(!x) return;
+  if(daXuat && x.trangThaiXacNhan!=='Đã xác nhận'){ alert('Chỉ đánh dấu đã xuất hóa đơn sau khi Kế toán đã đồng ý xác nhận.'); return; }
   x.daXuatHoaDon = daXuat; x.ngayXuatHoaDon = daXuat ? new Date().toISOString().slice(0,10) : null;
   logActivity(`${daXuat?'Đánh dấu đã xuất hóa đơn':'Bỏ đánh dấu đã xuất hóa đơn'} cho xác nhận với "${x.doiTac}" (${fmt(x.tongKhoiLuongKg)} kg)`);
   renderM1();
@@ -2546,18 +2577,26 @@ function renderXacNhanHoanThanhTC(body){
   const rows = state.xacnhanhoanthanh.slice().sort((a,b)=>b.ngayXacNhan.localeCompare(a.ngayXacNhan));
   body.innerHTML = `
     <div class="panel-head"><h3>Xác nhận khối lượng đã hoàn thành</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 14px">Danh sách các đợt Phòng Khai thác đã hoàn thành xác nhận khối lượng với khách hàng/nhà cung cấp dịch vụ — dùng làm căn cứ xuất hóa đơn (loại KH) hoặc ghi nhận chi phí (loại NCC). Đánh dấu "Đã xuất hóa đơn" để tránh xuất trùng.</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 14px">Danh sách các đợt Phòng Khai thác đã hoàn thành xác nhận khối lượng với khách hàng/nhà cung cấp dịch vụ. Kế toán cần bấm "Đồng ý" trước khi số liệu chính thức dùng làm căn cứ xuất hóa đơn (loại KH) hoặc ghi nhận chi phí (loại NCC) — nếu thấy số liệu chưa đúng, bấm "Yêu cầu xem lại" để Phòng Khai thác làm lại.</p>
     <div class="table-wrap"><table>
-      <thead><tr><th>Ngày xác nhận</th><th>Loại</th><th>Đối tác</th><th>Hướng</th><th>Tuyến/Kỳ</th><th style="text-align:right">Khối lượng (kg)</th><th>Người xác nhận</th><th>Hóa đơn</th><th></th></tr></thead>
+      <thead><tr><th>Ngày xác nhận</th><th>Loại</th><th>Đối tác</th><th>Hướng</th><th>Tuyến/Kỳ</th><th style="text-align:right">Khối lượng (kg)</th><th>Người xác nhận</th><th>Trạng thái</th><th>Hóa đơn</th><th></th></tr></thead>
       <tbody>${rows.map(x=>{
         const kyLabel = x.tuyenVal==='Đường thủy' ? `${x.tau} (${formatNgayVN(x.tuNgay)}${x.denNgay!==x.tuNgay?' - '+formatNgayVN(x.denNgay):''})` : `Đường bộ (${formatNgayVN(x.tuNgay)}${x.denNgay!==x.tuNgay?' - '+formatNgayVN(x.denNgay):''})`;
-        const action = x.daXuatHoaDon
-          ? `<button class="mini-btn" onclick="danhDauDaXuatHoaDonXacNhan('${x.id}',false)">Bỏ đánh dấu</button>`
-          : `<button class="mini-btn approve" onclick="danhDauDaXuatHoaDonXacNhan('${x.id}',true)">Đánh dấu đã xuất hóa đơn</button>`;
+        let action = '';
+        if(x.trangThaiXacNhan==='Chờ Kế toán xác nhận lại'){
+          action = `<button class="mini-btn approve" onclick="tcDongYXacNhan('${x.id}')">Đồng ý</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="tcYeuCauXemLai('${x.id}')">Yêu cầu xem lại</button>`;
+        } else if(x.trangThaiXacNhan==='Đã xác nhận'){
+          action = x.daXuatHoaDon
+            ? `<button class="mini-btn" onclick="danhDauDaXuatHoaDonXacNhan('${x.id}',false)">Bỏ đánh dấu</button>`
+            : `<button class="mini-btn approve" onclick="danhDauDaXuatHoaDonXacNhan('${x.id}',true)">Đánh dấu đã xuất hóa đơn</button>`;
+        }
+        const trangThaiPill = x.trangThaiXacNhan==='Đã xác nhận' ? 'approved' : x.trangThaiXacNhan==='Yêu cầu xem lại' ? 'rejected' : 'pending';
         return `<tr><td class="mono">${x.ngayXacNhan}</td><td>${x.loai==='KH'?'Khách hàng':'Nhà cung cấp DV'}</td><td>${x.doiTac}</td><td>${x.huong==='nhap'?'Nhập':'Xuất'}</td><td>${kyLabel}</td>
-          <td class="num">${fmt(x.tongKhoiLuongKg)}</td><td>${x.nguoiXacNhan}</td><td><span class="pill ${x.daXuatHoaDon?'approved':'pending'}">${x.daXuatHoaDon?'Đã xuất hóa đơn':'Chưa xuất hóa đơn'}</span>${x.ngayXuatHoaDon?`<div style="font-size:11px;color:var(--ink-soft);margin-top:3px">${x.ngayXuatHoaDon}</div>`:''}</td>
+          <td class="num">${fmt(x.tongKhoiLuongKg)}</td><td>${x.nguoiXacNhan}</td>
+          <td><span class="pill ${trangThaiPill}">${x.trangThaiXacNhan}</span>${x.lyDoTuChoi?`<div style="font-size:11px;color:var(--ink-soft);margin-top:3px">Lý do: ${x.lyDoTuChoi}</div>`:''}</td>
+          <td><span class="pill ${x.daXuatHoaDon?'approved':'pending'}">${x.daXuatHoaDon?'Đã xuất hóa đơn':'Chưa xuất hóa đơn'}</span>${x.ngayXuatHoaDon?`<div style="font-size:11px;color:var(--ink-soft);margin-top:3px">${x.ngayXuatHoaDon}</div>`:''}</td>
           <td><div class="row-actions">${action}</div></td></tr>`;
-      }).join('') || `<tr class="empty-row"><td colspan="9">Chưa có xác nhận nào được Phòng Khai thác hoàn thành</td></tr>`}</tbody>
+      }).join('') || `<tr class="empty-row"><td colspan="10">Chưa có xác nhận nào được Phòng Khai thác hoàn thành</td></tr>`}</tbody>
     </table></div>`;
 }
 
@@ -2850,7 +2889,23 @@ const FIELD_SCHEMAS = {
   ]},
 };
 let editCtx = {collection:null, id:null};
+const KHOA_SAU_DUYET = {
+  dexuatmuahang: r => !!(r.nguoiDuyetBoPhan || r.nguoiKiemTra || r.nguoiDuyet),
+  denghithanhtoan: r => !!(r.nguoiDuyetBoPhan || r.nguoiKiemTra || r.nguoiDuyet),
+  tamung: r => !!(r.nguoiDuyetBoPhan || r.nguoiKiemTra || r.nguoiDuyet),
+  hoadon: r => r.trangThaiThanhToan === 'Đã thanh toán',
+  congno: r => r.trangThai === 'Đã thu',
+  banggia: r => !!(r.nguoiDuyetTC || r.nguoiDuyetBLD),
+};
+function hoSoDaKhoa(collection, record){
+  const check = KHOA_SAU_DUYET[collection];
+  return record && check ? check(record) : false;
+}
 function actionButtons(collection, id){
+  const record = state[collection] && state[collection].find(r=>r.id===id);
+  if(hoSoDaKhoa(collection, record)){
+    return `<span style="font-size:11px;color:var(--ink-soft);font-style:italic" title="Hồ sơ đã qua duyệt/thanh toán — khóa để giữ đúng số liệu đã chốt">Đã khóa (đã xử lý)</span>`;
+  }
   return `<button type="button" class="mini-btn" onclick="openEditModal('${collection}','${id}')">Sửa</button>
     <button type="button" class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="deleteRecord('${collection}','${id}')">Xóa</button>`;
 }
@@ -2884,6 +2939,11 @@ function saveEditModal(e){
   const record = state[editCtx.collection].find(r=>r.id===editCtx.id);
   const errEl = document.getElementById('edit-error');
   if(!schema || !record) return false;
+  if(hoSoDaKhoa(editCtx.collection, record)){
+    errEl.textContent = 'Hồ sơ này đã qua duyệt/thanh toán — không thể sửa để giữ đúng số liệu đã chốt.';
+    errEl.style.display = 'block';
+    return false;
+  }
   const updates = {};
   schema.fields.forEach(f => {
     if(f.type==='checkboxes'){
@@ -2910,6 +2970,11 @@ function saveEditModal(e){
 }
 function deleteRecord(collection, id){
   const schema = FIELD_SCHEMAS[collection];
+  const record = state[collection].find(r=>r.id===id);
+  if(hoSoDaKhoa(collection, record)){
+    alert('Hồ sơ này đã qua duyệt/thanh toán — không thể xóa để giữ đúng số liệu đã chốt.');
+    return;
+  }
   const canhBaoXe = collection==='khachhang' && xeCuaKhachHang(id).length
     ? ` Toàn bộ ${xeCuaKhachHang(id).length} xe đã đăng ký của khách hàng này cũng sẽ bị xóa theo.` : '';
   if(!confirm(`Xóa ${schema.ten} này?${canhBaoXe} Không thể hoàn tác (trừ khi khôi phục dữ liệu mẫu).`)) return;
@@ -3789,7 +3854,7 @@ function soThangTrongKhoang(tuNgay, denNgay){
 }
 function donGiaTheoTanChoKhachHang(khachHang, huong){
   const nhom = huong==='nhap' ? 'Dịch vụ nhập bãi' : 'Dịch vụ xuất hàng';
-  return state.banggia.filter(g=>g.doiTac===khachHang && g.chieuThue==='Cho thuê' && g.nhomDichVu===nhom && g.dvt==='Vnđ/tấn')
+  return state.banggia.filter(g=>g.doiTac===khachHang && g.chieuThue==='Cho thuê' && g.nhomDichVu===nhom && g.dvt==='Vnđ/tấn' && tinhTrangThaiBangGia(g)==='Đã duyệt')
     .reduce((s,g)=>s+(g.donGia||0), 0);
 }
 function doanhThuKhoiLuongTrongKy(tuNgay, denNgay){
@@ -3804,7 +3869,7 @@ function doanhThuKhoiLuongTrongKy(tuNgay, denNgay){
   return tong;
 }
 function doanhThuChoThueBaiTrongKy(tuNgay, denNgay){
-  return state.banggia.filter(g=>g.nhomDichVu==='Cho thuê bãi' && g.chieuThue==='Cho thuê' && g.dvt==='Vnđ/m²/tháng').reduce((s,g)=>{
+  return state.banggia.filter(g=>g.nhomDichVu==='Cho thuê bãi' && g.chieuThue==='Cho thuê' && g.dvt==='Vnđ/m²/tháng' && tinhTrangThaiBangGia(g)==='Đã duyệt').reduce((s,g)=>{
     const tu = g.ngayHieuLuc && g.ngayHieuLuc>tuNgay ? g.ngayHieuLuc : tuNgay;
     return s + soThangTrongKhoang(tu, denNgay)*(g.dienTich||0)*(g.donGia||0);
   }, 0);
@@ -4725,7 +4790,8 @@ function xacNhanNhapBangGia(){
       const loai = LOAI_DOI_TAC_LIST.includes(r.loaiDoiTacGoiY) ? r.loaiDoiTacGoiY : '';
       state.khachhang.push({id:'KH'+(state.nextId++), ten:r.doiTac, loaiDoiTac:loai, tenDayDu:'', danhSachBai:'', diaChi:'', maSoThue:'', nguoiDaiDien:'', chucVu:'', sdt:'', ghiChu:''});
     }
-    state.banggia.push({id:'BG'+(state.nextId++), doiTac:r.doiTac, chieuThue:r.chieuThue, nhomDichVu:r.nhomDichVu, tenDichVu:r.tenDichVu, dvt:r.dvt, dienTich:r.dienTich, donGia:r.donGia, ngayHieuLuc:r.ngayHieuLuc, ghiChu:r.ghiChu});
+    state.banggia.push({id:'BG'+(state.nextId++), doiTac:r.doiTac, chieuThue:r.chieuThue, nhomDichVu:r.nhomDichVu, tenDichVu:r.tenDichVu, dvt:r.dvt, dienTich:r.dienTich, donGia:r.donGia, ngayHieuLuc:r.ngayHieuLuc, ghiChu:r.ghiChu,
+      trangThai:'Chờ duyệt', nguoiDeXuat: currentUser.name, nguoiDuyetTC:null, nguoiDuyetBLD:null});
     count++;
   });
   rebuildBaiTheoKhachHang();
@@ -4749,10 +4815,32 @@ function submitBangGia(e){
     donGia: parseFloat(document.getElementById('bg-dongia').value) || 0,
     ngayHieuLuc: document.getElementById('bg-ngayhieuluc').value,
     ghiChu: document.getElementById('bg-ghichu').value.trim(),
+    trangThai:'Chờ duyệt', nguoiDeXuat: currentUser.name, nguoiDuyetTC:null, nguoiDuyetBLD:null,
   });
-  logActivity(`Thêm dòng giá "${tenDichVu}" cho đối tác "${doiTac}"`);
+  logActivity(`Đề xuất dòng giá "${tenDichVu}" cho đối tác "${doiTac}" — chờ Kế toán và Ban lãnh đạo duyệt`);
   renderM10();
   return false;
+}
+function tinhTrangThaiBangGia(r){
+  if(r.tuChoi) return 'Từ chối';
+  if(r.nguoiDuyetTC && r.nguoiDuyetBLD) return 'Đã duyệt';
+  return 'Chờ duyệt';
+}
+function duyetBangGiaTC(id, dong){
+  const r = state.banggia.find(r=>r.id===id); if(!r) return;
+  r.nguoiDuyetTC = currentUser.name;
+  if(!dong){ r.tuChoi = true; r.trangThai = tinhTrangThaiBangGia(r); logActivity(`Kế toán từ chối dòng giá "${r.tenDichVu}" của "${r.doiTac}"`); renderM10(); return; }
+  r.trangThai = tinhTrangThaiBangGia(r);
+  logActivity(`Kế toán duyệt dòng giá "${r.tenDichVu}" của "${r.doiTac}"${r.trangThai==='Đã duyệt'?' — đã đủ 2 chữ ký, có hiệu lực':''}`);
+  renderM10();
+}
+function duyetBangGiaBLD(id, dong){
+  const r = state.banggia.find(r=>r.id===id); if(!r) return;
+  r.nguoiDuyetBLD = currentUser.name;
+  if(!dong){ r.tuChoi = true; r.trangThai = tinhTrangThaiBangGia(r); logActivity(`Ban lãnh đạo từ chối dòng giá "${r.tenDichVu}" của "${r.doiTac}"`); renderM10(); return; }
+  r.trangThai = tinhTrangThaiBangGia(r);
+  logActivity(`Ban lãnh đạo duyệt dòng giá "${r.tenDichVu}" của "${r.doiTac}"${r.trangThai==='Đã duyệt'?' — đã đủ 2 chữ ký, có hiệu lực':''}`);
+  renderM10();
 }
 function renderM10(){
   const content = document.getElementById('content');
@@ -4763,7 +4851,7 @@ function renderM10(){
   if(m10LocNhom) rows = rows.filter(r=>r.nhomDichVu===m10LocNhom);
   rows.sort((a,b)=> a.doiTac.localeCompare(b.doiTac) || (b.ngayHieuLuc||'').localeCompare(a.ngayHieuLuc||''));
 
-  const baiRows = state.banggia.filter(r=>r.nhomDichVu==='Cho thuê bãi');
+  const baiRows = state.banggia.filter(r=>r.nhomDichVu==='Cho thuê bãi' && tinhTrangThaiBangGia(r)==='Đã duyệt');
   const tongDienTichChoThue = baiRows.filter(r=>r.chieuThue==='Cho thuê').reduce((s,r)=>s+(r.dienTich||0),0);
   const tongTienChoThue = baiRows.filter(r=>r.chieuThue==='Cho thuê').reduce((s,r)=>s+(r.dienTich||0)*(r.donGia||0),0);
   const tongDienTichThueVao = baiRows.filter(r=>r.chieuThue==='Đi thuê vào').reduce((s,r)=>s+(r.dienTich||0),0);
@@ -4771,7 +4859,7 @@ function renderM10(){
 
   content.innerHTML = `
     <div class="panel-head"><h3>Bảng giá dịch vụ bãi</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 14px">Mỗi khách hàng/đơn vị có thể có nhiều dòng giá khác nhau (thuê bãi theo m², dịch vụ nhập/xuất theo tấn...). "Cho thuê" = Alpha Pi cung cấp dịch vụ/diện tích cho khách (doanh thu). "Đi thuê vào" = Alpha Pi đi thuê diện tích của đơn vị khác rồi cho thuê lại (chi phí).</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 14px">Mỗi khách hàng/đơn vị có thể có nhiều dòng giá khác nhau (thuê bãi theo m², dịch vụ nhập/xuất theo tấn...). "Cho thuê" = Alpha Pi cung cấp dịch vụ/diện tích cho khách (doanh thu). "Đi thuê vào" = Alpha Pi đi thuê diện tích của đơn vị khác rồi cho thuê lại (chi phí). Dòng giá mới lập cần cả Kế toán và Ban lãnh đạo duyệt mới có hiệu lực tính doanh thu/chi phí — các số liệu dưới đây chỉ tính dòng đã duyệt.</p>
 
     <div class="stat-row">
       <div class="stat-card"><div class="slabel">Diện tích cho thuê ra</div><div class="sval">${fmt(tongDienTichChoThue)} <span class="sunit">m²</span></div></div>
@@ -4825,10 +4913,23 @@ function renderM10(){
     ${renderNhapBangGiaBlock()}` : ''}
 
     <div class="table-wrap"><table>
-      <thead><tr><th>Đối tác</th><th>Chiều thuê</th><th>Nhóm dịch vụ</th><th>Tên dịch vụ</th><th>ĐVT</th><th style="text-align:right">Diện tích</th><th style="text-align:right">Đơn giá</th><th>Hiệu lực</th><th>Ghi chú</th><th></th></tr></thead>
-      <tbody>${rows.map(r=>`<tr><td>${r.doiTac}</td><td>${r.chieuThue}</td><td style="font-size:12px">${r.nhomDichVu}</td><td>${r.tenDichVu}</td><td class="mono" style="font-size:11.5px">${r.dvt}</td><td class="num">${r.dienTich?fmt(r.dienTich):''}</td><td class="num">${fmt(r.donGia)}</td><td class="mono">${formatNgayVN(r.ngayHieuLuc)}</td><td>${r.ghiChu||''}</td>
-        <td><div class="row-actions">${canAdd ? actionButtons('banggia', r.id) : ''}</div></td></tr>`).join('')
-        || `<tr class="empty-row"><td colspan="10">Chưa có dòng giá nào</td></tr>`}</tbody>
+      <thead><tr><th>Đối tác</th><th>Chiều thuê</th><th>Nhóm dịch vụ</th><th>Tên dịch vụ</th><th>ĐVT</th><th style="text-align:right">Diện tích</th><th style="text-align:right">Đơn giá</th><th>Hiệu lực</th><th>Ghi chú</th><th>Trạng thái</th><th></th></tr></thead>
+      <tbody>${rows.map(r=>{
+        const trangThai = tinhTrangThaiBangGia(r);
+        const pillClass = trangThai==='Đã duyệt' ? 'approved' : trangThai==='Từ chối' ? 'rejected' : r.nguoiDuyetTC || r.nguoiDuyetBLD ? 'done' : 'pending';
+        let action = '';
+        if(currentUser.id==='TC' && !r.nguoiDuyetTC && trangThai==='Chờ duyệt'){
+          action += `<button class="mini-btn approve" onclick="duyetBangGiaTC('${r.id}',true)">Duyệt (Kế toán)</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetBangGiaTC('${r.id}',false)">Từ chối</button>`;
+        }
+        if(currentUser.id==='BLD' && !r.nguoiDuyetBLD && trangThai==='Chờ duyệt'){
+          action += `<button class="mini-btn approve" onclick="duyetBangGiaBLD('${r.id}',true)">Duyệt (BLĐ)</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetBangGiaBLD('${r.id}',false)">Từ chối</button>`;
+        }
+        if(canAdd) action += actionButtons('banggia', r.id);
+        return `<tr><td>${r.doiTac}</td><td>${r.chieuThue}</td><td style="font-size:12px">${r.nhomDichVu}</td><td>${r.tenDichVu}</td><td class="mono" style="font-size:11.5px">${r.dvt}</td><td class="num">${r.dienTich?fmt(r.dienTich):''}</td><td class="num">${fmt(r.donGia)}</td><td class="mono">${formatNgayVN(r.ngayHieuLuc)}</td><td>${r.ghiChu||''}</td>
+        <td><span class="pill ${pillClass}">${trangThai}</span>${trangThai==='Chờ duyệt' && (r.nguoiDuyetTC||r.nguoiDuyetBLD) ? `<div style="font-size:11px;color:var(--ink-soft);margin-top:3px">${r.nguoiDuyetTC?'Kế toán đã duyệt':'Chờ Kế toán'} · ${r.nguoiDuyetBLD?'BLĐ đã duyệt':'Chờ BLĐ'}</div>` : ''}</td>
+        <td><div class="row-actions">${action}</div></td></tr>`;
+      }).join('')
+        || `<tr class="empty-row"><td colspan="11">Chưa có dòng giá nào</td></tr>`}</tbody>
     </table></div>
   `;
 }
