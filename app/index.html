@@ -3785,7 +3785,11 @@ function renderTaiChinhTongQuan(body){
     ...state.denghithanhtoan.filter(x=>x.trangThai==='Đã duyệt').map(x=>`Thực hiện thanh toán — ${x.noiDung} (${fmt(x.soTien)} đ)`),
     ...state.tamung.filter(x=>x.trangThai==='Đã duyệt').map(x=>`Chi tạm ứng — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
   ] : [];
-  const viecCanXuLy = [...canDuyet, ...canKiemTra];
+  const canDuyetBoPhan = (canEnter('M7') && !canApprove('M7')) ? [
+    ...state.dexuatmuahang.filter(x=>x.trangThai==='Chờ trưởng phòng duyệt').map(x=>`Trưởng bộ phận duyệt (đề xuất mua hàng) — ${x.noiDung} (${fmt(x.soLuong*x.donGia)} đ)`),
+    ...state.denghithanhtoan.filter(x=>x.trangThai==='Chờ trưởng phòng duyệt').map(x=>`Trưởng bộ phận duyệt (đề nghị thanh toán) — ${x.noiDung} (${fmt(x.soTien)} đ)`),
+  ] : [];
+  const viecCanXuLy = [...canDuyet, ...canKiemTra, ...canDuyetBoPhan];
 
   const homNayIso = REF_DATE.toISOString().slice(0,10);
   const dauThangIso = dauThangCua(homNayIso);
@@ -3849,7 +3853,8 @@ function renderDeXuatMuaHang(body){
   const canAdd = canEnter('M7');
   body.innerHTML = `
     <div class="panel-head"><h3>Đề xuất mua hàng</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Bộ phận có nhu cầu lập đề xuất kèm nhà cung cấp/đơn giá dự kiến. Luồng: Chờ kiểm tra → Kế toán kiểm tra hồ sơ → Ban lãnh đạo phê duyệt trước khi đặt hàng.</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Bộ phận có nhu cầu lập đề xuất kèm nhà cung cấp/đơn giá dự kiến. Luồng: Trưởng bộ phận duyệt → Kế toán kiểm tra hồ sơ → Ban lãnh đạo phê duyệt trước khi đặt hàng.</p>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:-10px 0 14px;font-style:italic">Ghi chú: bản demo dùng chung 1 tài khoản cho cả phòng ban nên bước "Trưởng bộ phận duyệt" vẫn thực hiện trên cùng tài khoản đó (chỉ mang tính quy trình/nhắc việc) — khi triển khai chính thức với tài khoản riêng từng người sẽ tách hẳn người lập và người duyệt.</p>
     <p style="font-size:11.5px;color:var(--ink-soft);margin:-10px 0 14px;font-style:italic">Ghi chú: bản demo chưa có server dùng chung nên chưa thể báo (mở máy/tin nhắn) cho cấp duyệt — cấp duyệt cần chủ động vào tab này để xem việc chờ xử lý. Tính năng thông báo tự động sẽ làm khi công ty triển khai server thật.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Lập đề xuất mua hàng</summary>
       <form class="inline-form" onsubmit="return submitDeXuat(event)">
@@ -3870,6 +3875,9 @@ function renderDeXuatMuaHang(body){
         const thanhTien = x.soLuong * x.donGia;
         const pillClass = x.trangThai==='Đã duyệt' ? 'approved' : x.trangThai==='Từ chối' ? 'rejected' : x.trangThai==='Đã kiểm tra' ? 'done' : 'pending';
         let action = '';
+        if(canEnter('M7') && !canApprove('M7') && x.trangThai==='Chờ trưởng phòng duyệt'){
+          action += `<button class="mini-btn approve" onclick="duyetBoPhanDeXuat('${x.id}',true)">Duyệt (trưởng bộ phận)</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetBoPhanDeXuat('${x.id}',false)">Từ chối</button>`;
+        }
         if(currentUser.id==='TC' && x.trangThai==='Chờ kiểm tra') action += `<button class="mini-btn approve" onclick="kiemTraDeXuat('${x.id}')">Kiểm tra hồ sơ</button>`;
         if(currentUser.id==='BLD' && x.trangThai==='Đã kiểm tra'){
           action += `<button class="mini-btn approve" onclick="duyetDeXuat('${x.id}',true)">Duyệt</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetDeXuat('${x.id}',false)">Từ chối</button>`;
@@ -3887,9 +3895,15 @@ function submitDeXuat(e){
     nguoiDeXuat:document.getElementById('dx-nguoi').value, boPhan:document.getElementById('dx-bophan').value,
     noiDung, donViTinh:document.getElementById('dx-dvt').value, soLuong:parseFloat(document.getElementById('dx-sl').value)||1,
     donGia:parseFloat(document.getElementById('dx-dg').value)||0, nhaCungCap:document.getElementById('dx-ncc').value,
-    mucDich:document.getElementById('dx-mucdich').value, trangThai:'Chờ kiểm tra', nguoiKiemTra:null, nguoiDuyet:null});
+    mucDich:document.getElementById('dx-mucdich').value, trangThai:'Chờ trưởng phòng duyệt', nguoiDuyetBoPhan:null, nguoiKiemTra:null, nguoiDuyet:null});
   logActivity(`Gửi đề xuất mua hàng "${noiDung}"`);
   renderM7(); return false;
+}
+function duyetBoPhanDeXuat(id, dong){
+  const x = state.dexuatmuahang.find(x=>x.id===id); if(!x) return;
+  x.trangThai = dong ? 'Chờ kiểm tra' : 'Từ chối'; x.nguoiDuyetBoPhan = currentUser.name;
+  logActivity(`${dong?'Trưởng bộ phận duyệt':'Trưởng bộ phận từ chối'} đề xuất mua hàng "${x.noiDung}"`);
+  renderM7();
 }
 function kiemTraDeXuat(id){
   const x = state.dexuatmuahang.find(x=>x.id===id); if(!x) return;
@@ -3909,12 +3923,18 @@ function renderDeNghiThanhToan(body){
   const canAdd = canEnter('M7');
   body.innerHTML = `
     <div class="panel-head"><h3>Đề nghị thanh toán</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Áp dụng cho cả thanh toán nội bộ và thanh toán nhà cung cấp. Luồng: Chờ kiểm tra → Kế toán kiểm tra → Ban lãnh đạo duyệt → Kế toán/Thủ quỹ thực hiện chi.</p>
-    <p style="font-size:11.5px;color:var(--ink-soft);margin:-10px 0 14px;font-style:italic">Ghi chú: bản demo chưa có server dùng chung nên chưa thể báo (mở máy/tin nhắn) cho cấp duyệt — cấp duyệt cần chủ động vào tab này để xem việc chờ xử lý. Tính năng thông báo tự động sẽ làm khi công ty triển khai server thật.</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Áp dụng cho cả thanh toán nội bộ và thanh toán nhà cung cấp. Đề nghị cho nhà cung cấp phải liên kết với 1 đề xuất mua hàng đã duyệt (số tiền thực tế có thể khác số dự kiến). Luồng: Trưởng bộ phận duyệt → Kế toán kiểm tra → Ban lãnh đạo duyệt → Kế toán/Thủ quỹ thực hiện chi.</p>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:-10px 0 14px;font-style:italic">Ghi chú: bản demo dùng chung 1 tài khoản cho cả phòng ban nên bước "Trưởng bộ phận duyệt" vẫn thực hiện trên cùng tài khoản đó (chỉ mang tính quy trình/nhắc việc) — khi triển khai chính thức với tài khoản riêng từng người sẽ tách hẳn người lập và người duyệt. Cũng chưa có server dùng chung nên chưa thể báo (mở máy/tin nhắn) cho cấp duyệt — cấp duyệt cần chủ động vào tab này để xem việc chờ xử lý.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Lập đề nghị thanh toán</summary>
       <form class="inline-form" onsubmit="return submitDeNghi(event)">
         <div class="field"><label>Ngày</label><input type="date" required id="tt-ngay"></div>
         <div class="field"><label>Loại</label><select id="tt-loai"><option value="Nhà cung cấp">Nhà cung cấp</option><option value="Nội bộ">Nội bộ</option></select></div>
+        <div class="field" style="grid-column:1/-1"><label>Đề xuất mua hàng liên quan (bắt buộc nếu Loại là Nhà cung cấp)</label>
+          <select id="tt-dexuat" onchange="capNhatTuDeXuatThanhToan()">
+            <option value="">— Không liên quan đề xuất mua hàng nào —</option>
+            ${state.dexuatmuahang.filter(x=>x.trangThai==='Đã duyệt').map(x=>`<option value="${x.id}">${x.noiDung} — ${x.nguoiDeXuat} (${fmt(x.soLuong*x.donGia)} đ)</option>`).join('')}
+          </select>
+        </div>
         <div class="field"><label>Người đề nghị</label><input required id="tt-nguoi" value="${currentUser.name}"></div>
         <div class="field"><label>Bộ phận</label><input required id="tt-bophan"></div>
         <div class="field"><label>Nội dung</label><input required id="tt-noidung" placeholder="VD: Mua phụ tùng sửa chữa xe đầu kéo (HĐ số...)"></div>
@@ -3926,27 +3946,52 @@ function renderDeNghiThanhToan(body){
     <div class="table-wrap"><table>
       <thead><tr><th>Ngày</th><th>Loại</th><th>Nội dung</th><th>Bộ phận</th><th style="text-align:right">Số tiền</th><th>Hình thức</th><th>Trạng thái</th><th></th></tr></thead>
       <tbody>${state.denghithanhtoan.map(t => {
-        const pillClass = t.trangThai==='Đã thanh toán' ? 'paid' : t.trangThai==='Đã duyệt' ? 'approved' : t.trangThai==='Đã kiểm tra' ? 'done' : 'pending';
+        const pillClass = t.trangThai==='Đã thanh toán' ? 'paid' : t.trangThai==='Đã duyệt' ? 'approved' : t.trangThai==='Từ chối' ? 'rejected' : t.trangThai==='Đã kiểm tra' ? 'done' : 'pending';
         let action = '';
+        if(canEnter('M7') && !canApprove('M7') && t.trangThai==='Chờ trưởng phòng duyệt'){
+          action += `<button class="mini-btn approve" onclick="duyetBoPhanDeNghi('${t.id}',true)">Duyệt (trưởng bộ phận)</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetBoPhanDeNghi('${t.id}',false)">Từ chối</button>`;
+        }
         if(currentUser.id==='TC' && t.trangThai==='Chờ kiểm tra') action += `<button class="mini-btn approve" onclick="kiemTraDeNghi('${t.id}')">Kiểm tra hồ sơ</button>`;
         if(currentUser.id==='BLD' && t.trangThai==='Đã kiểm tra') action += `<button class="mini-btn approve" onclick="duyetDeNghi('${t.id}')">Phê duyệt</button>`;
         if(currentUser.id==='TC' && t.trangThai==='Đã duyệt') action += `<button class="mini-btn approve" onclick="thanhToanDeNghi('${t.id}')">Thực hiện thanh toán</button>`;
         if(canAdd) action += actionButtons('denghithanhtoan', t.id);
-        return `<tr><td class="mono">${t.ngay}</td><td>${t.loai}</td><td>${t.noiDung}</td><td>${t.boPhan}</td>
+        const dxLienQuan = t.deXuatId ? state.dexuatmuahang.find(x=>x.id===t.deXuatId) : null;
+        return `<tr><td class="mono">${t.ngay}</td><td>${t.loai}</td><td>${t.noiDung}${dxLienQuan ? `<br><span style="font-size:11px;color:var(--ink-soft)">Theo ĐX: ${dxLienQuan.noiDung}</span>` : ''}</td><td>${t.boPhan}</td>
           <td class="num">${fmt(t.soTien)}</td><td>${t.hinhThuc}</td><td><span class="pill ${pillClass}">${t.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
       }).join('') || `<tr class="empty-row"><td colspan="8">Chưa có đề nghị thanh toán nào</td></tr>`}</tbody>
     </table></div>`;
 }
+function capNhatTuDeXuatThanhToan(){
+  const id = document.getElementById('tt-dexuat').value;
+  const dx = state.dexuatmuahang.find(x=>x.id===id);
+  if(!dx) return;
+  document.getElementById('tt-noidung').value = dx.noiDung;
+  document.getElementById('tt-bophan').value = dx.boPhan;
+  document.getElementById('tt-sotien').value = dx.soLuong*dx.donGia;
+  document.getElementById('tt-doituong').value = dx.nhaCungCap||'';
+}
 function submitDeNghi(e){
   e.preventDefault();
   const noiDung = document.getElementById('tt-noidung').value;
+  const loai = document.getElementById('tt-loai').value;
+  const deXuatId = document.getElementById('tt-dexuat').value;
+  if(loai==='Nhà cung cấp' && !deXuatId){
+    alert('Đề nghị thanh toán cho nhà cung cấp phải liên kết với 1 đề xuất mua hàng đã duyệt — chọn ở ô "Đề xuất mua hàng liên quan".');
+    return false;
+  }
   state.denghithanhtoan.push({id:'TT'+(state.nextId++), ngay:document.getElementById('tt-ngay').value,
-    loai:document.getElementById('tt-loai').value, nguoiDeNghi:document.getElementById('tt-nguoi').value,
+    loai, deXuatId: deXuatId||null, nguoiDeNghi:document.getElementById('tt-nguoi').value,
     boPhan:document.getElementById('tt-bophan').value, noiDung, soTien:parseFloat(document.getElementById('tt-sotien').value)||0,
     doiTuongNhan:document.getElementById('tt-doituong').value, hinhThuc:document.getElementById('tt-hinhthuc').value,
-    trangThai:'Chờ kiểm tra', nguoiKiemTra:null, nguoiDuyet:null});
+    trangThai:'Chờ trưởng phòng duyệt', nguoiDuyetBoPhan:null, nguoiKiemTra:null, nguoiDuyet:null});
   logActivity(`Gửi đề nghị thanh toán "${noiDung}"`);
   renderM7(); return false;
+}
+function duyetBoPhanDeNghi(id, dong){
+  const t = state.denghithanhtoan.find(t=>t.id===id); if(!t) return;
+  t.trangThai = dong ? 'Chờ kiểm tra' : 'Từ chối'; t.nguoiDuyetBoPhan = currentUser.name;
+  logActivity(`${dong?'Trưởng bộ phận duyệt':'Trưởng bộ phận từ chối'} đề nghị thanh toán "${t.noiDung}"`);
+  renderM7();
 }
 function kiemTraDeNghi(id){
   const t = state.denghithanhtoan.find(t=>t.id===id); if(!t) return;
