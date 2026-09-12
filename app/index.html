@@ -3150,7 +3150,7 @@ function renderSuaChuaVatTu(body, canAdd){
   const loaiOptions = LOAI_BAO_TRI_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('');
   const logSectionHtml = `
     <div class="panel-head"><h3>Nhật ký sửa chữa/vật tư</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Ai có quyền trên module này đều ghi nhận được (kể cả Kế toán — chỉ ghi nhận chi phí, không duyệt). Người duyệt là Phòng Khai thác.</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Ai có quyền trên module này đều ghi nhận được (kể cả Kế toán — chỉ ghi nhận chi phí, không duyệt). Người duyệt là Phòng Khai thác. Việc sửa chữa/vật tư đã qua Đề xuất mua hàng (M7) và được duyệt sẽ tự động xuất hiện ở đây, không cần ghi nhận lại — chỉ dùng form dưới cho việc phát sinh nhỏ/gấp không qua đề xuất.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Ghi nhận sửa chữa/vật tư</summary>
       <form class="inline-form" onsubmit="return submitNhatKy(event, document.getElementById('nk-loai').value)">
         <div class="field"><label>Ngày</label><input type="date" required id="nk-ngay"></div>
@@ -3177,7 +3177,7 @@ function renderSuaChuaVatTu(body, canAdd){
         const coDuyet = currentUser.id==='KT';
         let action = (coDuyet && b.trangThai==='Chờ duyệt') ? `<button class="mini-btn approve" onclick="duyetNhatKy('${b._loai}','${b.id}')">Duyệt</button>` : '';
         if(canAdd) action += actionButtons(b._loai, b.id);
-        return `<tr><td class="mono">${b.ngay}</td><td>${b._loai==='suachua'?'Sửa chữa':'Vật tư'}</td><td>${b.phuongTienId}</td><td class="mono">${b.bienSo||''}</td><td>${b.noiDung}</td>
+        return `<tr><td class="mono">${b.ngay}</td><td>${b._loai==='suachua'?'Sửa chữa':'Vật tư'}</td><td>${b.phuongTienId}</td><td class="mono">${b.bienSo||''}</td><td>${b.noiDung}${b.deXuatId ? `<br><span style="font-size:11px;color:var(--ink-soft)">Từ đề xuất mua hàng ${b.deXuatId} (đã duyệt)</span>` : ''}</td>
           <td class="num">${fmt(b.chiPhi)}</td><td class="num">${b.gioHoatDong?fmt(b.gioHoatDong):''}</td><td>${b.hangMucBaoDuong||''}</td><td>${b.hanBaoDuongTiep?fmt(b.hanBaoDuongTiep):''}</td><td><span class="pill ${pillClass}">${b.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
       }).join('') || `<tr class="empty-row"><td colspan="11">Chưa có ghi nhận nào</td></tr>`}</tbody>
     </table></div>`;
@@ -3867,6 +3867,14 @@ function renderDeXuatMuaHang(body){
         <div class="field"><label>Đơn giá (đ)</label><input type="number" required id="dx-dg"></div>
         <div class="field"><label>Nhà cung cấp</label><input id="dx-ncc"></div>
         <div class="field"><label>Mục đích</label><input id="dx-mucdich"></div>
+        <div class="field" style="grid-column:1/-1"><label style="display:inline-flex;align-items:center;gap:8px;font-weight:400;font-size:13px;padding:8px 12px;border:1px solid var(--line);border-radius:4px;background:var(--paper-raised);cursor:pointer"><input type="checkbox" id="dx-lienquantb" onchange="toggleThietBiDeXuat()"> Liên quan đến thiết bị/phương tiện (để tự ghi vào Sửa chữa/Vật tư khi được duyệt)</label></div>
+        <div id="dx-thietbifield" style="display:none;grid-column:1/-1">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+            <div class="field"><label>Sửa chữa/Vật tư</label><select id="dx-loaisc">${LOAI_BAO_TRI_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('')}</select></div>
+            <div class="field"><label>Thiết bị/phương tiện</label><select id="dx-thietbi" onchange="capNhatBienSoOptionsDX()">${THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('')}</select></div>
+            <div class="field"><label>Biển số xe</label><select id="dx-bienso"></select></div>
+          </div>
+        </div>
         <div class="form-actions"><button type="submit" class="add-btn">Gửi đề xuất</button></div>
       </form></details>` : ''}
     <div class="table-wrap"><table>
@@ -3883,19 +3891,37 @@ function renderDeXuatMuaHang(body){
           action += `<button class="mini-btn approve" onclick="duyetDeXuat('${x.id}',true)">Duyệt</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetDeXuat('${x.id}',false)">Từ chối</button>`;
         }
         if(canAdd) action += actionButtons('dexuatmuahang', x.id);
-        return `<tr><td class="mono">${x.ngay}</td><td>${x.noiDung}</td><td>${x.nguoiDeXuat}</td><td>${x.boPhan}</td><td>${x.nhaCungCap||''}</td>
+        return `<tr><td class="mono">${x.ngay}</td><td>${x.noiDung}${x.suaChuaVatTuId ? `<br><span style="font-size:11px;color:var(--ink-soft)">Đã ghi vào Sửa chữa/Vật tư (${x.bienSo||x.phuongTienId})</span>` : ''}</td><td>${x.nguoiDeXuat}</td><td>${x.boPhan}</td><td>${x.nhaCungCap||''}</td>
           <td class="num">${fmt(thanhTien)}</td><td><span class="pill ${pillClass}">${x.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
       }).join('') || `<tr class="empty-row"><td colspan="8">Chưa có đề xuất mua hàng nào</td></tr>`}</tbody>
     </table></div>`;
+  capNhatBienSoOptionsDX();
+}
+function toggleThietBiDeXuat(){
+  document.getElementById('dx-thietbifield').style.display = document.getElementById('dx-lienquantb').checked ? '' : 'none';
+  capNhatBienSoOptionsDX();
+}
+function capNhatBienSoOptionsDX(){
+  const sel = document.getElementById('dx-thietbi');
+  const bsSel = document.getElementById('dx-bienso');
+  if(!sel || !bsSel) return;
+  const xe = state.thietbi.filter(t=>t.ten===sel.value && t.bienSo);
+  bsSel.innerHTML = xe.length
+    ? xe.map(t=>`<option value="${t.bienSo}">${t.bienSo}</option>`).join('')
+    : `<option value="">— Chưa có xe đã lưu cho loại này (thêm ở tab Thiết bị) —</option>`;
 }
 function submitDeXuat(e){
   e.preventDefault();
   const noiDung = document.getElementById('dx-noidung').value;
+  const lienQuanThietBi = document.getElementById('dx-lienquantb').checked;
   state.dexuatmuahang.push({id:'DX'+(state.nextId++), ngay:document.getElementById('dx-ngay').value,
     nguoiDeXuat:document.getElementById('dx-nguoi').value, boPhan:document.getElementById('dx-bophan').value,
     noiDung, donViTinh:document.getElementById('dx-dvt').value, soLuong:parseFloat(document.getElementById('dx-sl').value)||1,
     donGia:parseFloat(document.getElementById('dx-dg').value)||0, nhaCungCap:document.getElementById('dx-ncc').value,
-    mucDich:document.getElementById('dx-mucdich').value, trangThai:'Chờ trưởng phòng duyệt', nguoiDuyetBoPhan:null, nguoiKiemTra:null, nguoiDuyet:null});
+    mucDich:document.getElementById('dx-mucdich').value, trangThai:'Chờ trưởng phòng duyệt', nguoiDuyetBoPhan:null, nguoiKiemTra:null, nguoiDuyet:null,
+    lienQuanThietBi, loaiSuaChuaVatTu: lienQuanThietBi ? document.getElementById('dx-loaisc').value : null,
+    phuongTienId: lienQuanThietBi ? document.getElementById('dx-thietbi').value : null,
+    bienSo: lienQuanThietBi ? document.getElementById('dx-bienso').value : null, suaChuaVatTuId:null});
   logActivity(`Gửi đề xuất mua hàng "${noiDung}"`);
   renderM7(); return false;
 }
@@ -3915,6 +3941,16 @@ function duyetDeXuat(id, dong){
   const x = state.dexuatmuahang.find(x=>x.id===id); if(!x) return;
   x.trangThai = dong ? 'Đã duyệt' : 'Từ chối'; x.nguoiDuyet = currentUser.name;
   logActivity(`${dong?'Duyệt':'Từ chối'} đề xuất mua hàng "${x.noiDung}"`);
+  if(dong && x.lienQuanThietBi && !x.suaChuaVatTuId){
+    const key = x.loaiSuaChuaVatTu === 'suachua' ? 'suachua' : 'vattu';
+    const rec = {id:key.slice(0,2).toUpperCase()+(state.nextId++), ngay:x.ngay,
+      phuongTienId:x.phuongTienId, bienSo:x.bienSo, noiDung:x.noiDung, donViThucHien:x.nhaCungCap,
+      chiPhi:x.soLuong*x.donGia, gioHoatDong:0, hangMucBaoDuong:null, hanBaoDuongTiep:null,
+      trangThai:'Chờ duyệt', nguoiGhiNhan:x.nguoiDeXuat, nguoiDuyet:null, deXuatId:x.id};
+    state[key].push(rec);
+    x.suaChuaVatTuId = rec.id;
+    logActivity(`Tự động ghi nhận "${x.noiDung}" vào ${key==='suachua'?'Sửa chữa':'Vật tư'} (${x.bienSo||x.phuongTienId}) từ đề xuất mua hàng đã duyệt`);
+  }
   renderM7();
 }
 
