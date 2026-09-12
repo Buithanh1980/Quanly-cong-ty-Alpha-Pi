@@ -519,6 +519,7 @@ function loadState(){
     state.dexuatmuahang.forEach(x=>{ if(x.trangThai==='Chờ duyệt') x.trangThai = 'Đã kiểm tra'; }); // dữ liệu cũ trước khi có bước Kế toán kiểm tra — coi như đã qua bước này, chuyển thẳng sang chờ BLD duyệt
     if(!state.denghithanhtoan) state.denghithanhtoan = seedState().denghithanhtoan;
     if(!state.tamung) state.tamung = seedState().tamung;
+    state.tamung.forEach(t=>{ if(t.trangThai==='Chờ duyệt') t.trangThai = 'Đã kiểm tra'; }); // dữ liệu cũ trước khi có bước trưởng bộ phận duyệt + kế toán kiểm tra — coi như đã qua các bước này, chuyển thẳng sang chờ BLD duyệt
     if(!state.soquy) state.soquy = seedState().soquy;
     if(!state.hoadon) state.hoadon = seedState().hoadon;
     if(!state.khoanvay) state.khoanvay = seedState().khoanvay;
@@ -3777,17 +3778,19 @@ function renderTaiChinhTongQuan(body){
   const canDuyet = currentUser.id==='BLD' ? [
     ...state.dexuatmuahang.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>`Đề xuất mua hàng — ${x.noiDung} (${fmt(x.soLuong*x.donGia)} đ)`),
     ...state.denghithanhtoan.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>`Đề nghị thanh toán — ${x.noiDung} (${fmt(x.soTien)} đ)`),
-    ...state.tamung.filter(x=>x.trangThai==='Chờ duyệt').map(x=>`Tạm ứng — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
+    ...state.tamung.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>`Tạm ứng — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
   ] : [];
   const canKiemTra = currentUser.id==='TC' ? [
     ...state.dexuatmuahang.filter(x=>x.trangThai==='Chờ kiểm tra').map(x=>`Kiểm tra hồ sơ (đề xuất mua hàng) — ${x.noiDung} (${fmt(x.soLuong*x.donGia)} đ)`),
     ...state.denghithanhtoan.filter(x=>x.trangThai==='Chờ kiểm tra').map(x=>`Kiểm tra hồ sơ (đề nghị thanh toán) — ${x.noiDung} (${fmt(x.soTien)} đ)`),
+    ...state.tamung.filter(x=>x.trangThai==='Chờ kiểm tra').map(x=>`Kiểm tra hồ sơ (tạm ứng) — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
     ...state.denghithanhtoan.filter(x=>x.trangThai==='Đã duyệt').map(x=>`Thực hiện thanh toán — ${x.noiDung} (${fmt(x.soTien)} đ)`),
     ...state.tamung.filter(x=>x.trangThai==='Đã duyệt').map(x=>`Chi tạm ứng — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
   ] : [];
   const canDuyetBoPhan = (canEnter('M7') && !canApprove('M7')) ? [
     ...state.dexuatmuahang.filter(x=>x.trangThai==='Chờ trưởng phòng duyệt').map(x=>`Trưởng bộ phận duyệt (đề xuất mua hàng) — ${x.noiDung} (${fmt(x.soLuong*x.donGia)} đ)`),
     ...state.denghithanhtoan.filter(x=>x.trangThai==='Chờ trưởng phòng duyệt').map(x=>`Trưởng bộ phận duyệt (đề nghị thanh toán) — ${x.noiDung} (${fmt(x.soTien)} đ)`),
+    ...state.tamung.filter(x=>x.trangThai==='Chờ trưởng phòng duyệt').map(x=>`Trưởng bộ phận duyệt (tạm ứng) — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
   ] : [];
   const viecCanXuLy = [...canDuyet, ...canKiemTra, ...canDuyetBoPhan];
 
@@ -4058,6 +4061,8 @@ function renderTamUng(body){
       <div class="stat-card"><div class="slabel">Tạm ứng chưa quyết toán</div><div class="sval">${fmt(tamUngChuaQuyetToan)} <span class="sunit">đ</span></div></div>
     </div>
     <div class="panel-head"><h3>Tạm ứng</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Luồng: Trưởng bộ phận duyệt → Kế toán kiểm tra → Ban lãnh đạo duyệt → Kế toán chi tạm ứng → Người nhận quyết toán sau khi hoàn thành công việc.</p>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:-10px 0 14px;font-style:italic">Ghi chú: bản demo dùng chung 1 tài khoản cho cả phòng ban nên bước "Trưởng bộ phận duyệt" vẫn thực hiện trên cùng tài khoản đó (chỉ mang tính quy trình/nhắc việc) — khi triển khai chính thức với tài khoản riêng từng người sẽ tách hẳn người lập và người duyệt.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Đề nghị tạm ứng</summary>
       <form class="inline-form" onsubmit="return submitTamUng(event)">
         <div class="field"><label>Ngày</label><input type="date" required id="tu-ngay"></div>
@@ -4071,9 +4076,15 @@ function renderTamUng(body){
     <div class="table-wrap"><table>
       <thead><tr><th>Ngày</th><th>Người nhận</th><th>Nội dung</th><th style="text-align:right">Tạm ứng</th><th style="text-align:right">Quyết toán</th><th style="text-align:right">Chênh lệch</th><th>Trạng thái</th><th></th></tr></thead>
       <tbody>${state.tamung.map(t => {
-        const pillClass = t.trangThai==='Đã quyết toán' ? 'paid' : t.trangThai==='Đã chi' ? 'approved' : t.trangThai==='Đã duyệt' ? 'done' : 'pending';
+        const pillClass = t.trangThai==='Đã quyết toán' ? 'paid' : t.trangThai==='Đã chi' ? 'approved' : t.trangThai==='Đã duyệt' ? 'approved' : t.trangThai==='Từ chối' ? 'rejected' : t.trangThai==='Đã kiểm tra' ? 'done' : 'pending';
         let action = '';
-        if(currentUser.id==='BLD' && t.trangThai==='Chờ duyệt') action += `<button class="mini-btn approve" onclick="duyetTamUng('${t.id}')">Duyệt</button>`;
+        if(canEnter('M7') && !canApprove('M7') && t.trangThai==='Chờ trưởng phòng duyệt'){
+          action += `<button class="mini-btn approve" onclick="duyetBoPhanTamUng('${t.id}',true)">Duyệt (trưởng bộ phận)</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetBoPhanTamUng('${t.id}',false)">Từ chối</button>`;
+        }
+        if(currentUser.id==='TC' && t.trangThai==='Chờ kiểm tra') action += `<button class="mini-btn approve" onclick="kiemTraTamUng('${t.id}')">Kiểm tra hồ sơ</button>`;
+        if(currentUser.id==='BLD' && t.trangThai==='Đã kiểm tra'){
+          action += `<button class="mini-btn approve" onclick="duyetTamUng('${t.id}',true)">Duyệt</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetTamUng('${t.id}',false)">Từ chối</button>`;
+        }
         if(currentUser.id==='TC' && t.trangThai==='Đã duyệt') action += `<button class="mini-btn approve" onclick="chiTamUng('${t.id}')">Chi tạm ứng</button>`;
         if(canAdd && t.trangThai==='Đã chi') action += `<button class="mini-btn" onclick="quyetToanTamUng('${t.id}')">Quyết toán</button>`;
         if(canAdd) action += actionButtons('tamung', t.id);
@@ -4090,14 +4101,26 @@ function submitTamUng(e){
   state.tamung.push({id:'TU'+(state.nextId++), ngay:document.getElementById('tu-ngay').value,
     nguoiNhan:document.getElementById('tu-nguoi').value, boPhan:document.getElementById('tu-bophan').value, noiDung,
     soTienTamUng:parseFloat(document.getElementById('tu-sotien').value)||0, hinhThuc:document.getElementById('tu-hinhthuc').value,
-    trangThai:'Chờ duyệt', soTienQuyetToan:null, chenhLech:null, nguoiDuyet:null});
+    trangThai:'Chờ trưởng phòng duyệt', soTienQuyetToan:null, chenhLech:null, nguoiDuyetBoPhan:null, nguoiKiemTra:null, nguoiDuyet:null});
   logActivity(`Gửi đề nghị tạm ứng "${noiDung}"`);
   renderM7(); return false;
 }
-function duyetTamUng(id){
+function duyetBoPhanTamUng(id, dong){
   const t = state.tamung.find(t=>t.id===id); if(!t) return;
-  t.trangThai = 'Đã duyệt'; t.nguoiDuyet = currentUser.name;
-  logActivity(`Phê duyệt tạm ứng "${t.noiDung}" (${fmt(t.soTienTamUng)} đ)`);
+  t.trangThai = dong ? 'Chờ kiểm tra' : 'Từ chối'; t.nguoiDuyetBoPhan = currentUser.name;
+  logActivity(`${dong?'Trưởng bộ phận duyệt':'Trưởng bộ phận từ chối'} tạm ứng "${t.noiDung}"`);
+  renderM7();
+}
+function kiemTraTamUng(id){
+  const t = state.tamung.find(t=>t.id===id); if(!t) return;
+  t.trangThai = 'Đã kiểm tra'; t.nguoiKiemTra = currentUser.name;
+  logActivity(`Kế toán kiểm tra hồ sơ tạm ứng "${t.noiDung}"`);
+  renderM7();
+}
+function duyetTamUng(id, dong){
+  const t = state.tamung.find(t=>t.id===id); if(!t) return;
+  t.trangThai = dong ? 'Đã duyệt' : 'Từ chối'; t.nguoiDuyet = currentUser.name;
+  logActivity(`${dong?'Phê duyệt':'Từ chối'} tạm ứng "${t.noiDung}" (${fmt(t.soTienTamUng)} đ)`);
   renderM7();
 }
 function chiTamUng(id){
@@ -4122,7 +4145,7 @@ function quyetToanTamUng(id){
 
 /* ---- Sổ quỹ ---- */
 function renderSoQuy(body){
-  const canAdd = canEnter('M7');
+  const canAdd = currentUser.id==='TC';
   const rows = state.soquy.slice().sort((a,b)=>a.ngay.localeCompare(b.ngay));
   let running = 0;
   const withBalance = rows.map(q => { running += (q.loai==='Thu'?q.soTien:-q.soTien); return {...q, running}; }).reverse();
@@ -4131,7 +4154,7 @@ function renderSoQuy(body){
       <div class="stat-card"><div class="slabel">Tồn quỹ (tiền mặt + chuyển khoản)</div><div class="sval">${fmt(soDuQuy())} <span class="sunit">đ</span></div></div>
     </div>
     <div class="panel-head"><h3>Sổ quỹ (tiền mặt + chuyển khoản)</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Các dòng từ đề nghị thanh toán/tạm ứng được ghi tự động khi thực hiện chi; có thể bổ sung thu/chi khác thủ công.</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Các dòng từ đề nghị thanh toán/tạm ứng được ghi tự động khi thực hiện chi. Chỉ Kế toán được ghi bổ sung thu/chi thủ công — các khoản chi khác phải đi qua Đề nghị thanh toán/Tạm ứng để đảm bảo qua đúng quy trình duyệt.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Ghi thu/chi khác</summary>
       <form class="inline-form" onsubmit="return submitSoQuy(event)">
         <div class="field"><label>Ngày</label><input type="date" required id="sq-ngay"></div>
@@ -4161,7 +4184,7 @@ function submitSoQuy(e){
 
 /* ---- Công nợ ---- */
 function renderCongNo(body){
-  const canAdd = canEnter('M7'); const canAppr = canApprove('M7');
+  const canAdd = currentUser.id==='TC'; const canAppr = canApprove('M7');
   const phaiThuHoaDonList = hoaDonChuaThanhToan('Doanh thu');
   const phaiThuHoaDon = tongTienHoaDon(phaiThuHoaDonList);
   const phaiThuKhac = state.congno.filter(c=>c.trangThai==='Chưa thu').reduce((s,c)=>s+c.soTien,0);
@@ -4175,7 +4198,7 @@ function renderCongNo(body){
     </div>
     <p style="font-size:11.5px;color:var(--ink-soft);margin:8px 0 0">Phải thu gồm: <b>${fmt(phaiThuHoaDon)} đ</b> từ hóa đơn đã xuất chưa thanh toán (xem tab Nhật ký hóa đơn) + <b>${fmt(phaiThuKhac)} đ</b> công nợ khác chưa có hóa đơn (bảng bên dưới). Phải trả NCC tính từ hóa đơn chi phí chưa thanh toán (xem tab Nhật ký hóa đơn) — riêng đề nghị thanh toán nội bộ xem ở tab Đề nghị thanh toán.</p>
     <div class="panel-head" style="margin-top:20px"><h3>Công nợ khác (chưa có hóa đơn)</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Dùng cho công nợ phát sinh trước khi có hóa đơn (ứng trước, công nợ cũ...). Khi đã xuất hóa đơn cho khoản này, ghi nhận bên tab Nhật ký hóa đơn thay vì ở đây để tránh trùng.</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Dùng cho công nợ phát sinh trước khi có hóa đơn (ứng trước, công nợ cũ...). Khi đã xuất hóa đơn cho khoản này, ghi nhận bên tab Nhật ký hóa đơn thay vì ở đây để tránh trùng. Chỉ Kế toán ghi nhận được, các phòng khác xem để nắm công nợ khách hàng/NCC.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm công nợ</summary>
       <form class="inline-form" onsubmit="return submitCongNo(event)">
         <div class="field"><label>Chủ hàng</label><input required id="cn-chuhang"></div>
@@ -4270,7 +4293,7 @@ function ghiNhanThanhToanHoaDon(id){
 
 /* ---- Khoản vay ---- */
 function renderKhoanVay(body){
-  const canAdd = canEnter('M7');
+  const canAdd = currentUser.id==='TC';
   const canGhiNhan = currentUser.id==='TC';
   const rows = state.lichtrano.slice().sort((a,b)=>a.ngayDenHan.localeCompare(b.ngayDenHan));
   body.innerHTML = `
@@ -4278,6 +4301,7 @@ function renderKhoanVay(body){
       <div class="stat-card"><div class="slabel">Tổng dư nợ vay ngân hàng</div><div class="sval warn">${fmt(tongDuNoVay())} <span class="sunit">đ</span></div></div>
     </div>
     <div class="panel-head" style="margin-top:20px"><h3>Danh sách khoản vay</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Chỉ Kế toán ghi nhận khoản vay/lịch trả nợ, các phòng khác xem để nắm dư nợ chung.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm khoản vay</summary>
       <form class="inline-form" onsubmit="return submitKhoanVay(event)">
         <div class="field"><label>Ngân hàng</label><input required id="kv-nganhang"></div>
