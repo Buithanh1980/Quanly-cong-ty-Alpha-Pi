@@ -520,6 +520,14 @@ function loadState(){
     if(!state.denghithanhtoan) state.denghithanhtoan = seedState().denghithanhtoan;
     if(!state.tamung) state.tamung = seedState().tamung;
     state.tamung.forEach(t=>{ if(t.trangThai==='Chờ duyệt') t.trangThai = 'Đã kiểm tra'; }); // dữ liệu cũ trước khi có bước trưởng bộ phận duyệt + kế toán kiểm tra — coi như đã qua các bước này, chuyển thẳng sang chờ BLD duyệt
+    state.tamung.forEach(t=>{ // chuẩn hóa "Bộ phận" cũ gõ tay tự do về đúng 1 trong các tên chuẩn để lọc theo bộ phận hoạt động đúng
+      const bp = t.boPhan || '';
+      if(['Khai thác','Vận tải','Dịch vụ','Kế toán','Ban lãnh đạo','Nhân sự'].includes(bp)) return;
+      if(bp.includes('hai thác') || bp.includes('Khai Thác')) t.boPhan = 'Khai thác';
+      else if(bp.includes('ận tải') || bp.includes('Vận Tải')) t.boPhan = 'Vận tải';
+      else if(bp.includes('ịch vụ') || bp.includes('Dịch Vụ')) t.boPhan = 'Dịch vụ';
+      else if(bp.includes('ế toán') || bp.includes('Kế Toán')) t.boPhan = 'Kế toán';
+    });
     if(!state.soquy) state.soquy = seedState().soquy;
     if(!state.hoadon) state.hoadon = seedState().hoadon;
     if(!state.khoanvay) state.khoanvay = seedState().khoanvay;
@@ -567,6 +575,11 @@ function getPerm(roleId, moduleCode){ return (state.permissions[roleId]||{})[mod
 function canEnter(moduleCode){ const p=getPerm(currentUser.id,moduleCode); return p==='N'||p==='D'||p==='Q'; }
 function canApprove(moduleCode){ const p=getPerm(currentUser.id,moduleCode); return p==='D'||p==='Q'; }
 function canView(moduleCode){ return !!getPerm(currentUser.id,moduleCode); }
+
+const BO_PHAN_OPTIONS = ['Khai thác','Vận tải','Dịch vụ','Khác'];
+const BO_PHAN_THEO_ROLE = {KT:'Khai thác', VT:'Vận tải', DV:'Dịch vụ', TC:'Kế toán', BLD:'Ban lãnh đạo', NS:'Nhân sự'};
+function boPhanCuaToi(){ return BO_PHAN_THEO_ROLE[currentUser.id] || currentUser.name; }
+function xemToanBoTaiChinh(){ return currentUser.id==='TC' || currentUser.id==='BLD'; }
 
 function tonHienTai(lotId){
   const lot = state.lots.find(l => l.id === lotId);
@@ -3720,11 +3733,11 @@ function doanhThuChoThueBaiTrongKy(tuNgay, denNgay){
 function doanhThuPhatSinhTrongKy(tuNgay, denNgay){
   return doanhThuKhoiLuongTrongKy(tuNgay, denNgay) + doanhThuChoThueBaiTrongKy(tuNgay, denNgay);
 }
-function doanhThuHoaDonTrongKy(tuNgay, denNgay){
-  return state.hoadon.filter(h=>h.loai==='Doanh thu' && h.ngay>=tuNgay && h.ngay<=denNgay).reduce((s,h)=>s+(h.giaTriTruocThue||0), 0);
+function doanhThuHoaDonTrongKy(tuNgay, denNgay, boPhan){
+  return state.hoadon.filter(h=>h.loai==='Doanh thu' && h.ngay>=tuNgay && h.ngay<=denNgay && (!boPhan || h.boPhan===boPhan)).reduce((s,h)=>s+(h.giaTriTruocThue||0), 0);
 }
-function hoaDonChuaThanhToan(loai){
-  return state.hoadon.filter(h=>h.loai===loai && h.trangThaiThanhToan!=='Đã thanh toán').sort((a,b)=>a.ngay.localeCompare(b.ngay));
+function hoaDonChuaThanhToan(loai, boPhan){
+  return state.hoadon.filter(h=>h.loai===loai && h.trangThaiThanhToan!=='Đã thanh toán' && (!boPhan || h.boPhan===boPhan)).sort((a,b)=>a.ngay.localeCompare(b.ngay));
 }
 function tongTienHoaDon(list){
   return list.reduce((s,h)=>s+(h.giaTriTruocThue||0)+(h.soTienVAT||0), 0);
@@ -3754,10 +3767,10 @@ function renderM7(){
     {id:'dexuat', label:'Đề xuất mua hàng'},
     {id:'denghi', label:'Đề nghị thanh toán'},
     {id:'tuquy', label:'Tạm ứng'},
-    {id:'soquy', label:'Sổ quỹ'},
+    ...(xemToanBoTaiChinh() ? [{id:'soquy', label:'Sổ quỹ'}] : []),
     {id:'congno', label:'Công nợ'},
     {id:'hoadon', label:'Nhật ký hóa đơn'},
-    {id:'khoanvay', label:'Khoản vay'},
+    ...(xemToanBoTaiChinh() ? [{id:'khoanvay', label:'Khoản vay'}] : []),
   ];
   if(!tabs.some(t=>t.id===currentTab)) currentTab = 'tqtc';
   content.innerHTML = `<div class="tabs">` + tabs.map(t =>
@@ -3794,6 +3807,10 @@ function renderTaiChinhTongQuan(body){
   ] : [];
   const viecCanXuLy = [...canDuyet, ...canKiemTra, ...canDuyetBoPhan];
 
+  const xemHet = xemToanBoTaiChinh();
+  const boPhanLoc = xemHet ? null : boPhanCuaToi();
+  const laKhaiThac = currentUser.id==='KT';
+
   const homNayIso = REF_DATE.toISOString().slice(0,10);
   const dauThangIso = dauThangCua(homNayIso);
   const dauNamIso = dauNamCua(homNayIso);
@@ -3801,18 +3818,19 @@ function renderTaiChinhTongQuan(body){
   const nhanNam = `Lũy kế năm ${REF_DATE.getFullYear()}`;
   const psThang = doanhThuPhatSinhTrongKy(dauThangIso, homNayIso);
   const psNam = doanhThuPhatSinhTrongKy(dauNamIso, homNayIso);
-  const hdThang = doanhThuHoaDonTrongKy(dauThangIso, homNayIso);
-  const hdNam = doanhThuHoaDonTrongKy(dauNamIso, homNayIso);
+  const hdThang = doanhThuHoaDonTrongKy(dauThangIso, homNayIso, boPhanLoc);
+  const hdNam = doanhThuHoaDonTrongKy(dauNamIso, homNayIso, boPhanLoc);
 
-  const phaiThuHoaDonList = hoaDonChuaThanhToan('Doanh thu');
+  const phaiThuHoaDonList = hoaDonChuaThanhToan('Doanh thu', boPhanLoc);
   const phaiThuHoaDon = tongTienHoaDon(phaiThuHoaDonList);
-  const phaiThuKhac = state.congno.filter(c=>c.trangThai==='Chưa thu').reduce((s,c)=>s+c.soTien,0);
+  const phaiThuKhac = state.congno.filter(c=>c.trangThai==='Chưa thu' && (!boPhanLoc || c.boPhan===boPhanLoc)).reduce((s,c)=>s+c.soTien,0);
   const phaiThu = phaiThuHoaDon + phaiThuKhac;
-  const phaiTraNCCList = hoaDonChuaThanhToan('Chi phí');
+  const phaiTraNCCList = hoaDonChuaThanhToan('Chi phí', boPhanLoc);
   const phaiTraNCC = tongTienHoaDon(phaiTraNCCList);
 
   body.innerHTML = `
-    <div class="panel-head"><h3 style="font-size:14px">Doanh thu</h3></div>
+    <div class="panel-head"><h3 style="font-size:14px">Doanh thu${xemHet ? '' : ` — bộ phận ${boPhanCuaToi()}`}</h3></div>
+    ${(laKhaiThac || xemHet) ? `
     <div class="stat-row">
       <div class="stat-card"><div class="slabel">Doanh thu phát sinh — ${nhanThang}</div><div class="sval">${fmt(psThang)} <span class="sunit">đ</span></div></div>
       <div class="stat-card"><div class="slabel">Đã xuất hóa đơn — ${nhanThang}</div><div class="sval">${fmt(hdThang)} <span class="sunit">đ</span></div></div>
@@ -3823,13 +3841,18 @@ function renderTaiChinhTongQuan(body){
       <div class="stat-card"><div class="slabel">Đã xuất hóa đơn — ${nhanNam}</div><div class="sval">${fmt(hdNam)} <span class="sunit">đ</span></div></div>
       <div class="stat-card" style="background:var(--grey-tint)"><div class="slabel">Chưa xuất hóa đơn — ${nhanNam}</div><div class="sval" style="font-weight:700">${fmt(psNam-hdNam)} <span class="sunit">đ</span></div></div>
     </div>
-    <p style="font-size:11.5px;color:var(--ink-soft);margin:8px 0 0">"Doanh thu phát sinh" = khối lượng nhập/xuất trong kỳ × đơn giá đã khai báo ở M10, cộng doanh thu cho thuê bãi theo diện tích — là số <b>ước tính nội bộ</b>, không phải doanh thu kế toán chính thức. "Đã xuất hóa đơn" lấy từ tab Nhật ký hóa đơn (Kế toán tự ghi nhận mỗi khi xuất hóa đơn thật qua phần mềm hóa đơn điện tử).</p>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:8px 0 0">"Doanh thu phát sinh" = khối lượng nhập/xuất trong kỳ × đơn giá đã khai báo ở M10, cộng doanh thu cho thuê bãi theo diện tích — là số <b>ước tính nội bộ</b> của riêng bộ phận Khai thác, không phải doanh thu kế toán chính thức. "Đã xuất hóa đơn" lấy từ tab Nhật ký hóa đơn (Kế toán tự ghi nhận mỗi khi xuất hóa đơn thật qua phần mềm hóa đơn điện tử).${xemHet ? ' Số liệu ở đây gồm tất cả các bộ phận; xem tab Nhật ký hóa đơn để lọc theo từng bộ phận.' : ''}` : `
+    <div class="stat-row">
+      <div class="stat-card"><div class="slabel">Đã xuất hóa đơn — ${nhanThang}</div><div class="sval">${fmt(hdThang)} <span class="sunit">đ</span></div></div>
+      <div class="stat-card"><div class="slabel">Đã xuất hóa đơn — ${nhanNam}</div><div class="sval">${fmt(hdNam)} <span class="sunit">đ</span></div></div>
+    </div>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:8px 0 0">Chỉ tính hóa đơn doanh thu gắn với bộ phận "${boPhanCuaToi()}". Doanh thu tổng hợp toàn công ty theo từng bộ phận chỉ Kế toán/Ban lãnh đạo xem được.</p>`}
 
-    <div class="panel-head" style="margin-top:24px"><h3 style="font-size:14px">Công nợ &amp; vay</h3></div>
+    <div class="panel-head" style="margin-top:24px"><h3 style="font-size:14px">Công nợ${xemHet?' & vay':''}</h3></div>
     <div class="stat-row">
       <div class="stat-card"><div class="slabel">Phải thu (khách hàng)</div><div class="sval warn">${fmt(phaiThu)} <span class="sunit">đ</span></div></div>
       <div class="stat-card"><div class="slabel">Phải trả NCC</div><div class="sval warn">${fmt(phaiTraNCC)} <span class="sunit">đ</span></div></div>
-      <div class="stat-card"><div class="slabel">Dư nợ vay ngân hàng</div><div class="sval warn">${fmt(tongDuNoVay())} <span class="sunit">đ</span></div></div>
+      ${xemHet ? `<div class="stat-card"><div class="slabel">Dư nợ vay ngân hàng</div><div class="sval warn">${fmt(tongDuNoVay())} <span class="sunit">đ</span></div></div>` : ''}
     </div>
     <div class="section-block" style="margin-top:16px">
       <h3 style="font-size:13.5px">Chi tiết phải thu (hóa đơn chưa thanh toán)</h3>
@@ -4055,19 +4078,21 @@ function thanhToanDeNghi(id){
 /* ---- Tạm ứng ---- */
 function renderTamUng(body){
   const canAdd = canEnter('M7');
-  const tamUngChuaQuyetToan = state.tamung.filter(t=>t.trangThai!=='Đã quyết toán').reduce((s,t)=>s+t.soTienTamUng,0);
+  const xemHet = xemToanBoTaiChinh();
+  const list = xemHet ? state.tamung : state.tamung.filter(t=>t.boPhan===boPhanCuaToi());
+  const tamUngChuaQuyetToan = list.filter(t=>t.trangThai!=='Đã quyết toán').reduce((s,t)=>s+t.soTienTamUng,0);
   body.innerHTML = `
     <div class="stat-row">
       <div class="stat-card"><div class="slabel">Tạm ứng chưa quyết toán</div><div class="sval">${fmt(tamUngChuaQuyetToan)} <span class="sunit">đ</span></div></div>
     </div>
-    <div class="panel-head"><h3>Tạm ứng</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Luồng: Trưởng bộ phận duyệt → Kế toán kiểm tra → Ban lãnh đạo duyệt → Kế toán chi tạm ứng → Người nhận quyết toán sau khi hoàn thành công việc.</p>
+    <div class="panel-head"><h3>Tạm ứng${xemHet ? '' : ` — bộ phận ${boPhanCuaToi()}`}</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Luồng: Trưởng bộ phận duyệt → Kế toán kiểm tra → Ban lãnh đạo duyệt → Kế toán chi tạm ứng → Người nhận quyết toán sau khi hoàn thành công việc.${xemHet ? '' : ' Chỉ hiển thị tạm ứng của bộ phận bạn.'}</p>
     <p style="font-size:11.5px;color:var(--ink-soft);margin:-10px 0 14px;font-style:italic">Ghi chú: bản demo dùng chung 1 tài khoản cho cả phòng ban nên bước "Trưởng bộ phận duyệt" vẫn thực hiện trên cùng tài khoản đó (chỉ mang tính quy trình/nhắc việc) — khi triển khai chính thức với tài khoản riêng từng người sẽ tách hẳn người lập và người duyệt.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Đề nghị tạm ứng</summary>
       <form class="inline-form" onsubmit="return submitTamUng(event)">
         <div class="field"><label>Ngày</label><input type="date" required id="tu-ngay"></div>
         <div class="field"><label>Người nhận</label><input required id="tu-nguoi" value="${currentUser.name}"></div>
-        <div class="field"><label>Bộ phận</label><input required id="tu-bophan"></div>
+        <div class="field"><label>Bộ phận</label><input required id="tu-bophan" value="${boPhanCuaToi()}" readonly style="background:var(--grey-tint)"></div>
         <div class="field"><label>Nội dung công việc</label><input required id="tu-noidung"></div>
         <div class="field"><label>Số tiền tạm ứng (đ)</label><input type="number" required id="tu-sotien"></div>
         <div class="field"><label>Hình thức</label><select id="tu-hinhthuc"><option value="Chuyển khoản">Chuyển khoản</option><option value="Tiền mặt">Tiền mặt</option></select></div>
@@ -4075,7 +4100,7 @@ function renderTamUng(body){
       </form></details>` : ''}
     <div class="table-wrap"><table>
       <thead><tr><th>Ngày</th><th>Người nhận</th><th>Nội dung</th><th style="text-align:right">Tạm ứng</th><th style="text-align:right">Quyết toán</th><th style="text-align:right">Chênh lệch</th><th>Trạng thái</th><th></th></tr></thead>
-      <tbody>${state.tamung.map(t => {
+      <tbody>${list.map(t => {
         const pillClass = t.trangThai==='Đã quyết toán' ? 'paid' : t.trangThai==='Đã chi' ? 'approved' : t.trangThai==='Đã duyệt' ? 'approved' : t.trangThai==='Từ chối' ? 'rejected' : t.trangThai==='Đã kiểm tra' ? 'done' : 'pending';
         let action = '';
         if(canEnter('M7') && !canApprove('M7') && t.trangThai==='Chờ trưởng phòng duyệt'){
@@ -4185,18 +4210,21 @@ function submitSoQuy(e){
 /* ---- Công nợ ---- */
 function renderCongNo(body){
   const canAdd = currentUser.id==='TC'; const canAppr = canApprove('M7');
-  const phaiThuHoaDonList = hoaDonChuaThanhToan('Doanh thu');
+  const xemHet = xemToanBoTaiChinh();
+  const boPhanLoc = xemHet ? null : boPhanCuaToi();
+  const phaiThuHoaDonList = hoaDonChuaThanhToan('Doanh thu', boPhanLoc);
   const phaiThuHoaDon = tongTienHoaDon(phaiThuHoaDonList);
-  const phaiThuKhac = state.congno.filter(c=>c.trangThai==='Chưa thu').reduce((s,c)=>s+c.soTien,0);
+  const congnoHienThi = xemHet ? state.congno : state.congno.filter(c=>c.boPhan===boPhanLoc);
+  const phaiThuKhac = congnoHienThi.filter(c=>c.trangThai==='Chưa thu').reduce((s,c)=>s+c.soTien,0);
   const phaiThu = phaiThuHoaDon + phaiThuKhac;
-  const phaiTraNCCList = hoaDonChuaThanhToan('Chi phí');
+  const phaiTraNCCList = hoaDonChuaThanhToan('Chi phí', boPhanLoc);
   const phaiTraNCC = tongTienHoaDon(phaiTraNCCList);
   body.innerHTML = `
     <div class="stat-row">
       <div class="stat-card"><div class="slabel">Phải thu (khách hàng)</div><div class="sval warn">${fmt(phaiThu)} <span class="sunit">đ</span></div></div>
       <div class="stat-card"><div class="slabel">Phải trả NCC</div><div class="sval warn">${fmt(phaiTraNCC)} <span class="sunit">đ</span></div></div>
     </div>
-    <p style="font-size:11.5px;color:var(--ink-soft);margin:8px 0 0">Phải thu gồm: <b>${fmt(phaiThuHoaDon)} đ</b> từ hóa đơn đã xuất chưa thanh toán (xem tab Nhật ký hóa đơn) + <b>${fmt(phaiThuKhac)} đ</b> công nợ khác chưa có hóa đơn (bảng bên dưới). Phải trả NCC tính từ hóa đơn chi phí chưa thanh toán (xem tab Nhật ký hóa đơn) — riêng đề nghị thanh toán nội bộ xem ở tab Đề nghị thanh toán.</p>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:8px 0 0">Phải thu gồm: <b>${fmt(phaiThuHoaDon)} đ</b> từ hóa đơn đã xuất chưa thanh toán (xem tab Nhật ký hóa đơn) + <b>${fmt(phaiThuKhac)} đ</b> công nợ khác chưa có hóa đơn (bảng bên dưới). Phải trả NCC tính từ hóa đơn chi phí chưa thanh toán (xem tab Nhật ký hóa đơn) — riêng đề nghị thanh toán nội bộ xem ở tab Đề nghị thanh toán.${xemHet ? '' : ` Chỉ tính công nợ thuộc bộ phận "${boPhanCuaToi()}".`}</p>
     <div class="panel-head" style="margin-top:20px"><h3>Công nợ khác (chưa có hóa đơn)</h3></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Dùng cho công nợ phát sinh trước khi có hóa đơn (ứng trước, công nợ cũ...). Khi đã xuất hóa đơn cho khoản này, ghi nhận bên tab Nhật ký hóa đơn thay vì ở đây để tránh trùng. Chỉ Kế toán ghi nhận được, các phòng khác xem để nắm công nợ khách hàng/NCC.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm công nợ</summary>
@@ -4204,21 +4232,22 @@ function renderCongNo(body){
         <div class="field"><label>Chủ hàng</label><input required id="cn-chuhang"></div>
         <div class="field"><label>Số tiền (đ)</label><input type="number" required id="cn-sotien"></div>
         <div class="field"><label>Hạn thanh toán</label><input type="date" required id="cn-han"></div>
+        <div class="field"><label>Bộ phận liên quan</label><select id="cn-bophan">${BO_PHAN_OPTIONS.map(o=>`<option value="${o}">${o}</option>`).join('')}</select></div>
         <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
       </form></details>` : ''}
     <div class="table-wrap"><table>
-      <thead><tr><th>Chủ hàng</th><th style="text-align:right">Số tiền</th><th>Hạn thanh toán</th><th>Trạng thái</th><th></th></tr></thead>
-      <tbody>${state.congno.map(c => `<tr><td>${c.chuHang}</td><td class="num">${fmt(c.soTien)}</td><td class="mono">${c.hanThanhToan}</td>
+      <thead><tr><th>Chủ hàng</th><th style="text-align:right">Số tiền</th><th>Hạn thanh toán</th><th>Bộ phận</th><th>Trạng thái</th><th></th></tr></thead>
+      <tbody>${congnoHienThi.map(c => `<tr><td>${c.chuHang}</td><td class="num">${fmt(c.soTien)}</td><td class="mono">${c.hanThanhToan}</td><td>${c.boPhan||'Khác'}</td>
         <td><span class="pill ${c.trangThai==='Đã thu'?'approved':'pending'}">${c.trangThai}</span></td>
         <td><div class="row-actions">${(canAppr && c.trangThai==='Chưa thu') ? `<button class="mini-btn approve" onclick="danhDauDaThu('${c.id}')">Đánh dấu đã thu</button>` : ''}${canAdd ? actionButtons('congno', c.id) : ''}</div></td></tr>`).join('')
-        || `<tr class="empty-row"><td colspan="5">Chưa có công nợ nào</td></tr>`}</tbody>
+        || `<tr class="empty-row"><td colspan="6">Chưa có công nợ nào</td></tr>`}</tbody>
     </table></div>`;
 }
 function submitCongNo(e){
   e.preventDefault();
   const chuHang = document.getElementById('cn-chuhang').value;
   state.congno.push({id:'CN'+(state.nextId++), chuHang, soTien:parseFloat(document.getElementById('cn-sotien').value)||0,
-    hanThanhToan:document.getElementById('cn-han').value, trangThai:'Chưa thu'});
+    hanThanhToan:document.getElementById('cn-han').value, boPhan:document.getElementById('cn-bophan').value, trangThai:'Chưa thu'});
   logActivity(`Thêm công nợ của "${chuHang}"`);
   renderM7(); return false;
 }
@@ -4233,12 +4262,13 @@ function danhDauDaThu(id){
 /* ---- Nhật ký hóa đơn ---- */
 function renderNhatKyHoaDon(body){
   const canAdd = currentUser.id==='TC';
-  const tongDoanhThu = state.hoadon.filter(h=>h.loai==='Doanh thu').reduce((s,h)=>s+(h.giaTriTruocThue||0),0);
-  const tongChiPhi = state.hoadon.filter(h=>h.loai==='Chi phí').reduce((s,h)=>s+(h.giaTriTruocThue||0),0);
-  const rows = state.hoadon.slice().sort((a,b)=>b.ngay.localeCompare(a.ngay));
+  const xemHet = xemToanBoTaiChinh();
+  const rows = (xemHet ? state.hoadon.slice() : state.hoadon.filter(h=>h.boPhan===boPhanCuaToi())).sort((a,b)=>b.ngay.localeCompare(a.ngay));
+  const tongDoanhThu = rows.filter(h=>h.loai==='Doanh thu').reduce((s,h)=>s+(h.giaTriTruocThue||0),0);
+  const tongChiPhi = rows.filter(h=>h.loai==='Chi phí').reduce((s,h)=>s+(h.giaTriTruocThue||0),0);
   body.innerHTML = `
     <div class="panel-head"><h3>Nhật ký hóa đơn</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Ghi lại hóa đơn đã xuất/nhận qua phần mềm hóa đơn điện tử của công ty — không phải nơi phát hành hóa đơn. Chỉ Kế toán ghi nhận được.</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Ghi lại hóa đơn đã xuất/nhận qua phần mềm hóa đơn điện tử của công ty — không phải nơi phát hành hóa đơn. Chỉ Kế toán ghi nhận được.${xemHet ? '' : ` Chỉ hiển thị hóa đơn thuộc bộ phận "${boPhanCuaToi()}".`}</p>
     <div class="stat-row">
       <div class="stat-card"><div class="slabel">Tổng hóa đơn đầu ra (doanh thu)</div><div class="sval">${fmt(tongDoanhThu)} <span class="sunit">đ</span></div></div>
       <div class="stat-card"><div class="slabel">Tổng hóa đơn đầu vào (chi phí)</div><div class="sval warn">${fmt(tongChiPhi)} <span class="sunit">đ</span></div></div>
@@ -4252,18 +4282,19 @@ function renderNhatKyHoaDon(body){
           <option value="Doanh thu">Doanh thu (hóa đơn đầu ra)</option>
           <option value="Chi phí">Chi phí (hóa đơn đầu vào)</option>
         </select></div>
+        <div class="field"><label>Bộ phận liên quan</label><select id="hd-bophan">${BO_PHAN_OPTIONS.map(o=>`<option value="${o}">${o}</option>`).join('')}</select></div>
         <div class="field"><label>Giá trị trước thuế (đ)</label><input type="number" required id="hd-truocthue"></div>
         <div class="field"><label>Tiền thuế VAT (đ)</label><input type="number" id="hd-vat" value="0"></div>
         <div class="field" style="grid-column:1/-1"><label>Ghi chú</label><input id="hd-ghichu"></div>
         <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
       </form></details>` : ''}
     <div class="table-wrap"><table>
-      <thead><tr><th>Ngày</th><th>Số hóa đơn</th><th>Đối tác</th><th>Loại</th><th style="text-align:right">Trước thuế</th><th style="text-align:right">VAT</th><th style="text-align:right">Sau thuế</th><th>Thanh toán</th><th>Ghi chú</th><th></th></tr></thead>
-      <tbody>${rows.map(h=>`<tr><td class="mono">${h.ngay}</td><td class="mono">${h.soHoaDon}</td><td>${h.doiTac}</td><td>${h.loai}</td>
+      <thead><tr><th>Ngày</th><th>Số hóa đơn</th><th>Đối tác</th><th>Loại</th><th>Bộ phận</th><th style="text-align:right">Trước thuế</th><th style="text-align:right">VAT</th><th style="text-align:right">Sau thuế</th><th>Thanh toán</th><th>Ghi chú</th><th></th></tr></thead>
+      <tbody>${rows.map(h=>`<tr><td class="mono">${h.ngay}</td><td class="mono">${h.soHoaDon}</td><td>${h.doiTac}</td><td>${h.loai}</td><td>${h.boPhan||'Khác'}</td>
         <td class="num">${fmt(h.giaTriTruocThue)}</td><td class="num">${fmt(h.soTienVAT)}</td><td class="num">${fmt(h.giaTriTruocThue+h.soTienVAT)}</td>
         <td><span class="pill ${h.trangThaiThanhToan==='Đã thanh toán'?'approved':'pending'}">${h.trangThaiThanhToan}</span></td><td>${h.ghiChu||''}</td>
         <td><div class="row-actions">${(canAdd && h.trangThaiThanhToan!=='Đã thanh toán') ? `<button class="mini-btn approve" onclick="ghiNhanThanhToanHoaDon('${h.id}')">Ghi nhận thanh toán</button>` : ''}${canAdd ? actionButtons('hoadon', h.id) : ''}</div></td></tr>`).join('')
-        || `<tr class="empty-row"><td colspan="10">Chưa có hóa đơn nào được ghi nhận</td></tr>`}</tbody>
+        || `<tr class="empty-row"><td colspan="11">Chưa có hóa đơn nào được ghi nhận</td></tr>`}</tbody>
     </table></div>`;
 }
 function submitHoaDon(e){
@@ -4273,6 +4304,7 @@ function submitHoaDon(e){
   state.hoadon.push({id:'HD'+(state.nextId++), soHoaDon, doiTac,
     ngay: document.getElementById('hd-ngay').value,
     loai: document.getElementById('hd-loai').value,
+    boPhan: document.getElementById('hd-bophan').value,
     giaTriTruocThue: parseFloat(document.getElementById('hd-truocthue').value)||0,
     soTienVAT: parseFloat(document.getElementById('hd-vat').value)||0,
     trangThaiThanhToan: 'Chưa thanh toán',
