@@ -426,7 +426,7 @@ function defaultPermissions(){
     VT: {M1:'X',M4:'D',M7:'N'},
     DV: {M2:'X',M5:'D',M7:'N'},
     TC: {M1:'X',M2:'N',M3:'X',M4:'X',M5:'X',M6:'X',M7:'D',M10:'X'},
-    NS: {M2:'X',M8:'D'},
+    NS: {M2:'X',M7:'N',M8:'D'},
     IT: {M1:'X',M2:'X',M3:'X',M4:'X',M5:'X',M6:'X',M7:'X',M8:'X',M9:'Q',M10:'X'},
     CH: {M1:'X',M3:'X'},
   };
@@ -496,6 +496,7 @@ function loadState(){
     if(state.permissions.TC && state.permissions.TC.M10===undefined) state.permissions.TC.M10 = 'X';
     if(state.permissions.BLD && state.permissions.BLD.M10===undefined) state.permissions.BLD.M10 = 'X';
     if(state.permissions.IT && state.permissions.IT.M10===undefined) state.permissions.IT.M10 = 'X';
+    if(state.permissions.NS && state.permissions.NS.M7===undefined) state.permissions.NS.M7 = 'N'; // NS được lập đề xuất/đề nghị/tạm ứng cho nhu cầu hành chính chung, thay cho Kế toán/BLD tự đề xuất
     if(!state.log) state.log = [];
     if(!state.doixe) state.doixe = seedState().doixe;
     if(!state.congviec) state.congviec = seedState().congviec;
@@ -3885,12 +3886,13 @@ function renderTaiChinhTongQuan(body){
 /* ---- Đề xuất mua hàng ---- */
 function renderDeXuatMuaHang(body){
   const canAdd = canEnter('M7');
+  const canSubmit = canEnter('M7') && !canApprove('M7');
   body.innerHTML = `
     <div class="panel-head"><h3>Đề xuất mua hàng</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Bộ phận có nhu cầu lập đề xuất kèm nhà cung cấp/đơn giá dự kiến. Luồng: Trưởng bộ phận duyệt → Kế toán kiểm tra hồ sơ → Ban lãnh đạo phê duyệt trước khi đặt hàng.</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Bộ phận có nhu cầu lập đề xuất kèm nhà cung cấp/đơn giá dự kiến. Luồng: Trưởng bộ phận duyệt → Kế toán kiểm tra hồ sơ → Ban lãnh đạo phê duyệt trước khi đặt hàng. Nhu cầu chung/hành chính (kể cả của Kế toán, Ban lãnh đạo) do phòng Nhân sự — hành chính đứng ra lập đề xuất, để đảm bảo người duyệt không tự duyệt cho chính mình.</p>
     <p style="font-size:11.5px;color:var(--ink-soft);margin:-10px 0 14px;font-style:italic">Ghi chú: bản demo dùng chung 1 tài khoản cho cả phòng ban nên bước "Trưởng bộ phận duyệt" vẫn thực hiện trên cùng tài khoản đó (chỉ mang tính quy trình/nhắc việc) — khi triển khai chính thức với tài khoản riêng từng người sẽ tách hẳn người lập và người duyệt.</p>
     <p style="font-size:11.5px;color:var(--ink-soft);margin:-10px 0 14px;font-style:italic">Ghi chú: bản demo chưa có server dùng chung nên chưa thể báo (mở máy/tin nhắn) cho cấp duyệt — cấp duyệt cần chủ động vào tab này để xem việc chờ xử lý. Tính năng thông báo tự động sẽ làm khi công ty triển khai server thật.</p>
-    ${canAdd ? `<details class="add-details"><summary class="add-summary">Lập đề xuất mua hàng</summary>
+    ${canSubmit ? `<details class="add-details"><summary class="add-summary">Lập đề xuất mua hàng</summary>
       <form class="inline-form" onsubmit="return submitDeXuat(event)">
         <div class="field"><label>Ngày</label><input type="date" required id="dx-ngay"></div>
         <div class="field"><label>Người đề xuất</label><input required id="dx-nguoi" value="${currentUser.name}"></div>
@@ -3991,11 +3993,12 @@ function duyetDeXuat(id, dong){
 /* ---- Đề nghị thanh toán ---- */
 function renderDeNghiThanhToan(body){
   const canAdd = canEnter('M7');
+  const canSubmit = canEnter('M7') && !canApprove('M7');
   body.innerHTML = `
     <div class="panel-head"><h3>Đề nghị thanh toán</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Áp dụng cho cả thanh toán nội bộ và thanh toán nhà cung cấp. Đề nghị cho nhà cung cấp phải liên kết với 1 đề xuất mua hàng đã duyệt (số tiền thực tế có thể khác số dự kiến). Luồng: Trưởng bộ phận duyệt → Kế toán kiểm tra → Ban lãnh đạo duyệt → Kế toán/Thủ quỹ thực hiện chi.</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Áp dụng cho cả thanh toán nội bộ và thanh toán nhà cung cấp. Đề nghị cho nhà cung cấp phải liên kết với 1 đề xuất mua hàng đã duyệt (số tiền thực tế có thể khác số dự kiến). Luồng: Trưởng bộ phận duyệt → Kế toán kiểm tra → Ban lãnh đạo duyệt → Kế toán/Thủ quỹ thực hiện chi. Nhu cầu chung/hành chính do phòng Nhân sự — hành chính đứng ra lập.</p>
     <p style="font-size:11.5px;color:var(--ink-soft);margin:-10px 0 14px;font-style:italic">Ghi chú: bản demo dùng chung 1 tài khoản cho cả phòng ban nên bước "Trưởng bộ phận duyệt" vẫn thực hiện trên cùng tài khoản đó (chỉ mang tính quy trình/nhắc việc) — khi triển khai chính thức với tài khoản riêng từng người sẽ tách hẳn người lập và người duyệt. Cũng chưa có server dùng chung nên chưa thể báo (mở máy/tin nhắn) cho cấp duyệt — cấp duyệt cần chủ động vào tab này để xem việc chờ xử lý.</p>
-    ${canAdd ? `<details class="add-details"><summary class="add-summary">Lập đề nghị thanh toán</summary>
+    ${canSubmit ? `<details class="add-details"><summary class="add-summary">Lập đề nghị thanh toán</summary>
       <form class="inline-form" onsubmit="return submitDeNghi(event)">
         <div class="field"><label>Ngày</label><input type="date" required id="tt-ngay"></div>
         <div class="field"><label>Loại</label><select id="tt-loai"><option value="Nhà cung cấp">Nhà cung cấp</option><option value="Nội bộ">Nội bộ</option></select></div>
@@ -4085,6 +4088,7 @@ function thanhToanDeNghi(id){
 /* ---- Tạm ứng ---- */
 function renderTamUng(body){
   const canAdd = canEnter('M7');
+  const canSubmit = canEnter('M7') && !canApprove('M7');
   const xemHet = xemToanBoTaiChinh();
   const list = xemHet ? state.tamung : state.tamung.filter(t=>t.boPhan===boPhanCuaToi());
   const tamUngChuaQuyetToan = list.filter(t=>t.trangThai!=='Đã quyết toán').reduce((s,t)=>s+t.soTienTamUng,0);
@@ -4093,9 +4097,9 @@ function renderTamUng(body){
       <div class="stat-card"><div class="slabel">Tạm ứng chưa quyết toán</div><div class="sval">${fmt(tamUngChuaQuyetToan)} <span class="sunit">đ</span></div></div>
     </div>
     <div class="panel-head"><h3>Tạm ứng${xemHet ? '' : ` — bộ phận ${boPhanCuaToi()}`}</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Luồng: Trưởng bộ phận duyệt → Kế toán kiểm tra → Ban lãnh đạo duyệt → Kế toán chi tạm ứng → Người nhận quyết toán sau khi hoàn thành công việc.${xemHet ? '' : ' Chỉ hiển thị tạm ứng của bộ phận bạn.'}</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Luồng: Trưởng bộ phận duyệt → Kế toán kiểm tra → Ban lãnh đạo duyệt → Kế toán chi tạm ứng → Người nhận quyết toán sau khi hoàn thành công việc. Nhu cầu tạm ứng của Kế toán/Ban lãnh đạo do phòng Nhân sự — hành chính đứng ra lập.${xemHet ? '' : ' Chỉ hiển thị tạm ứng của bộ phận bạn.'}</p>
     <p style="font-size:11.5px;color:var(--ink-soft);margin:-10px 0 14px;font-style:italic">Ghi chú: bản demo dùng chung 1 tài khoản cho cả phòng ban nên bước "Trưởng bộ phận duyệt" vẫn thực hiện trên cùng tài khoản đó (chỉ mang tính quy trình/nhắc việc) — khi triển khai chính thức với tài khoản riêng từng người sẽ tách hẳn người lập và người duyệt.</p>
-    ${canAdd ? `<details class="add-details"><summary class="add-summary">Đề nghị tạm ứng</summary>
+    ${canSubmit ? `<details class="add-details"><summary class="add-summary">Đề nghị tạm ứng</summary>
       <form class="inline-form" onsubmit="return submitTamUng(event)">
         <div class="field"><label>Ngày</label><input type="date" required id="tu-ngay"></div>
         <div class="field"><label>Người nhận</label><input required id="tu-nguoi" value="${currentUser.name}"></div>
