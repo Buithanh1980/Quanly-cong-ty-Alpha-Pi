@@ -516,6 +516,7 @@ function loadState(){
     }
     if(state.doixe) state.doixe.forEach(d=>{ d.thietBi = d.thietBi.map(t=>t==='Máy múc' ? 'Máy múc to' : t); });
     if(!state.dexuatmuahang) state.dexuatmuahang = seedState().dexuatmuahang;
+    state.dexuatmuahang.forEach(x=>{ if(x.trangThai==='Chờ duyệt') x.trangThai = 'Đã kiểm tra'; }); // dữ liệu cũ trước khi có bước Kế toán kiểm tra — coi như đã qua bước này, chuyển thẳng sang chờ BLD duyệt
     if(!state.denghithanhtoan) state.denghithanhtoan = seedState().denghithanhtoan;
     if(!state.tamung) state.tamung = seedState().tamung;
     if(!state.soquy) state.soquy = seedState().soquy;
