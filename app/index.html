@@ -364,6 +364,22 @@
   </div>
 </div>
 
+<!-- ============ MODAL: Quyết toán tạm ứng (M7) ============ -->
+<div class="modal-overlay" id="modal-quyettoan">
+  <div class="modal">
+    <h3>Quyết toán tạm ứng</h3>
+    <p class="mnote" id="qt-error" style="display:none;color:var(--red)"></p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 10px" id="qt-info"></p>
+    <div id="qt-danhsach"></div>
+    <button type="button" class="mini-btn" onclick="themDongQuyetToan()">+ Thêm khoản chi</button>
+    <div style="margin-top:14px;font-weight:700" id="qt-tongchi"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" onclick="closeModal('modal-quyettoan')">Hủy</button>
+      <button type="button" class="add-btn" onclick="luuQuyetToanTamUng()">Lưu quyết toán</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ MODAL: Nội dung giao việc để dán Zalo (M1) ============ -->
 <div class="modal-overlay" id="modal-zalo">
   <div class="modal" style="max-width:600px">
@@ -4302,12 +4318,23 @@ function thanhToanDeNghi(id){
 }
 
 /* ---- Tạm ứng ---- */
+function tongHopTamUngTheoNguoi(list){
+  const map = {};
+  list.filter(t=>t.trangThai!=='Đã quyết toán' && t.trangThai!=='Từ chối').forEach(t=>{
+    if(!map[t.nguoiNhan]) map[t.nguoiNhan] = {nguoiNhan:t.nguoiNhan, tong:0, soKhoan:0, ngayCu:t.ngay};
+    map[t.nguoiNhan].tong += t.soTienTamUng;
+    map[t.nguoiNhan].soKhoan += 1;
+    if(t.ngay < map[t.nguoiNhan].ngayCu) map[t.nguoiNhan].ngayCu = t.ngay;
+  });
+  return Object.values(map).sort((a,b)=>b.tong-a.tong);
+}
 function renderTamUng(body){
   const canAdd = canEnter('M7');
   const canSubmit = canEnter('M7') && !canApprove('M7');
   const xemHet = xemToanBoTaiChinh();
   const list = xemHet ? state.tamung : state.tamung.filter(t=>t.boPhan===boPhanCuaToi());
   const tamUngChuaQuyetToan = list.filter(t=>t.trangThai!=='Đã quyết toán').reduce((s,t)=>s+t.soTienTamUng,0);
+  const tongHopNguoi = tongHopTamUngTheoNguoi(list);
   body.innerHTML = `
     <div class="stat-row">
       <div class="stat-card"><div class="slabel">Tạm ứng chưa quyết toán</div><div class="sval">${fmt(tamUngChuaQuyetToan)} <span class="sunit">đ</span></div></div>
@@ -4315,6 +4342,18 @@ function renderTamUng(body){
     <div class="panel-head"><h3>Tạm ứng${xemHet ? '' : ` — bộ phận ${boPhanCuaToi()}`}</h3></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Luồng: Trưởng bộ phận duyệt → Kế toán kiểm tra → Ban lãnh đạo duyệt → Kế toán chi tạm ứng → Người nhận quyết toán sau khi hoàn thành công việc. Nhu cầu tạm ứng của Kế toán/Ban lãnh đạo do phòng Nhân sự — hành chính đứng ra lập.${xemHet ? '' : ' Chỉ hiển thị tạm ứng của bộ phận bạn.'}</p>
     <p style="font-size:11.5px;color:var(--ink-soft);margin:-10px 0 14px;font-style:italic">Ghi chú: bản demo dùng chung 1 tài khoản cho cả phòng ban nên bước "Trưởng bộ phận duyệt" vẫn thực hiện trên cùng tài khoản đó (chỉ mang tính quy trình/nhắc việc) — khi triển khai chính thức với tài khoản riêng từng người sẽ tách hẳn người lập và người duyệt.</p>
+    ${tongHopNguoi.length ? `<div class="section-block" style="margin:0 0 18px">
+      <h3 style="font-size:13.5px">Tổng hợp tạm ứng chưa quyết toán theo người nhận</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Người nhận</th><th style="text-align:right">Số khoản chưa quyết toán</th><th style="text-align:right">Tổng tiền</th><th>Khoản lâu nhất từ ngày</th></tr></thead>
+        <tbody>${tongHopNguoi.map(n=>{
+          const soNgay = -daysUntil(n.ngayCu);
+          const canhBao = soNgay > 30;
+          return `<tr><td>${n.nguoiNhan}</td><td class="num">${n.soKhoan}</td><td class="num" style="font-weight:700">${fmt(n.tong)} đ</td>
+            <td class="mono">${n.ngayCu}${canhBao ? ` <span class="pill pending" style="margin-left:4px">${soNgay} ngày — nhắc quyết toán</span>` : ` (${soNgay} ngày)`}</td></tr>`;
+        }).join('')}</tbody>
+      </table></div>
+    </div>` : ''}
     ${canSubmit ? `<details class="add-details"><summary class="add-summary">Đề nghị tạm ứng</summary>
       <form class="inline-form" onsubmit="return submitTamUng(event)">
         <div class="field"><label>Ngày</label><input type="date" required id="tu-ngay"></div>
@@ -4338,10 +4377,13 @@ function renderTamUng(body){
           action += `<button class="mini-btn approve" onclick="duyetTamUng('${t.id}',true)">Duyệt</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetTamUng('${t.id}',false)">Từ chối</button>`;
         }
         if(currentUser.id==='TC' && t.trangThai==='Đã duyệt') action += `<button class="mini-btn approve" onclick="chiTamUng('${t.id}')">Chi tạm ứng</button>`;
-        if(canAdd && t.trangThai==='Đã chi') action += `<button class="mini-btn" onclick="quyetToanTamUng('${t.id}')">Quyết toán</button>`;
+        if(canAdd && t.trangThai==='Đã chi') action += `<button class="mini-btn" onclick="moQuyetToanTamUng('${t.id}')">Quyết toán</button>`;
         if(canAdd) action += actionButtons('tamung', t.id);
+        const chiTietHtml = (t.chiTietQuyetToan && t.chiTietQuyetToan.length)
+          ? `<div style="font-size:11px;color:var(--ink-soft);margin-top:3px">${t.chiTietQuyetToan.map(d=>`${d.noiDung}: ${fmt(d.soTien)} đ${d.coHoaDon?` (HĐ ${d.soHoaDon||'—'})`:' (không HĐ)'}`).join('; ')}</div>`
+          : '';
         return `<tr><td class="mono">${t.ngay}</td><td>${t.nguoiNhan}</td><td>${t.noiDung}</td><td class="num">${fmt(t.soTienTamUng)}</td>
-          <td class="num">${t.soTienQuyetToan!=null?fmt(t.soTienQuyetToan):''}</td>
+          <td class="num">${t.soTienQuyetToan!=null?fmt(t.soTienQuyetToan):''}${chiTietHtml}</td>
           <td class="num" style="color:${t.chenhLech>0?'var(--brand)':t.chenhLech<0?'var(--red)':'inherit'}">${t.chenhLech!=null?(t.chenhLech>0?'+':'')+fmt(t.chenhLech):''}</td>
           <td><span class="pill ${pillClass}">${t.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
       }).join('') || `<tr class="empty-row"><td colspan="8">Chưa có đề nghị tạm ứng nào</td></tr>`}</tbody>
@@ -4382,16 +4424,59 @@ function chiTamUng(id){
   logActivity(`Chi tạm ứng "${t.noiDung}" (${fmt(t.soTienTamUng)} đ) — đã ghi sổ quỹ`);
   renderM7();
 }
-function quyetToanTamUng(id){
+let qtCtx = null;
+function moQuyetToanTamUng(id){
   const t = state.tamung.find(t=>t.id===id); if(!t) return;
-  const v = prompt('Số tiền thực tế đã sử dụng (đ):', t.soTienTamUng);
-  if(v===null) return;
-  const thucTe = parseFloat(v)||0;
+  qtCtx = {id, dong: [{noiDung:'', soTien:0, coHoaDon:true, soHoaDon:''}]};
+  document.getElementById('qt-info').textContent = `Đã tạm ứng: ${fmt(t.soTienTamUng)} đ cho "${t.noiDung}" (${t.nguoiNhan}). Liệt kê từng khoản đã chi để quyết toán — khoản nào không có hóa đơn/chứng từ vẫn ghi nhận nhưng đánh dấu rõ để dễ kiểm tra sau này.`;
+  document.getElementById('qt-error').style.display = 'none';
+  renderDongQuyetToan();
+  openModal('modal-quyettoan');
+}
+function renderDongQuyetToan(){
+  const wrap = document.getElementById('qt-danhsach');
+  wrap.innerHTML = qtCtx.dong.map((d,i)=>`
+    <div class="inline-form" style="grid-template-columns:2fr 1fr 1.2fr 1fr auto;margin-bottom:8px;align-items:end">
+      <div class="field" style="margin:0"><label>Nội dung chi</label><input value="${d.noiDung}" placeholder="VD: Vé xe khách" onchange="suaDongQuyetToan(${i},'noiDung',this.value)"></div>
+      <div class="field" style="margin:0"><label>Số tiền (đ)</label><input type="number" value="${d.soTien||''}" onchange="suaDongQuyetToan(${i},'soTien',this.value)"></div>
+      <div class="field" style="margin:0"><label>Chứng từ</label><select onchange="suaDongQuyetToan(${i},'coHoaDon',this.value)">
+        <option value="true" ${d.coHoaDon?'selected':''}>Có hóa đơn/chứng từ</option>
+        <option value="false" ${!d.coHoaDon?'selected':''}>Không có (tạm tính)</option>
+      </select></div>
+      <div class="field" style="margin:0"><label>Số hóa đơn</label><input value="${d.soHoaDon}" ${d.coHoaDon?'':'disabled placeholder="—"'} onchange="suaDongQuyetToan(${i},'soHoaDon',this.value)"></div>
+      <button type="button" class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="xoaDongQuyetToan(${i})">Xóa</button>
+    </div>`).join('');
+  const tong = qtCtx.dong.reduce((s,d)=>s+(parseFloat(d.soTien)||0),0);
+  document.getElementById('qt-tongchi').textContent = `Tổng đã chi tiêu: ${fmt(tong)} đ`;
+}
+function themDongQuyetToan(){ qtCtx.dong.push({noiDung:'', soTien:0, coHoaDon:true, soHoaDon:''}); renderDongQuyetToan(); }
+function xoaDongQuyetToan(i){
+  qtCtx.dong.splice(i,1);
+  if(!qtCtx.dong.length) qtCtx.dong.push({noiDung:'', soTien:0, coHoaDon:true, soHoaDon:''});
+  renderDongQuyetToan();
+}
+function suaDongQuyetToan(i, key, val){
+  if(key==='coHoaDon') val = (val==='true');
+  if(key==='soTien') val = parseFloat(val)||0;
+  qtCtx.dong[i][key] = val;
+  renderDongQuyetToan();
+}
+function luuQuyetToanTamUng(){
+  const t = state.tamung.find(t=>t.id===qtCtx.id); if(!t) return;
+  const dongHopLe = qtCtx.dong.filter(d=>d.noiDung.trim() && d.soTien>0);
+  if(!dongHopLe.length){
+    const errEl = document.getElementById('qt-error');
+    errEl.textContent = 'Nhập ít nhất 1 khoản chi có nội dung và số tiền lớn hơn 0.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const thucTe = dongHopLe.reduce((s,d)=>s+d.soTien,0);
   const lech = t.soTienTamUng - thucTe;
-  t.soTienQuyetToan = thucTe; t.chenhLech = lech; t.trangThai = 'Đã quyết toán';
+  t.soTienQuyetToan = thucTe; t.chenhLech = lech; t.trangThai = 'Đã quyết toán'; t.chiTietQuyetToan = dongHopLe;
   if(lech > 0) themSoQuy('Thu', lech, t.hinhThuc, `Hoàn tạm ứng thừa: ${t.noiDung}`, `Tạm ứng ${t.id}`);
   if(lech < 0) themSoQuy('Chi', -lech, t.hinhThuc, `Chi bổ sung tạm ứng thiếu: ${t.noiDung}`, `Tạm ứng ${t.id}`);
-  logActivity(`Quyết toán tạm ứng "${t.noiDung}": dùng ${fmt(thucTe)} đ, chênh lệch ${fmt(lech)} đ`);
+  logActivity(`Quyết toán tạm ứng "${t.noiDung}": dùng ${fmt(thucTe)} đ (${dongHopLe.length} khoản chi), chênh lệch ${fmt(lech)} đ`);
+  closeModal('modal-quyettoan');
   renderM7();
 }
 
