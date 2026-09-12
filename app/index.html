@@ -464,6 +464,8 @@ function seedState(){
     tamung: [],
     soquy: [],
     hoadon: [],
+    khoanvay: [],
+    lichtrano: [],
     nhansu: [],
     thietBiSoLuong: {'Xúc lật':0, 'Máy múc nhỏ':0, 'Máy múc to':0, 'Cẩu điện':0},
     nextId: 1,
@@ -518,6 +520,8 @@ function loadState(){
     if(!state.tamung) state.tamung = seedState().tamung;
     if(!state.soquy) state.soquy = seedState().soquy;
     if(!state.hoadon) state.hoadon = seedState().hoadon;
+    if(!state.khoanvay) state.khoanvay = seedState().khoanvay;
+    if(!state.lichtrano) state.lichtrano = seedState().lichtrano;
     state.hoadon.forEach(h=>{ if(h.trangThaiThanhToan===undefined) h.trangThaiThanhToan = 'Chưa thanh toán'; });
     state.khachhang.forEach(k=>{
       if(k.loaiDoiTac==='Khách hàng thuê bãi' || k.loaiDoiTac==='Chủ hàng') k.loaiDoiTac = 'Khách hàng thuê bãi (chủ hàng)';
@@ -2676,6 +2680,21 @@ const FIELD_SCHEMAS = {
     {key:'trangThaiThanhToan', label:'Trạng thái thanh toán', type:'select', options:[{v:'Chưa thanh toán',t:'Chưa thanh toán'},{v:'Đã thanh toán',t:'Đã thanh toán'}]},
     {key:'ghiChu', label:'Ghi chú', type:'text'},
   ]},
+  khoanvay: {ten:'khoản vay', fields:[
+    {key:'nganHang', label:'Ngân hàng', type:'text'},
+    {key:'soTienVayGoc', label:'Số tiền vay gốc (đ)', type:'number'},
+    {key:'ngayGiaiNgan', label:'Ngày giải ngân', type:'date'},
+    {key:'laiSuatNam', label:'Lãi suất (%/năm)', type:'number'},
+    {key:'kyHan', label:'Kỳ hạn (tháng)', type:'number'},
+    {key:'ghiChu', label:'Ghi chú', type:'text'},
+  ]},
+  lichtrano: {ten:'kỳ trả nợ vay', fields:[
+    {key:'ngayDenHan', label:'Ngày đến hạn', type:'date'},
+    {key:'tienGoc', label:'Tiền gốc kỳ này (đ)', type:'number'},
+    {key:'tienLai', label:'Tiền lãi kỳ này (đ)', type:'number'},
+    {key:'trangThai', label:'Trạng thái', type:'select', options:[{v:'Chưa trả',t:'Chưa trả'},{v:'Đã trả',t:'Đã trả'}]},
+    {key:'ghiChu', label:'Ghi chú', type:'text'},
+  ]},
   kiemke: {ten:'biên bản kiểm kê', fields:[
     {key:'ngay', label:'Ngày kiểm kê', type:'date'},
     {key:'tonSoSach', label:'Tồn sổ sách (tấn)', type:'number'}, {key:'tonThucTe', label:'Tồn thực tế (tấn)', type:'number'},
@@ -3716,6 +3735,16 @@ function bangChiTietHoaDon(list, tenCotDoiTac){
   </table></div>`;
 }
 
+/* ---- Khoản vay ngân hàng ---- */
+function duNoKhoanVay(id){
+  const kv = state.khoanvay.find(k=>k.id===id); if(!kv) return 0;
+  const daTraGoc = state.lichtrano.filter(l=>l.khoanVayId===id && l.trangThai==='Đã trả').reduce((s,l)=>s+(l.tienGoc||0),0);
+  return Math.max(0, (kv.soTienVayGoc||0) - daTraGoc);
+}
+function tongDuNoVay(){
+  return state.khoanvay.reduce((s,kv)=>s+duNoKhoanVay(kv.id), 0);
+}
+
 function renderM7(){
   const content = document.getElementById('content');
   const tabs = [
@@ -3726,6 +3755,7 @@ function renderM7(){
     {id:'soquy', label:'Sổ quỹ'},
     {id:'congno', label:'Công nợ'},
     {id:'hoadon', label:'Nhật ký hóa đơn'},
+    {id:'khoanvay', label:'Khoản vay'},
   ];
   if(!tabs.some(t=>t.id===currentTab)) currentTab = 'tqtc';
   content.innerHTML = `<div class="tabs">` + tabs.map(t =>
@@ -3739,6 +3769,7 @@ function renderM7(){
   if(currentTab==='soquy') return renderSoQuy(body);
   if(currentTab==='congno') return renderCongNo(body);
   if(currentTab==='hoadon') return renderNhatKyHoaDon(body);
+  if(currentTab==='khoanvay') return renderKhoanVay(body);
 }
 
 function renderTaiChinhTongQuan(body){
@@ -3786,10 +3817,11 @@ function renderTaiChinhTongQuan(body){
     </div>
     <p style="font-size:11.5px;color:var(--ink-soft);margin:8px 0 0">"Doanh thu phát sinh" = khối lượng nhập/xuất trong kỳ × đơn giá đã khai báo ở M10, cộng doanh thu cho thuê bãi theo diện tích — là số <b>ước tính nội bộ</b>, không phải doanh thu kế toán chính thức. "Đã xuất hóa đơn" lấy từ tab Nhật ký hóa đơn (Kế toán tự ghi nhận mỗi khi xuất hóa đơn thật qua phần mềm hóa đơn điện tử).</p>
 
-    <div class="panel-head" style="margin-top:24px"><h3 style="font-size:14px">Công nợ</h3></div>
+    <div class="panel-head" style="margin-top:24px"><h3 style="font-size:14px">Công nợ &amp; vay</h3></div>
     <div class="stat-row">
       <div class="stat-card"><div class="slabel">Phải thu (khách hàng)</div><div class="sval warn">${fmt(phaiThu)} <span class="sunit">đ</span></div></div>
       <div class="stat-card"><div class="slabel">Phải trả NCC</div><div class="sval warn">${fmt(phaiTraNCC)} <span class="sunit">đ</span></div></div>
+      <div class="stat-card"><div class="slabel">Dư nợ vay ngân hàng</div><div class="sval warn">${fmt(tongDuNoVay())} <span class="sunit">đ</span></div></div>
     </div>
     <div class="section-block" style="margin-top:16px">
       <h3 style="font-size:13.5px">Chi tiết phải thu (hóa đơn chưa thanh toán)</h3>
@@ -4151,6 +4183,93 @@ function ghiNhanThanhToanHoaDon(id){
   const loaiQuy = h.loai==='Doanh thu' ? 'Thu' : 'Chi';
   themSoQuy(loaiQuy, tongTien, 'Chuyển khoản', `${loaiQuy} theo hóa đơn ${h.soHoaDon} — ${h.doiTac}`, `Hóa đơn ${h.id}`);
   logActivity(`Ghi nhận thanh toán hóa đơn "${h.soHoaDon}" (${fmt(tongTien)} đ) — đã ghi sổ quỹ`);
+  renderM7();
+}
+
+/* ---- Khoản vay ---- */
+function renderKhoanVay(body){
+  const canAdd = canEnter('M7');
+  const canGhiNhan = currentUser.id==='TC';
+  const rows = state.lichtrano.slice().sort((a,b)=>a.ngayDenHan.localeCompare(b.ngayDenHan));
+  body.innerHTML = `
+    <div class="stat-row">
+      <div class="stat-card"><div class="slabel">Tổng dư nợ vay ngân hàng</div><div class="sval warn">${fmt(tongDuNoVay())} <span class="sunit">đ</span></div></div>
+    </div>
+    <div class="panel-head" style="margin-top:20px"><h3>Danh sách khoản vay</h3></div>
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm khoản vay</summary>
+      <form class="inline-form" onsubmit="return submitKhoanVay(event)">
+        <div class="field"><label>Ngân hàng</label><input required id="kv-nganhang"></div>
+        <div class="field"><label>Số tiền vay gốc (đ)</label><input type="number" required id="kv-sotien"></div>
+        <div class="field"><label>Ngày giải ngân</label><input type="date" required id="kv-ngay"></div>
+        <div class="field"><label>Lãi suất (%/năm)</label><input type="number" step="0.01" id="kv-laisuat"></div>
+        <div class="field"><label>Kỳ hạn (tháng)</label><input type="number" id="kv-kyhan"></div>
+        <div class="field" style="grid-column:1/-1"><label>Ghi chú</label><input id="kv-ghichu"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngân hàng</th><th style="text-align:right">Vay gốc</th><th>Ngày giải ngân</th><th style="text-align:right">Lãi suất</th><th>Kỳ hạn</th><th style="text-align:right">Dư nợ hiện tại</th><th>Ghi chú</th><th></th></tr></thead>
+      <tbody>${state.khoanvay.map(kv=>`<tr><td>${kv.nganHang}</td><td class="num">${fmt(kv.soTienVayGoc)}</td><td class="mono">${kv.ngayGiaiNgan}</td>
+        <td class="num">${kv.laiSuatNam||0}%/năm</td><td>${kv.kyHan||''} tháng</td><td class="num" style="font-weight:700">${fmt(duNoKhoanVay(kv.id))}</td><td>${kv.ghiChu||''}</td>
+        <td>${canAdd ? `<div class="row-actions">${actionButtons('khoanvay', kv.id)}</div>` : ''}</td></tr>`).join('')
+        || `<tr class="empty-row"><td colspan="8">Chưa có khoản vay nào</td></tr>`}</tbody>
+    </table></div>
+
+    <div class="panel-head" style="margin-top:28px"><h3>Lịch trả nợ</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Mỗi kỳ trả (thường theo tháng) ghi 1 dòng gốc + lãi phải trả. Bấm "Ghi nhận đã trả" (Kế toán) khi đã chuyển tiền cho ngân hàng — tự động ghi Chi vào Sổ quỹ và trừ vào dư nợ.</p>
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm kỳ trả nợ</summary>
+      <form class="inline-form" onsubmit="return submitLichTraNo(event)">
+        <div class="field"><label>Khoản vay</label><select required id="ltn-khoanvay">${state.khoanvay.map(kv=>`<option value="${kv.id}">${kv.nganHang} — vay ${fmt(kv.soTienVayGoc)} đ (${kv.ngayGiaiNgan})</option>`).join('') || '<option value="">— chưa có khoản vay —</option>'}</select></div>
+        <div class="field"><label>Ngày đến hạn</label><input type="date" required id="ltn-ngay"></div>
+        <div class="field"><label>Tiền gốc kỳ này (đ)</label><input type="number" required id="ltn-goc"></div>
+        <div class="field"><label>Tiền lãi kỳ này (đ)</label><input type="number" id="ltn-lai" value="0"></div>
+        <div class="field" style="grid-column:1/-1"><label>Ghi chú</label><input id="ltn-ghichu"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngân hàng</th><th>Ngày đến hạn</th><th style="text-align:right">Tiền gốc</th><th style="text-align:right">Tiền lãi</th><th style="text-align:right">Tổng phải trả</th><th>Trạng thái</th><th>Ghi chú</th><th></th></tr></thead>
+      <tbody>${rows.map(l=>{
+        const kv = state.khoanvay.find(k=>k.id===l.khoanVayId);
+        return `<tr><td>${kv?kv.nganHang:''}</td><td class="mono">${l.ngayDenHan}</td><td class="num">${fmt(l.tienGoc)}</td><td class="num">${fmt(l.tienLai)}</td>
+        <td class="num" style="font-weight:700">${fmt((l.tienGoc||0)+(l.tienLai||0))}</td>
+        <td><span class="pill ${l.trangThai==='Đã trả'?'approved':'pending'}">${l.trangThai}</span></td><td>${l.ghiChu||''}</td>
+        <td><div class="row-actions">${(canGhiNhan && l.trangThai!=='Đã trả') ? `<button class="mini-btn approve" onclick="ghiNhanDaTraNo('${l.id}')">Ghi nhận đã trả</button>` : ''}${canAdd ? actionButtons('lichtrano', l.id) : ''}</div></td></tr>`;
+      }).join('') || `<tr class="empty-row"><td colspan="8">Chưa có kỳ trả nợ nào</td></tr>`}</tbody>
+    </table></div>`;
+}
+function submitKhoanVay(e){
+  e.preventDefault();
+  const nganHang = document.getElementById('kv-nganhang').value.trim();
+  state.khoanvay.push({id:'KV'+(state.nextId++), nganHang,
+    soTienVayGoc: parseFloat(document.getElementById('kv-sotien').value)||0,
+    ngayGiaiNgan: document.getElementById('kv-ngay').value,
+    laiSuatNam: parseFloat(document.getElementById('kv-laisuat').value)||0,
+    kyHan: parseFloat(document.getElementById('kv-kyhan').value)||0,
+    ghiChu: document.getElementById('kv-ghichu').value.trim(),
+  });
+  logActivity(`Thêm khoản vay "${nganHang}"`);
+  renderM7(); return false;
+}
+function submitLichTraNo(e){
+  e.preventDefault();
+  const khoanVayId = document.getElementById('ltn-khoanvay').value;
+  if(!khoanVayId){ alert('Chưa có khoản vay nào — thêm khoản vay trước.'); return false; }
+  state.lichtrano.push({id:'LTN'+(state.nextId++), khoanVayId,
+    ngayDenHan: document.getElementById('ltn-ngay').value,
+    tienGoc: parseFloat(document.getElementById('ltn-goc').value)||0,
+    tienLai: parseFloat(document.getElementById('ltn-lai').value)||0,
+    trangThai: 'Chưa trả',
+    ghiChu: document.getElementById('ltn-ghichu').value.trim(),
+  });
+  logActivity(`Thêm kỳ trả nợ vay`);
+  renderM7(); return false;
+}
+function ghiNhanDaTraNo(id){
+  const l = state.lichtrano.find(l=>l.id===id); if(!l) return;
+  const kv = state.khoanvay.find(k=>k.id===l.khoanVayId);
+  l.trangThai = 'Đã trả';
+  const tongTien = (l.tienGoc||0) + (l.tienLai||0);
+  themSoQuy('Chi', tongTien, 'Chuyển khoản', `Trả nợ vay (gốc + lãi) kỳ ${l.ngayDenHan} — ${kv?kv.nganHang:''}`, `Lịch trả nợ ${l.id}`);
+  logActivity(`Ghi nhận đã trả nợ vay kỳ ${l.ngayDenHan} (${fmt(tongTien)} đ) — đã ghi sổ quỹ`);
   renderM7();
 }
 
