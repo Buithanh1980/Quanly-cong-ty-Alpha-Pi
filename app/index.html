@@ -517,16 +517,14 @@ function loadState(){
     if(state.doixe) state.doixe.forEach(d=>{ d.thietBi = d.thietBi.map(t=>t==='Máy múc' ? 'Máy múc to' : t); });
     if(!state.dexuatmuahang) state.dexuatmuahang = seedState().dexuatmuahang;
     state.dexuatmuahang.forEach(x=>{ if(x.trangThai==='Chờ duyệt') x.trangThai = 'Đã kiểm tra'; }); // dữ liệu cũ trước khi có bước Kế toán kiểm tra — coi như đã qua bước này, chuyển thẳng sang chờ BLD duyệt
+    chuanHoaBoPhan(state.dexuatmuahang);
     if(!state.denghithanhtoan) state.denghithanhtoan = seedState().denghithanhtoan;
+    chuanHoaBoPhan(state.denghithanhtoan);
     if(!state.tamung) state.tamung = seedState().tamung;
     state.tamung.forEach(t=>{ if(t.trangThai==='Chờ duyệt') t.trangThai = 'Đã kiểm tra'; }); // dữ liệu cũ trước khi có bước trưởng bộ phận duyệt + kế toán kiểm tra — coi như đã qua các bước này, chuyển thẳng sang chờ BLD duyệt
-    state.tamung.forEach(t=>{ // chuẩn hóa "Bộ phận" cũ gõ tay tự do về đúng 1 trong các tên chuẩn để lọc theo bộ phận hoạt động đúng
-      const bp = t.boPhan || '';
-      if(['Khai thác','Vận tải','Dịch vụ','Kế toán','Ban lãnh đạo','Nhân sự'].includes(bp)) return;
-      if(bp.includes('hai thác') || bp.includes('Khai Thác')) t.boPhan = 'Khai thác';
-      else if(bp.includes('ận tải') || bp.includes('Vận Tải')) t.boPhan = 'Vận tải';
-      else if(bp.includes('ịch vụ') || bp.includes('Dịch Vụ')) t.boPhan = 'Dịch vụ';
-      else if(bp.includes('ế toán') || bp.includes('Kế Toán')) t.boPhan = 'Kế toán';
+    chuanHoaBoPhan(state.tamung);
+    [state.dexuatmuahang, state.denghithanhtoan, state.tamung].forEach(arr=>{
+      arr.forEach(r=>{ if(r.trangThai==='Chờ trưởng phòng duyệt' && (r.boPhan==='Kế toán' || r.boPhan==='Ban lãnh đạo')) r.trangThai = 'Chờ kiểm tra'; }); // Kế toán/BLD tự đề xuất thì không có ai duyệt cấp trưởng bộ phận — bỏ qua bước này
     });
     if(!state.soquy) state.soquy = seedState().soquy;
     if(!state.hoadon) state.hoadon = seedState().hoadon;
@@ -580,6 +578,16 @@ const BO_PHAN_OPTIONS = ['Khai thác','Vận tải','Dịch vụ','Khác'];
 const BO_PHAN_THEO_ROLE = {KT:'Khai thác', VT:'Vận tải', DV:'Dịch vụ', TC:'Kế toán', BLD:'Ban lãnh đạo', NS:'Nhân sự'};
 function boPhanCuaToi(){ return BO_PHAN_THEO_ROLE[currentUser.id] || currentUser.name; }
 function xemToanBoTaiChinh(){ return currentUser.id==='TC' || currentUser.id==='BLD'; }
+function chuanHoaBoPhan(list){ // chuẩn hóa "Bộ phận" cũ gõ tay tự do về đúng 1 trong các tên chuẩn để lọc/duyệt theo bộ phận hoạt động đúng
+  list.forEach(r=>{
+    const bp = r.boPhan || '';
+    if(['Khai thác','Vận tải','Dịch vụ','Kế toán','Ban lãnh đạo','Nhân sự'].includes(bp)) return;
+    if(bp.includes('hai thác') || bp.includes('Khai Thác')) r.boPhan = 'Khai thác';
+    else if(bp.includes('ận tải') || bp.includes('Vận Tải')) r.boPhan = 'Vận tải';
+    else if(bp.includes('ịch vụ') || bp.includes('Dịch Vụ')) r.boPhan = 'Dịch vụ';
+    else if(bp.includes('ế toán') || bp.includes('Kế Toán')) r.boPhan = 'Kế toán';
+  });
+}
 
 function tonHienTai(lotId){
   const lot = state.lots.find(l => l.id === lotId);
@@ -3886,7 +3894,7 @@ function renderDeXuatMuaHang(body){
       <form class="inline-form" onsubmit="return submitDeXuat(event)">
         <div class="field"><label>Ngày</label><input type="date" required id="dx-ngay"></div>
         <div class="field"><label>Người đề xuất</label><input required id="dx-nguoi" value="${currentUser.name}"></div>
-        <div class="field"><label>Bộ phận</label><input required id="dx-bophan"></div>
+        <div class="field"><label>Bộ phận</label><input required id="dx-bophan" value="${boPhanCuaToi()}" readonly style="background:var(--grey-tint)"></div>
         <div class="field"><label>Nội dung đề xuất</label><input required id="dx-noidung" placeholder="VD: Mua bình điện thay xe ben 43H-060.60"></div>
         <div class="field"><label>Đơn vị tính</label><input required id="dx-dvt" placeholder="VD: Bình, Cái, Bộ"></div>
         <div class="field"><label>Số lượng</label><input type="number" required id="dx-sl" value="1"></div>
@@ -3909,7 +3917,7 @@ function renderDeXuatMuaHang(body){
         const thanhTien = x.soLuong * x.donGia;
         const pillClass = x.trangThai==='Đã duyệt' ? 'approved' : x.trangThai==='Từ chối' ? 'rejected' : x.trangThai==='Đã kiểm tra' ? 'done' : 'pending';
         let action = '';
-        if(canEnter('M7') && !canApprove('M7') && x.trangThai==='Chờ trưởng phòng duyệt'){
+        if(canEnter('M7') && !canApprove('M7') && x.boPhan===boPhanCuaToi() && x.trangThai==='Chờ trưởng phòng duyệt'){
           action += `<button class="mini-btn approve" onclick="duyetBoPhanDeXuat('${x.id}',true)">Duyệt (trưởng bộ phận)</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetBoPhanDeXuat('${x.id}',false)">Từ chối</button>`;
         }
         if(currentUser.id==='TC' && x.trangThai==='Chờ kiểm tra') action += `<button class="mini-btn approve" onclick="kiemTraDeXuat('${x.id}')">Kiểm tra hồ sơ</button>`;
@@ -3944,7 +3952,7 @@ function submitDeXuat(e){
     nguoiDeXuat:document.getElementById('dx-nguoi').value, boPhan:document.getElementById('dx-bophan').value,
     noiDung, donViTinh:document.getElementById('dx-dvt').value, soLuong:parseFloat(document.getElementById('dx-sl').value)||1,
     donGia:parseFloat(document.getElementById('dx-dg').value)||0, nhaCungCap:document.getElementById('dx-ncc').value,
-    mucDich:document.getElementById('dx-mucdich').value, trangThai:'Chờ trưởng phòng duyệt', nguoiDuyetBoPhan:null, nguoiKiemTra:null, nguoiDuyet:null,
+    mucDich:document.getElementById('dx-mucdich').value, trangThai: canApprove('M7') ? 'Chờ kiểm tra' : 'Chờ trưởng phòng duyệt', nguoiDuyetBoPhan:null, nguoiKiemTra:null, nguoiDuyet:null,
     lienQuanThietBi, loaiSuaChuaVatTu: lienQuanThietBi ? document.getElementById('dx-loaisc').value : null,
     phuongTienId: lienQuanThietBi ? document.getElementById('dx-thietbi').value : null,
     bienSo: lienQuanThietBi ? document.getElementById('dx-bienso').value : null, suaChuaVatTuId:null});
@@ -3998,7 +4006,7 @@ function renderDeNghiThanhToan(body){
           </select>
         </div>
         <div class="field"><label>Người đề nghị</label><input required id="tt-nguoi" value="${currentUser.name}"></div>
-        <div class="field"><label>Bộ phận</label><input required id="tt-bophan"></div>
+        <div class="field"><label>Bộ phận</label><input required id="tt-bophan" value="${boPhanCuaToi()}" readonly style="background:var(--grey-tint)"></div>
         <div class="field"><label>Nội dung</label><input required id="tt-noidung" placeholder="VD: Mua phụ tùng sửa chữa xe đầu kéo (HĐ số...)"></div>
         <div class="field"><label>Số tiền (đ)</label><input type="number" required id="tt-sotien"></div>
         <div class="field"><label>Đối tượng nhận</label><input id="tt-doituong" placeholder="Tên NCC / người nhận"></div>
@@ -4010,7 +4018,7 @@ function renderDeNghiThanhToan(body){
       <tbody>${state.denghithanhtoan.map(t => {
         const pillClass = t.trangThai==='Đã thanh toán' ? 'paid' : t.trangThai==='Đã duyệt' ? 'approved' : t.trangThai==='Từ chối' ? 'rejected' : t.trangThai==='Đã kiểm tra' ? 'done' : 'pending';
         let action = '';
-        if(canEnter('M7') && !canApprove('M7') && t.trangThai==='Chờ trưởng phòng duyệt'){
+        if(canEnter('M7') && !canApprove('M7') && t.boPhan===boPhanCuaToi() && t.trangThai==='Chờ trưởng phòng duyệt'){
           action += `<button class="mini-btn approve" onclick="duyetBoPhanDeNghi('${t.id}',true)">Duyệt (trưởng bộ phận)</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetBoPhanDeNghi('${t.id}',false)">Từ chối</button>`;
         }
         if(currentUser.id==='TC' && t.trangThai==='Chờ kiểm tra') action += `<button class="mini-btn approve" onclick="kiemTraDeNghi('${t.id}')">Kiểm tra hồ sơ</button>`;
@@ -4028,7 +4036,6 @@ function capNhatTuDeXuatThanhToan(){
   const dx = state.dexuatmuahang.find(x=>x.id===id);
   if(!dx) return;
   document.getElementById('tt-noidung').value = dx.noiDung;
-  document.getElementById('tt-bophan').value = dx.boPhan;
   document.getElementById('tt-sotien').value = dx.soLuong*dx.donGia;
   document.getElementById('tt-doituong').value = dx.nhaCungCap||'';
 }
@@ -4045,7 +4052,7 @@ function submitDeNghi(e){
     loai, deXuatId: deXuatId||null, nguoiDeNghi:document.getElementById('tt-nguoi').value,
     boPhan:document.getElementById('tt-bophan').value, noiDung, soTien:parseFloat(document.getElementById('tt-sotien').value)||0,
     doiTuongNhan:document.getElementById('tt-doituong').value, hinhThuc:document.getElementById('tt-hinhthuc').value,
-    trangThai:'Chờ trưởng phòng duyệt', nguoiDuyetBoPhan:null, nguoiKiemTra:null, nguoiDuyet:null});
+    trangThai: canApprove('M7') ? 'Chờ kiểm tra' : 'Chờ trưởng phòng duyệt', nguoiDuyetBoPhan:null, nguoiKiemTra:null, nguoiDuyet:null});
   logActivity(`Gửi đề nghị thanh toán "${noiDung}"`);
   renderM7(); return false;
 }
@@ -4126,7 +4133,7 @@ function submitTamUng(e){
   state.tamung.push({id:'TU'+(state.nextId++), ngay:document.getElementById('tu-ngay').value,
     nguoiNhan:document.getElementById('tu-nguoi').value, boPhan:document.getElementById('tu-bophan').value, noiDung,
     soTienTamUng:parseFloat(document.getElementById('tu-sotien').value)||0, hinhThuc:document.getElementById('tu-hinhthuc').value,
-    trangThai:'Chờ trưởng phòng duyệt', soTienQuyetToan:null, chenhLech:null, nguoiDuyetBoPhan:null, nguoiKiemTra:null, nguoiDuyet:null});
+    trangThai: canApprove('M7') ? 'Chờ kiểm tra' : 'Chờ trưởng phòng duyệt', soTienQuyetToan:null, chenhLech:null, nguoiDuyetBoPhan:null, nguoiKiemTra:null, nguoiDuyet:null});
   logActivity(`Gửi đề nghị tạm ứng "${noiDung}"`);
   renderM7(); return false;
 }
