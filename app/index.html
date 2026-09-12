@@ -271,9 +271,11 @@
   }
   .ai-fab:hover{background:var(--brand-ink);}
   .ai-fab .ai-dot{
-    position:absolute;top:2px;right:2px;width:11px;height:11px;border-radius:50%;
-    background:var(--amber);border:2px solid var(--paper-raised);
+    position:absolute;top:-3px;right:-3px;min-width:19px;height:19px;padding:0 4px;border-radius:99px;
+    background:var(--amber);border:2px solid var(--paper-raised);color:#fff;font-size:10.5px;font-weight:800;
+    display:none;align-items:center;justify-content:center;line-height:1;font-family:"IBM Plex Mono",monospace;
   }
+  .ai-fab .ai-dot.show{display:flex;}
   .ai-panel{
     position:fixed;right:24px;bottom:88px;z-index:60;width:340px;max-width:calc(100vw - 32px);
     height:480px;max-height:70vh;background:var(--paper-raised);border:1px solid var(--line);
@@ -572,6 +574,14 @@ function logActivity(msg){
   state.log.unshift({ts:new Date().toLocaleString('vi-VN'), user:currentUser.name, msg});
   if(state.log.length>200) state.log.length = 200;
   saveState();
+  capNhatBadgeAI();
+}
+function capNhatBadgeAI(){
+  const dotEl = document.querySelector('#ai-fab .ai-dot');
+  if(!dotEl || !currentUser) return;
+  const soLuong = tinhViecCanXuLy().length;
+  if(soLuong > 0){ dotEl.textContent = soLuong>99 ? '99+' : String(soLuong); dotEl.classList.add('show'); }
+  else { dotEl.textContent = ''; dotEl.classList.remove('show'); }
 }
 
 /* ===================== PERMISSION HELPERS ===================== */
@@ -593,6 +603,10 @@ function chuanHoaBoPhan(list){ // chuẩn hóa "Bộ phận" cũ gõ tay tự do
     else if(bp.includes('ịch vụ') || bp.includes('Dịch Vụ')) r.boPhan = 'Dịch vụ';
     else if(bp.includes('ế toán') || bp.includes('Kế Toán')) r.boPhan = 'Kế toán';
   });
+}
+function ghiNguoiThucHien(){ // hỏi tên cá nhân thực hiện duyệt (không bắt buộc) — để truy vết trách nhiệm khi nhiều người dùng chung 1 tài khoản phòng ban
+  const ten = prompt('Tên người thực hiện (không bắt buộc — giúp truy vết ai đã duyệt khi dùng chung tài khoản):', '');
+  return (ten && ten.trim()) ? `${currentUser.name} (${ten.trim()})` : currentUser.name;
 }
 
 function tonHienTai(lotId){
@@ -2554,7 +2568,7 @@ function huyXacNhanDeLamLai(id){
 }
 function tcDongYXacNhan(id){
   const x = state.xacnhanhoanthanh.find(x=>x.id===id); if(!x) return;
-  x.trangThaiXacNhan = 'Đã xác nhận'; x.nguoiXacNhanLai = currentUser.name; x.ngayXacNhanLai = new Date().toISOString().slice(0,10);
+  x.trangThaiXacNhan = 'Đã xác nhận'; x.nguoiXacNhanLai = ghiNguoiThucHien(); x.ngayXacNhanLai = new Date().toISOString().slice(0,10);
   logActivity(`Kế toán đồng ý xác nhận khối lượng với "${x.doiTac}" (${fmt(x.tongKhoiLuongKg)} kg)`);
   renderM1();
 }
@@ -2562,7 +2576,7 @@ function tcYeuCauXemLai(id){
   const x = state.xacnhanhoanthanh.find(x=>x.id===id); if(!x) return;
   const ly = prompt('Nhập lý do yêu cầu Phòng Khai thác xem lại số liệu:', '');
   if(ly===null || !ly.trim()) return;
-  x.trangThaiXacNhan = 'Yêu cầu xem lại'; x.lyDoTuChoi = ly.trim();
+  x.trangThaiXacNhan = 'Yêu cầu xem lại'; x.lyDoTuChoi = ly.trim(); x.nguoiXacNhanLai = ghiNguoiThucHien();
   logActivity(`Kế toán yêu cầu xem lại xác nhận với "${x.doiTac}": ${ly.trim()}`);
   renderM1();
 }
@@ -3421,7 +3435,7 @@ function submitNhatKy(e, key){
 function duyetNhatKy(key, id){
   const b = state[key].find(b=>b.id===id); if(!b) return;
   if(currentUser.id!=='KT') return;
-  b.trangThai = 'Đã duyệt'; b.nguoiDuyet = currentUser.name;
+  b.trangThai = 'Đã duyệt'; b.nguoiDuyet = ghiNguoiThucHien();
   logActivity(`Duyệt chi phí "${b.noiDung}" (${fmt(b.chiPhi)} đ)`);
   renderM2();
 }
@@ -3480,7 +3494,7 @@ function xuLyKiemKe(id){
   const k = state.kiemke.find(k=>k.id===id); if(!k) return;
   const ly = prompt('Nhập nguyên nhân chênh lệch để phê duyệt xử lý:', 'Hao hụt tự nhiên trong quá trình lưu bãi');
   if(ly === null) return;
-  k.trangThai = 'Đã xử lý'; k.nguyenNhan = ly; k.nguoiDuyet = currentUser.name;
+  k.trangThai = 'Đã xử lý'; k.nguyenNhan = ly; k.nguoiDuyet = ghiNguoiThucHien();
   logActivity(`Duyệt xử lý chênh lệch kiểm kê lô ${k.lotId}: ${ly}`);
   renderM3();
 }
@@ -3915,6 +3929,7 @@ function renderM7(){
     {id:'congno', label:'Công nợ'},
     {id:'hoadon', label:'Nhật ký hóa đơn'},
     ...(xemToanBoTaiChinh() ? [{id:'khoanvay', label:'Khoản vay'}] : []),
+    ...(xemToanBoTaiChinh() ? [{id:'nhatkyduyet', label:'Nhật ký duyệt'}] : []),
   ];
   if(!tabs.some(t=>t.id===currentTab)) currentTab = 'tqtc';
   content.innerHTML = `<div class="tabs">` + tabs.map(t =>
@@ -3929,13 +3944,75 @@ function renderM7(){
   if(currentTab==='congno') return renderCongNo(body);
   if(currentTab==='hoadon') return renderNhatKyHoaDon(body);
   if(currentTab==='khoanvay') return renderKhoanVay(body);
+  if(currentTab==='nhatkyduyet') return renderNhatKyDuyet(body);
+}
+let nkdLoai = '', nkdTuNgay = '', nkdDenNgay = '';
+const NHATKY_DUYET_LOAI = {
+  'Đề xuất mua hàng': ['đề xuất mua hàng'],
+  'Đề nghị thanh toán': ['đề nghị thanh toán'],
+  'Tạm ứng': ['tạm ứng'],
+  'Kiểm kê kho (M3)': ['kiểm kê'],
+  'Bảng giá dịch vụ (M10)': ['bảng giá', 'dòng giá'],
+  'Xác nhận KL với KH/NCC (M1)': ['xác nhận khối lượng', 'xác nhận với nhà cung cấp', 'xác nhận lại', 'hoàn thành xác nhận'],
+};
+function setNhatKyDuyet(key, val){
+  if(key==='loai') nkdLoai = val; else if(key==='tu') nkdTuNgay = val; else if(key==='den') nkdDenNgay = val;
+  renderM7();
+}
+function ngayIsoTuLogVN(ts){
+  const datePart = (ts||'').split(',')[0].trim();
+  const [d,m,y] = datePart.split('/');
+  if(!d||!m||!y) return '';
+  return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+}
+function renderNhatKyDuyet(body){
+  let rows = state.log.slice();
+  if(nkdLoai){
+    const kws = NHATKY_DUYET_LOAI[nkdLoai] || [];
+    rows = rows.filter(l=>kws.some(k=>l.msg.toLowerCase().includes(k)));
+  }
+  if(nkdTuNgay) rows = rows.filter(l=>ngayIsoTuLogVN(l.ts) >= nkdTuNgay);
+  if(nkdDenNgay) rows = rows.filter(l=>ngayIsoTuLogVN(l.ts) <= nkdDenNgay);
+  body.innerHTML = `
+    <div class="panel-head"><h3>Nhật ký duyệt</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 14px">Tra cứu nhanh lịch sử duyệt/xử lý của các quy trình cần Kế toán/Ban lãnh đạo tham gia (đề xuất mua hàng, đề nghị thanh toán, tạm ứng, kiểm kê kho, bảng giá dịch vụ, xác nhận khối lượng) — không cần vào khu vực Quản trị hệ thống.</p>
+    <div class="inline-form" style="grid-template-columns:1fr 1fr 1fr;max-width:720px">
+      <div class="field"><label>Loại việc</label><select onchange="setNhatKyDuyet('loai',this.value)">
+        <option value="">— Tất cả —</option>
+        ${Object.keys(NHATKY_DUYET_LOAI).map(k=>`<option value="${k}" ${k===nkdLoai?'selected':''}>${k}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>Từ ngày</label><input type="date" value="${nkdTuNgay}" onchange="setNhatKyDuyet('tu',this.value)"></div>
+      <div class="field"><label>Đến ngày</label><input type="date" value="${nkdDenNgay}" onchange="setNhatKyDuyet('den',this.value)"></div>
+    </div>
+    <div class="table-wrap" style="margin-top:14px;padding:4px 18px"><div class="log-list">${rows.length ? rows.map(l=>`<div class="log-item"><span class="log-time">${l.ts}</span><span class="log-user">${l.user}</span> — ${l.msg}</div>`).join('')
+      : `<div class="log-item" style="font-style:italic;color:var(--ink-soft)">Không có hoạt động nào khớp bộ lọc.</div>`}</div></div>
+  `;
 }
 
-function renderTaiChinhTongQuan(body){
+const NGUONG_CANH_BAO_BAT_THUONG = 50000000; // 50 triệu đ — vượt mức này luôn gắn cờ dù chưa đủ dữ liệu lịch sử
+function trungBinhDaDuyet(collection, tinhTien){
+  const daDuyet = state[collection].filter(r=>r.trangThai==='Đã duyệt');
+  if(daDuyet.length < 2) return null;
+  return daDuyet.reduce((s,r)=>s+tinhTien(r),0) / daDuyet.length;
+}
+function nhanCanhBaoBatThuong(soTien, trungBinh){
+  if(soTien >= NGUONG_CANH_BAO_BAT_THUONG) return true;
+  return trungBinh!=null && trungBinh>0 && soTien > trungBinh*1.5;
+}
+function dongViecCoCanhBao(nhan, soTien, trungBinh){
+  const batThuong = nhanCanhBaoBatThuong(soTien, trungBinh);
+  return `${batThuong?'⚠ ':''}${nhan} (${fmt(soTien)} đ)${batThuong?' — cao bất thường, cần xem kỹ':''}`;
+}
+function tinhViecCanXuLy(){
+  const tbDeXuat = trungBinhDaDuyet('dexuatmuahang', r=>r.soLuong*r.donGia);
+  const tbDeNghi = trungBinhDaDuyet('denghithanhtoan', r=>r.soTien);
+  const tbTamUng = trungBinhDaDuyet('tamung', r=>r.soTienTamUng);
   const canDuyet = currentUser.id==='BLD' ? [
-    ...state.dexuatmuahang.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>`Đề xuất mua hàng — ${x.noiDung} (${fmt(x.soLuong*x.donGia)} đ)`),
-    ...state.denghithanhtoan.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>`Đề nghị thanh toán — ${x.noiDung} (${fmt(x.soTien)} đ)`),
-    ...state.tamung.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>`Tạm ứng — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
+    ...state.dexuatmuahang.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>dongViecCoCanhBao(`Đề xuất mua hàng — ${x.noiDung}`, x.soLuong*x.donGia, tbDeXuat)),
+    ...state.denghithanhtoan.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>dongViecCoCanhBao(`Đề nghị thanh toán — ${x.noiDung}`, x.soTien, tbDeNghi)),
+    ...state.tamung.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>dongViecCoCanhBao(`Tạm ứng — ${x.noiDung}`, x.soTienTamUng, tbTamUng)),
+    ...state.kiemke.filter(k=>k.trangThai==='Chờ xử lý' && (k.tonThucTe-k.tonSoSach)!==0).map(k=>`M3 · Xử lý chênh lệch kiểm kê — lô ${k.lotId} (chênh ${fmt(k.tonThucTe-k.tonSoSach)} tấn)`),
+    ...state.banggia.filter(r=>!r.nguoiDuyetBLD && tinhTrangThaiBangGia(r)==='Chờ duyệt').map(r=>`M10 · Duyệt bảng giá — ${r.tenDichVu} cho "${r.doiTac}" (${fmt(r.donGia)} đ)`),
   ] : [];
   const canKiemTra = currentUser.id==='TC' ? [
     ...state.dexuatmuahang.filter(x=>x.trangThai==='Chờ kiểm tra').map(x=>`Kiểm tra hồ sơ (đề xuất mua hàng) — ${x.noiDung} (${fmt(x.soLuong*x.donGia)} đ)`),
@@ -3943,14 +4020,18 @@ function renderTaiChinhTongQuan(body){
     ...state.tamung.filter(x=>x.trangThai==='Chờ kiểm tra').map(x=>`Kiểm tra hồ sơ (tạm ứng) — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
     ...state.denghithanhtoan.filter(x=>x.trangThai==='Đã duyệt').map(x=>`Thực hiện thanh toán — ${x.noiDung} (${fmt(x.soTien)} đ)`),
     ...state.tamung.filter(x=>x.trangThai==='Đã duyệt').map(x=>`Chi tạm ứng — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
+    ...state.banggia.filter(r=>!r.nguoiDuyetTC && tinhTrangThaiBangGia(r)==='Chờ duyệt').map(r=>`M10 · Duyệt bảng giá — ${r.tenDichVu} cho "${r.doiTac}" (${fmt(r.donGia)} đ)`),
+    ...state.xacnhanhoanthanh.filter(x=>x.trangThaiXacNhan==='Chờ Kế toán xác nhận lại').map(x=>`M1 · Xác nhận lại khối lượng với "${x.doiTac}" (${fmt(x.tongKhoiLuongKg)} kg)`),
   ] : [];
   const canDuyetBoPhan = (canEnter('M7') && !canApprove('M7')) ? [
-    ...state.dexuatmuahang.filter(x=>x.trangThai==='Chờ trưởng phòng duyệt').map(x=>`Trưởng bộ phận duyệt (đề xuất mua hàng) — ${x.noiDung} (${fmt(x.soLuong*x.donGia)} đ)`),
-    ...state.denghithanhtoan.filter(x=>x.trangThai==='Chờ trưởng phòng duyệt').map(x=>`Trưởng bộ phận duyệt (đề nghị thanh toán) — ${x.noiDung} (${fmt(x.soTien)} đ)`),
-    ...state.tamung.filter(x=>x.trangThai==='Chờ trưởng phòng duyệt').map(x=>`Trưởng bộ phận duyệt (tạm ứng) — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
+    ...state.dexuatmuahang.filter(x=>x.boPhan===boPhanCuaToi() && x.trangThai==='Chờ trưởng phòng duyệt').map(x=>`Trưởng bộ phận duyệt (đề xuất mua hàng) — ${x.noiDung} (${fmt(x.soLuong*x.donGia)} đ)`),
+    ...state.denghithanhtoan.filter(x=>x.boPhan===boPhanCuaToi() && x.trangThai==='Chờ trưởng phòng duyệt').map(x=>`Trưởng bộ phận duyệt (đề nghị thanh toán) — ${x.noiDung} (${fmt(x.soTien)} đ)`),
+    ...state.tamung.filter(x=>x.boPhan===boPhanCuaToi() && x.trangThai==='Chờ trưởng phòng duyệt').map(x=>`Trưởng bộ phận duyệt (tạm ứng) — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
   ] : [];
-  const viecCanXuLy = [...canDuyet, ...canKiemTra, ...canDuyetBoPhan];
-
+  return [...canDuyet, ...canKiemTra, ...canDuyetBoPhan];
+}
+function renderTaiChinhTongQuan(body){
+  const viecCanXuLy = tinhViecCanXuLy();
   const xemHet = xemToanBoTaiChinh();
   const boPhanLoc = xemHet ? null : boPhanCuaToi();
   const laKhaiThac = currentUser.id==='KT';
@@ -4098,19 +4179,19 @@ function submitDeXuat(e){
 }
 function duyetBoPhanDeXuat(id, dong){
   const x = state.dexuatmuahang.find(x=>x.id===id); if(!x) return;
-  x.trangThai = dong ? 'Chờ kiểm tra' : 'Từ chối'; x.nguoiDuyetBoPhan = currentUser.name;
+  x.trangThai = dong ? 'Chờ kiểm tra' : 'Từ chối'; x.nguoiDuyetBoPhan = ghiNguoiThucHien();
   logActivity(`${dong?'Trưởng bộ phận duyệt':'Trưởng bộ phận từ chối'} đề xuất mua hàng "${x.noiDung}"`);
   renderM7();
 }
 function kiemTraDeXuat(id){
   const x = state.dexuatmuahang.find(x=>x.id===id); if(!x) return;
-  x.trangThai = 'Đã kiểm tra'; x.nguoiKiemTra = currentUser.name;
+  x.trangThai = 'Đã kiểm tra'; x.nguoiKiemTra = ghiNguoiThucHien();
   logActivity(`Kế toán kiểm tra hồ sơ đề xuất mua hàng "${x.noiDung}"`);
   renderM7();
 }
 function duyetDeXuat(id, dong){
   const x = state.dexuatmuahang.find(x=>x.id===id); if(!x) return;
-  x.trangThai = dong ? 'Đã duyệt' : 'Từ chối'; x.nguoiDuyet = currentUser.name;
+  x.trangThai = dong ? 'Đã duyệt' : 'Từ chối'; x.nguoiDuyet = ghiNguoiThucHien();
   logActivity(`${dong?'Duyệt':'Từ chối'} đề xuất mua hàng "${x.noiDung}"`);
   if(dong && x.lienQuanThietBi && !x.suaChuaVatTuId){
     const key = x.loaiSuaChuaVatTu === 'suachua' ? 'suachua' : 'vattu';
@@ -4160,7 +4241,7 @@ function renderDeNghiThanhToan(body){
           action += `<button class="mini-btn approve" onclick="duyetBoPhanDeNghi('${t.id}',true)">Duyệt (trưởng bộ phận)</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetBoPhanDeNghi('${t.id}',false)">Từ chối</button>`;
         }
         if(currentUser.id==='TC' && t.trangThai==='Chờ kiểm tra') action += `<button class="mini-btn approve" onclick="kiemTraDeNghi('${t.id}')">Kiểm tra hồ sơ</button>`;
-        if(currentUser.id==='BLD' && t.trangThai==='Đã kiểm tra') action += `<button class="mini-btn approve" onclick="duyetDeNghi('${t.id}')">Phê duyệt</button>`;
+        if(currentUser.id==='BLD' && t.trangThai==='Đã kiểm tra') action += `<button class="mini-btn approve" onclick="duyetDeNghi('${t.id}',true)">Phê duyệt</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetDeNghi('${t.id}',false)">Từ chối</button>`;
         if(currentUser.id==='TC' && t.trangThai==='Đã duyệt') action += `<button class="mini-btn approve" onclick="thanhToanDeNghi('${t.id}')">Thực hiện thanh toán</button>`;
         if(canAdd) action += actionButtons('denghithanhtoan', t.id);
         const dxLienQuan = t.deXuatId ? state.dexuatmuahang.find(x=>x.id===t.deXuatId) : null;
@@ -4196,20 +4277,20 @@ function submitDeNghi(e){
 }
 function duyetBoPhanDeNghi(id, dong){
   const t = state.denghithanhtoan.find(t=>t.id===id); if(!t) return;
-  t.trangThai = dong ? 'Chờ kiểm tra' : 'Từ chối'; t.nguoiDuyetBoPhan = currentUser.name;
+  t.trangThai = dong ? 'Chờ kiểm tra' : 'Từ chối'; t.nguoiDuyetBoPhan = ghiNguoiThucHien();
   logActivity(`${dong?'Trưởng bộ phận duyệt':'Trưởng bộ phận từ chối'} đề nghị thanh toán "${t.noiDung}"`);
   renderM7();
 }
 function kiemTraDeNghi(id){
   const t = state.denghithanhtoan.find(t=>t.id===id); if(!t) return;
-  t.trangThai = 'Đã kiểm tra'; t.nguoiKiemTra = currentUser.name;
+  t.trangThai = 'Đã kiểm tra'; t.nguoiKiemTra = ghiNguoiThucHien();
   logActivity(`Kế toán kiểm tra hồ sơ đề nghị thanh toán "${t.noiDung}"`);
   renderM7();
 }
-function duyetDeNghi(id){
+function duyetDeNghi(id, dong){
   const t = state.denghithanhtoan.find(t=>t.id===id); if(!t) return;
-  t.trangThai = 'Đã duyệt'; t.nguoiDuyet = currentUser.name;
-  logActivity(`Phê duyệt đề nghị thanh toán "${t.noiDung}" (${fmt(t.soTien)} đ)`);
+  t.trangThai = dong ? 'Đã duyệt' : 'Từ chối'; t.nguoiDuyet = ghiNguoiThucHien();
+  logActivity(`${dong?'Phê duyệt':'Từ chối'} đề nghị thanh toán "${t.noiDung}" (${fmt(t.soTien)} đ)`);
   renderM7();
 }
 function thanhToanDeNghi(id){
@@ -4278,19 +4359,19 @@ function submitTamUng(e){
 }
 function duyetBoPhanTamUng(id, dong){
   const t = state.tamung.find(t=>t.id===id); if(!t) return;
-  t.trangThai = dong ? 'Chờ kiểm tra' : 'Từ chối'; t.nguoiDuyetBoPhan = currentUser.name;
+  t.trangThai = dong ? 'Chờ kiểm tra' : 'Từ chối'; t.nguoiDuyetBoPhan = ghiNguoiThucHien();
   logActivity(`${dong?'Trưởng bộ phận duyệt':'Trưởng bộ phận từ chối'} tạm ứng "${t.noiDung}"`);
   renderM7();
 }
 function kiemTraTamUng(id){
   const t = state.tamung.find(t=>t.id===id); if(!t) return;
-  t.trangThai = 'Đã kiểm tra'; t.nguoiKiemTra = currentUser.name;
+  t.trangThai = 'Đã kiểm tra'; t.nguoiKiemTra = ghiNguoiThucHien();
   logActivity(`Kế toán kiểm tra hồ sơ tạm ứng "${t.noiDung}"`);
   renderM7();
 }
 function duyetTamUng(id, dong){
   const t = state.tamung.find(t=>t.id===id); if(!t) return;
-  t.trangThai = dong ? 'Đã duyệt' : 'Từ chối'; t.nguoiDuyet = currentUser.name;
+  t.trangThai = dong ? 'Đã duyệt' : 'Từ chối'; t.nguoiDuyet = ghiNguoiThucHien();
   logActivity(`${dong?'Phê duyệt':'Từ chối'} tạm ứng "${t.noiDung}" (${fmt(t.soTienTamUng)} đ)`);
   renderM7();
 }
@@ -4399,7 +4480,7 @@ function submitCongNo(e){
 }
 function danhDauDaThu(id){
   const c = state.congno.find(c=>c.id===id); if(!c) return;
-  c.trangThai = 'Đã thu';
+  c.trangThai = 'Đã thu'; c.nguoiXacNhanThu = ghiNguoiThucHien();
   themSoQuy('Thu', c.soTien, 'Chuyển khoản', `Thu công nợ khách hàng: ${c.chuHang}`, `Công nợ ${c.id}`);
   logActivity(`Đánh dấu đã thu công nợ "${c.chuHang}" (${fmt(c.soTien)} đ) — đã ghi sổ quỹ`);
   renderM7();
@@ -4828,7 +4909,7 @@ function tinhTrangThaiBangGia(r){
 }
 function duyetBangGiaTC(id, dong){
   const r = state.banggia.find(r=>r.id===id); if(!r) return;
-  r.nguoiDuyetTC = currentUser.name;
+  r.nguoiDuyetTC = ghiNguoiThucHien();
   if(!dong){ r.tuChoi = true; r.trangThai = tinhTrangThaiBangGia(r); logActivity(`Kế toán từ chối dòng giá "${r.tenDichVu}" của "${r.doiTac}"`); renderM10(); return; }
   r.trangThai = tinhTrangThaiBangGia(r);
   logActivity(`Kế toán duyệt dòng giá "${r.tenDichVu}" của "${r.doiTac}"${r.trangThai==='Đã duyệt'?' — đã đủ 2 chữ ký, có hiệu lực':''}`);
@@ -4836,7 +4917,7 @@ function duyetBangGiaTC(id, dong){
 }
 function duyetBangGiaBLD(id, dong){
   const r = state.banggia.find(r=>r.id===id); if(!r) return;
-  r.nguoiDuyetBLD = currentUser.name;
+  r.nguoiDuyetBLD = ghiNguoiThucHien();
   if(!dong){ r.tuChoi = true; r.trangThai = tinhTrangThaiBangGia(r); logActivity(`Ban lãnh đạo từ chối dòng giá "${r.tenDichVu}" của "${r.doiTac}"`); renderM10(); return; }
   r.trangThai = tinhTrangThaiBangGia(r);
   logActivity(`Ban lãnh đạo duyệt dòng giá "${r.tenDichVu}" của "${r.doiTac}"${r.trangThai==='Đã duyệt'?' — đã đủ 2 chữ ký, có hiệu lực':''}`);
@@ -4956,6 +5037,7 @@ function initAIForUser(){
     document.getElementById('ai-chips').innerHTML = AI_CHIPS[currentUser.id].map(c=>
       `<button type="button" class="ai-chip" onclick='sendAIQuestion(${JSON.stringify(c)})'>${c}</button>`).join('');
     renderAIMessages();
+    capNhatBadgeAI();
   } else {
     fab.style.display = 'none';
     document.getElementById('ai-panel').classList.remove('open');
@@ -4992,37 +5074,56 @@ function traLoiAI(q){
     return 'Thiết bị cần chú ý đăng kiểm:\n' + list.map(x=>`• ${x.t.ten}: ${x.days<0?'đã hết hạn':'còn '+x.days+' ngày'} (${x.d.hanDangKiem})`).join('\n');
   }
   if(low.includes('công nợ') || low.includes('phải thu')){
-    const cho = state.congno.filter(c=>c.trangThai==='Chưa thu');
-    if(!cho.length) return 'Hiện không còn công nợ phải thu nào.';
-    return `Tổng công nợ phải thu: ${fmt(cho.reduce((s,c)=>s+c.soTien,0))} đ\n` + cho.map(c=>`• ${c.chuHang}: ${fmt(c.soTien)} đ, hạn ${c.hanThanhToan}`).join('\n');
+    const xemHet = xemToanBoTaiChinh();
+    const boPhanLoc = xemHet ? null : boPhanCuaToi();
+    const cho = state.congno.filter(c=>c.trangThai==='Chưa thu' && (!boPhanLoc || c.boPhan===boPhanLoc));
+    if(!cho.length) return `Hiện không còn công nợ phải thu nào${xemHet?'':` thuộc bộ phận ${boPhanLoc}`}.`;
+    return `Tổng công nợ phải thu${xemHet?'':` (bộ phận ${boPhanLoc})`}: ${fmt(cho.reduce((s,c)=>s+c.soTien,0))} đ\n` + cho.map(c=>`• ${c.chuHang}: ${fmt(c.soTien)} đ, hạn ${c.hanThanhToan}`).join('\n');
   }
   if(low.includes('phải trả') || low.includes('ncc') || low.includes('nhà cung cấp')){
-    const cho = state.denghithanhtoan.filter(t=>t.loai==='Nhà cung cấp' && t.trangThai!=='Đã thanh toán');
-    if(!cho.length) return 'Hiện không còn khoản phải trả nhà cung cấp nào chưa thanh toán.';
-    return `Tổng phải trả NCC (chưa thanh toán): ${fmt(cho.reduce((s,t)=>s+t.soTien,0))} đ\n` + cho.map(t=>`• ${t.noiDung}: ${fmt(t.soTien)} đ (${t.trangThai})`).join('\n');
+    const xemHet = xemToanBoTaiChinh();
+    const boPhanLoc = xemHet ? null : boPhanCuaToi();
+    const cho = state.denghithanhtoan.filter(t=>t.loai==='Nhà cung cấp' && t.trangThai!=='Đã thanh toán' && (!boPhanLoc || t.boPhan===boPhanLoc));
+    if(!cho.length) return `Hiện không còn khoản phải trả nhà cung cấp nào chưa thanh toán${xemHet?'':` thuộc bộ phận ${boPhanLoc}`}.`;
+    return `Tổng phải trả NCC (chưa thanh toán)${xemHet?'':` — bộ phận ${boPhanLoc}`}: ${fmt(cho.reduce((s,t)=>s+t.soTien,0))} đ\n` + cho.map(t=>`• ${t.noiDung}: ${fmt(t.soTien)} đ (${t.trangThai})`).join('\n');
   }
   if(low.includes('tồn quỹ') || (low.includes('quỹ') && !low.includes('công'))){
+    if(!xemToanBoTaiChinh()) return 'Tồn quỹ (sổ quỹ chung của công ty) chỉ Kế toán và Ban lãnh đạo xem được — bộ phận của bạn theo dõi qua tab Tạm ứng/Đề nghị thanh toán của chính mình.';
     return `Tồn quỹ hiện tại (tiền mặt + chuyển khoản): ${fmt(soDuQuy())} đ`;
   }
   if(low.includes('tạm ứng')){
-    const cho = state.tamung.filter(t=>t.trangThai!=='Đã quyết toán');
-    if(!cho.length) return 'Không có khoản tạm ứng nào đang chờ quyết toán.';
-    return `Tạm ứng chưa quyết toán: ${fmt(cho.reduce((s,t)=>s+t.soTienTamUng,0))} đ\n` + cho.map(t=>`• ${t.nguoiNhan}: ${fmt(t.soTienTamUng)} đ — ${t.trangThai}`).join('\n');
+    const xemHet = xemToanBoTaiChinh();
+    const boPhanLoc = xemHet ? null : boPhanCuaToi();
+    const cho = state.tamung.filter(t=>t.trangThai!=='Đã quyết toán' && (!boPhanLoc || t.boPhan===boPhanLoc));
+    if(!cho.length) return `Không có khoản tạm ứng nào đang chờ quyết toán${xemHet?'':` thuộc bộ phận ${boPhanLoc}`}.`;
+    return `Tạm ứng chưa quyết toán${xemHet?'':` (bộ phận ${boPhanLoc})`}: ${fmt(cho.reduce((s,t)=>s+t.soTienTamUng,0))} đ\n` + cho.map(t=>`• ${t.nguoiNhan}: ${fmt(t.soTienTamUng)} đ — ${t.trangThai}`).join('\n');
   }
   if(low.includes('chờ tôi') || low.includes('cần xử lý') || low.includes('kiểm tra')){
     const items = [];
     if(currentUser.id==='BLD'){
-      state.dexuatmuahang.filter(x=>x.trangThai==='Chờ duyệt').forEach(x=>items.push(`Duyệt đề xuất mua hàng: ${x.noiDung}`));
+      state.dexuatmuahang.filter(x=>x.trangThai==='Đã kiểm tra').forEach(x=>items.push(`Duyệt đề xuất mua hàng: ${x.noiDung}`));
       state.denghithanhtoan.filter(x=>x.trangThai==='Đã kiểm tra').forEach(x=>items.push(`Duyệt đề nghị thanh toán: ${x.noiDung}`));
-      state.tamung.filter(x=>x.trangThai==='Chờ duyệt').forEach(x=>items.push(`Duyệt tạm ứng: ${x.noiDung}`));
+      state.tamung.filter(x=>x.trangThai==='Đã kiểm tra').forEach(x=>items.push(`Duyệt tạm ứng: ${x.noiDung}`));
+      state.kiemke.filter(k=>k.trangThai==='Chờ xử lý' && (k.tonThucTe-k.tonSoSach)!==0).forEach(k=>items.push(`M3 · Xử lý chênh lệch kiểm kê lô ${k.lotId}`));
+      state.banggia.filter(r=>!r.nguoiDuyetBLD && tinhTrangThaiBangGia(r)==='Chờ duyệt').forEach(r=>items.push(`M10 · Duyệt bảng giá "${r.tenDichVu}" cho ${r.doiTac}`));
     }
     if(currentUser.id==='TC'){
-      state.denghithanhtoan.filter(x=>x.trangThai==='Chờ kiểm tra').forEach(x=>items.push(`Kiểm tra hồ sơ: ${x.noiDung}`));
+      state.dexuatmuahang.filter(x=>x.trangThai==='Chờ kiểm tra').forEach(x=>items.push(`Kiểm tra hồ sơ đề xuất mua hàng: ${x.noiDung}`));
+      state.denghithanhtoan.filter(x=>x.trangThai==='Chờ kiểm tra').forEach(x=>items.push(`Kiểm tra hồ sơ đề nghị thanh toán: ${x.noiDung}`));
+      state.tamung.filter(x=>x.trangThai==='Chờ kiểm tra').forEach(x=>items.push(`Kiểm tra hồ sơ tạm ứng: ${x.noiDung}`));
       state.denghithanhtoan.filter(x=>x.trangThai==='Đã duyệt').forEach(x=>items.push(`Thực hiện thanh toán: ${x.noiDung}`));
       state.tamung.filter(x=>x.trangThai==='Đã duyệt').forEach(x=>items.push(`Chi tạm ứng: ${x.noiDung}`));
+      state.banggia.filter(r=>!r.nguoiDuyetTC && tinhTrangThaiBangGia(r)==='Chờ duyệt').forEach(r=>items.push(`M10 · Duyệt bảng giá "${r.tenDichVu}" cho ${r.doiTac}`));
+      state.xacnhanhoanthanh.filter(x=>x.trangThaiXacNhan==='Chờ Kế toán xác nhận lại').forEach(x=>items.push(`M1 · Xác nhận lại khối lượng với ${x.doiTac}`));
+    }
+    if(canEnter('M7') && !canApprove('M7')){
+      const bp = boPhanCuaToi();
+      state.dexuatmuahang.filter(x=>x.boPhan===bp && x.trangThai==='Chờ trưởng phòng duyệt').forEach(x=>items.push(`Trưởng bộ phận duyệt đề xuất mua hàng: ${x.noiDung}`));
+      state.denghithanhtoan.filter(x=>x.boPhan===bp && x.trangThai==='Chờ trưởng phòng duyệt').forEach(x=>items.push(`Trưởng bộ phận duyệt đề nghị thanh toán: ${x.noiDung}`));
+      state.tamung.filter(x=>x.boPhan===bp && x.trangThai==='Chờ trưởng phòng duyệt').forEach(x=>items.push(`Trưởng bộ phận duyệt tạm ứng: ${x.noiDung}`));
     }
     if(currentUser.id==='KT'){
-      state.kiemke.filter(k=>k.trangThai==='Chờ xử lý').forEach(k=>items.push(`Xử lý chênh lệch kiểm kê lô ${k.lotId}`));
+      state.kiemke.filter(k=>k.trangThai==='Chờ xử lý' && (k.tonThucTe-k.tonSoSach)===0).forEach(k=>items.push(`M3 · Kiểm kê khớp sổ sách, chờ hoàn tất lô ${k.lotId}`));
     }
     if(!items.length) return 'Hiện không có việc gì đang chờ bạn xử lý.';
     return `Có ${items.length} việc đang chờ bạn:\n` + items.map(i=>'• '+i).join('\n');
