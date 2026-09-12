@@ -466,6 +466,7 @@ function seedState(){
     hoadon: [],
     khoanvay: [],
     lichtrano: [],
+    xacnhanhoanthanh: [],
     nhansu: [],
     thietBiSoLuong: {'Xúc lật':0, 'Máy múc nhỏ':0, 'Máy múc to':0, 'Cẩu điện':0},
     nextId: 1,
@@ -531,6 +532,7 @@ function loadState(){
     if(!state.hoadon) state.hoadon = seedState().hoadon;
     if(!state.khoanvay) state.khoanvay = seedState().khoanvay;
     if(!state.lichtrano) state.lichtrano = seedState().lichtrano;
+    if(!state.xacnhanhoanthanh) state.xacnhanhoanthanh = seedState().xacnhanhoanthanh;
     state.hoadon.forEach(h=>{ if(h.trangThaiThanhToan===undefined) h.trangThaiThanhToan = 'Chưa thanh toán'; });
     state.khachhang.forEach(k=>{
       if(k.loaiDoiTac==='Khách hàng thuê bãi' || k.loaiDoiTac==='Chủ hàng') k.loaiDoiTac = 'Khách hàng thuê bãi (chủ hàng)';
@@ -705,16 +707,17 @@ function renderContent(){
 function renderM1(){
   const content = document.getElementById('content');
   const laKT = currentUser.id === 'KT';
+  const laTC = currentUser.id === 'TC';
   const tabs = [
     {id:'tongquan', label:'Tổng quan'},
     {id:'nhap', label:'Nhập hàng'},
     {id:'xuat', label:'Xuất hàng'},
     {id:'dichvu', label:'Dịch vụ tại bãi'},
     ...(laKT ? [{id:'giaoviec', label:'Giao việc'}] : []),
-    ...(laKT ? [{id:'xacnhan', label:'Xác nhận KL với KH/ nhà CCDV'}] : []),
+    ...(laKT || laTC ? [{id:'xacnhan', label:'Xác nhận KL với KH/ nhà CCDV'}] : []),
   ];
   if(currentTab === 'giaoviec' && !laKT) currentTab = 'tongquan';
-  if(currentTab === 'xacnhan' && !laKT) currentTab = 'tongquan';
+  if(currentTab === 'xacnhan' && !laKT && !laTC) currentTab = 'tongquan';
   content.innerHTML = `<div class="tabs">` + tabs.map(t =>
     `<button class="tab-btn ${t.id===currentTab?'active':''}" onclick="currentTab='${t.id}';renderM1()">${t.label}</button>`
   ).join('') + `</div><div id="tab-body"></div>`;
@@ -722,6 +725,7 @@ function renderM1(){
   if(currentTab === 'tongquan') return renderTongQuan(body);
   if(currentTab === 'giaoviec' && laKT) return renderGiaoViec(body);
   if(currentTab === 'xacnhan' && laKT) return renderXacNhan(body);
+  if(currentTab === 'xacnhan' && laTC) return renderXacNhanHoanThanhTC(body);
   if(currentTab === 'nhap') return renderNhap(body);
   if(currentTab === 'xuat') return renderXuat(body);
   if(currentTab === 'dichvu') return renderDichVu(body);
@@ -2082,7 +2086,7 @@ function renderXacNhan(body){
   const tongXe = groups.reduce((s,g)=>s+g.xe,0);
   body.innerHTML = `
     <div class="panel-head"><h3>Xác nhận khối lượng hàng qua cân</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 14px">Đường thủy: chọn tàu đã nhập số liệu từ file cân (tab Nhập hàng / Xuất hàng). Đường bộ: tự chọn khoảng ngày chốt số liệu. Hệ thống tự tổng hợp theo khách hàng — bấm "In bảng xác nhận" để có bản in ký ngay.</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 14px">Đường thủy: chọn tàu đã nhập số liệu từ file cân (tab Nhập hàng / Xuất hàng). Đường bộ: tự chọn khoảng ngày chốt số liệu. Hệ thống tự tổng hợp theo khách hàng — bấm "In bảng xác nhận" để có bản in ký ngay. Sau khi 2 bên đã ký xác nhận, bấm "Hoàn thành xác nhận" để chốt số liệu — Kế toán sẽ thấy đợt này ở tab tương ứng bên tài khoản của họ để làm căn cứ xuất hóa đơn/ghi nhận chi phí.</p>
     <div class="inline-form" style="grid-template-columns:1fr 1fr 1fr">
       <div class="field"><label>Hướng</label><select onchange="setXacNhan('huong',this.value)">
         <option value="xuat" ${xnHuong==='xuat'?'selected':''}>Xuất hàng</option>
@@ -2116,8 +2120,11 @@ function renderXacNhan(body){
       return `
     <div class="table-wrap">
       <table><thead><tr><th>Stt</th><th>Khách hàng</th><th>Loại hàng</th>${coTach ? '<th>Thời gian</th>' : ''}<th style="text-align:right">Số lượng xe (chuyến)</th><th style="text-align:right">Khối lượng hàng (kg)</th><th>Ghi chú</th><th></th></tr></thead>
-      <tbody>${groups.map((g,i)=>`<tr><td class="mono">${i+1}</td><td>${g.kh}</td><td>${g.loai}</td>${coTach ? `<td>${formatNgayVN(g.kyTuNgay)}${g.kyDenNgay!==g.kyTuNgay ? ' - '+formatNgayVN(g.kyDenNgay) : ''}</td>` : ''}<td class="num">${g.xe}</td><td class="num">${fmt(g.kg)}</td><td>${g.bai}</td>
-        <td><div class="row-actions"><button type="button" class="mini-btn" onclick="inBangXacNhan('${g.kh}')">In bảng xác nhận</button><button type="button" class="mini-btn" onclick="inBangKeChiTietKhachHang('${g.kh}')">In bảng kê chi tiết</button></div></td></tr>`).join('')}
+      <tbody>${groups.map((g,i)=>{
+        const daXN = timXacNhanHoanThanh('KH', g.kh, xnHuong, tuyenVal, tau, tuNgay, denNgay);
+        return `<tr><td class="mono">${i+1}</td><td>${g.kh}</td><td>${g.loai}</td>${coTach ? `<td>${formatNgayVN(g.kyTuNgay)}${g.kyDenNgay!==g.kyTuNgay ? ' - '+formatNgayVN(g.kyDenNgay) : ''}</td>` : ''}<td class="num">${g.xe}</td><td class="num">${fmt(g.kg)}</td><td>${g.bai}</td>
+        <td><div class="row-actions"><button type="button" class="mini-btn" onclick="inBangXacNhan('${g.kh}')">In bảng xác nhận</button><button type="button" class="mini-btn" onclick="inBangKeChiTietKhachHang('${g.kh}')">In bảng kê chi tiết</button>${daXN ? `<span class="pill approved" style="margin-left:4px">Đã hoàn thành xác nhận</span>` : `<button type="button" class="mini-btn approve" onclick="hoanThanhXacNhanKH('${g.kh}')">Hoàn thành xác nhận</button>`}</div></td></tr>`;
+      }).join('')}
       <tr style="font-weight:700"><td colspan="${coTach?4:3}">Tổng</td><td class="num">${tongXe}</td><td class="num">${fmt(tongKg)}</td><td></td><td></td></tr></tbody></table>
     </div>
     <details class="add-details" style="margin-top:10px" ${xnNgayTachList.length ? 'open' : ''}><summary class="add-summary">Tách theo ngày (nếu giá dịch vụ thay đổi trong thời gian ${xnHuong==='nhap'?'nhập':'xuất'} hàng)${xnNgayTachList.filter(Boolean).length ? ` — đang tách tại ${xnNgayTachList.filter(Boolean).map(formatNgayVN).join(', ')}` : ''}</summary>
@@ -2138,8 +2145,11 @@ function renderXacNhan(body){
     </div>
     <div class="table-wrap">
       <table><thead><tr><th>Nhà cung cấp dịch vụ</th><th style="text-align:right">Số xe</th><th style="text-align:right">Tổng chuyến</th><th style="text-align:right">Tổng khối lượng (Kg)</th><th></th></tr></thead>
-      <tbody>${nccGroups.map(g=>`<tr><td>${g.ncc ? g.ncc.ten : 'Chưa rõ nhà xe'}</td><td class="num">${g.xeList.length}</td><td class="num">${g.tongChuyen}</td><td class="num">${fmt(g.tongKg)}</td>
-        <td>${g.ncc ? `<div class="row-actions"><button type="button" class="mini-btn" onclick="inBangXacNhanNhaXe('${g.nccKey}')">In bảng xác nhận</button><button type="button" class="mini-btn" onclick="inBangKeChiTietNhaXe('${g.nccKey}')">In bảng kê chi tiết</button></div>` : ''}</td></tr>`).join('')
+      <tbody>${nccGroups.map(g=>{
+        const daXN = g.ncc ? timXacNhanHoanThanh('NCC', g.ncc.ten, xnHuong, tuyenVal, tau, tuNgay, denNgay) : null;
+        return `<tr><td>${g.ncc ? g.ncc.ten : 'Chưa rõ nhà xe'}</td><td class="num">${g.xeList.length}</td><td class="num">${g.tongChuyen}</td><td class="num">${fmt(g.tongKg)}</td>
+        <td>${g.ncc ? `<div class="row-actions"><button type="button" class="mini-btn" onclick="inBangXacNhanNhaXe('${g.nccKey}')">In bảng xác nhận</button><button type="button" class="mini-btn" onclick="inBangKeChiTietNhaXe('${g.nccKey}')">In bảng kê chi tiết</button>${daXN ? `<span class="pill approved" style="margin-left:4px">Đã hoàn thành xác nhận</span>` : `<button type="button" class="mini-btn approve" onclick="hoanThanhXacNhanNCC('${g.nccKey}')">Hoàn thành xác nhận</button>`}</div>` : ''}</td></tr>`;
+      }).join('')
         || `<tr class="empty-row"><td colspan="5">Chưa có dữ liệu</td></tr>`}</tbody>
       </table>
     </div>
@@ -2489,6 +2499,65 @@ function inBangKeChiTietKhachHang(khTen){
     <button class="noprint" style="margin-top:30px;padding:10px 22px;font-size:14px;font-weight:700;background:#0E5C52;color:#fff;border:none;border-radius:5px;cursor:pointer" onclick="window.print()">In</button>
   </body></html>`);
   win.document.close();
+}
+function timXacNhanHoanThanh(loai, doiTac, huong, tuyenVal, tau, tuNgay, denNgay){
+  return state.xacnhanhoanthanh.find(x=>x.loai===loai && x.doiTac===doiTac && x.huong===huong && x.tuyenVal===tuyenVal && x.tau===tau && x.tuNgay===tuNgay && x.denNgay===denNgay);
+}
+function hoanThanhXacNhanKH(khOverride){
+  const khLoc = khOverride !== undefined ? khOverride : xnKhachHang;
+  const {tuyenVal, tau, tuNgay, denNgay} = layKyXacNhanHienTai();
+  const {groups} = nhomXacNhanTheoKy(xnHuong, tuyenVal, tau, tuNgay, denNgay, khLoc, xnNgayTachList);
+  if(!groups.length){ alert('Chưa có dữ liệu để xác nhận.'); return; }
+  if(timXacNhanHoanThanh('KH', khLoc, xnHuong, tuyenVal, tau, tuNgay, denNgay)){ alert('Đã hoàn thành xác nhận cho khách hàng này ở kỳ này rồi.'); return; }
+  const tongKg = groups.reduce((s,g)=>s+g.kg,0);
+  const tongXe = groups.reduce((s,g)=>s+g.xe,0);
+  if(!confirm(`Xác nhận đã hoàn thành xác nhận khối lượng ${xnHuong==='nhap'?'nhập':'xuất'} với "${khLoc}" (${fmt(tongKg)} kg) cho kỳ này?\n\nSau khi lưu, số liệu sẽ được chốt lại làm căn cứ xuất hóa đơn — không đổi theo dù sau này sửa số liệu nhập/xuất.`)) return;
+  state.xacnhanhoanthanh.push({id:'XN'+(state.nextId++), loai:'KH', huong:xnHuong, tuyenVal, tau, tuNgay, denNgay,
+    doiTac:khLoc, tongKhoiLuongKg:tongKg, tongXe,
+    chiTiet: groups.map(g=>({loai:g.loai, kg:g.kg, xe:g.xe, kyTuNgay:g.kyTuNgay, kyDenNgay:g.kyDenNgay})),
+    ngayXacNhan: new Date().toISOString().slice(0,10), nguoiXacNhan: currentUser.name,
+    daXuatHoaDon:false, ngayXuatHoaDon:null});
+  logActivity(`Hoàn thành xác nhận khối lượng ${xnHuong==='nhap'?'nhập':'xuất'} với khách hàng "${khLoc}" (${fmt(tongKg)} kg)`);
+  renderM1();
+}
+function hoanThanhXacNhanNCC(nccKey){
+  const {tuyenVal, tau, tuNgay, denNgay} = layKyXacNhanHienTai();
+  const nccGroups = nhomNhaCungCapTheoKy(xnHuong, tuyenVal, tau, tuNgay, denNgay, xnKhachHang);
+  const g = nccGroups.find(x=>x.nccKey===nccKey);
+  if(!g || !g.ncc){ alert('Không tìm thấy dữ liệu.'); return; }
+  if(timXacNhanHoanThanh('NCC', g.ncc.ten, xnHuong, tuyenVal, tau, tuNgay, denNgay)){ alert('Đã hoàn thành xác nhận cho nhà cung cấp này ở kỳ này rồi.'); return; }
+  if(!confirm(`Xác nhận đã hoàn thành xác nhận với nhà cung cấp "${g.ncc.ten}" (${fmt(g.tongKg)} kg) cho kỳ này?\n\nSau khi lưu, số liệu sẽ được chốt lại làm căn cứ ghi nhận chi phí — không đổi theo dù sau này sửa số liệu nhập/xuất.`)) return;
+  state.xacnhanhoanthanh.push({id:'XN'+(state.nextId++), loai:'NCC', huong:xnHuong, tuyenVal, tau, tuNgay, denNgay,
+    doiTac:g.ncc.ten, tongKhoiLuongKg:g.tongKg, tongXe:g.tongChuyen,
+    chiTiet: g.xeList.map(x=>({bienSo:x.bienSo, taiXe:x.taiXe, kg:x.kg, chuyen:x.chuyen})),
+    ngayXacNhan: new Date().toISOString().slice(0,10), nguoiXacNhan: currentUser.name,
+    daXuatHoaDon:false, ngayXuatHoaDon:null});
+  logActivity(`Hoàn thành xác nhận với nhà cung cấp dịch vụ "${g.ncc.ten}" (${fmt(g.tongKg)} kg)`);
+  renderM1();
+}
+function danhDauDaXuatHoaDonXacNhan(id, daXuat){
+  const x = state.xacnhanhoanthanh.find(x=>x.id===id); if(!x) return;
+  x.daXuatHoaDon = daXuat; x.ngayXuatHoaDon = daXuat ? new Date().toISOString().slice(0,10) : null;
+  logActivity(`${daXuat?'Đánh dấu đã xuất hóa đơn':'Bỏ đánh dấu đã xuất hóa đơn'} cho xác nhận với "${x.doiTac}" (${fmt(x.tongKhoiLuongKg)} kg)`);
+  renderM1();
+}
+function renderXacNhanHoanThanhTC(body){
+  const rows = state.xacnhanhoanthanh.slice().sort((a,b)=>b.ngayXacNhan.localeCompare(a.ngayXacNhan));
+  body.innerHTML = `
+    <div class="panel-head"><h3>Xác nhận khối lượng đã hoàn thành</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 14px">Danh sách các đợt Phòng Khai thác đã hoàn thành xác nhận khối lượng với khách hàng/nhà cung cấp dịch vụ — dùng làm căn cứ xuất hóa đơn (loại KH) hoặc ghi nhận chi phí (loại NCC). Đánh dấu "Đã xuất hóa đơn" để tránh xuất trùng.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngày xác nhận</th><th>Loại</th><th>Đối tác</th><th>Hướng</th><th>Tuyến/Kỳ</th><th style="text-align:right">Khối lượng (kg)</th><th>Người xác nhận</th><th>Hóa đơn</th><th></th></tr></thead>
+      <tbody>${rows.map(x=>{
+        const kyLabel = x.tuyenVal==='Đường thủy' ? `${x.tau} (${formatNgayVN(x.tuNgay)}${x.denNgay!==x.tuNgay?' - '+formatNgayVN(x.denNgay):''})` : `Đường bộ (${formatNgayVN(x.tuNgay)}${x.denNgay!==x.tuNgay?' - '+formatNgayVN(x.denNgay):''})`;
+        const action = x.daXuatHoaDon
+          ? `<button class="mini-btn" onclick="danhDauDaXuatHoaDonXacNhan('${x.id}',false)">Bỏ đánh dấu</button>`
+          : `<button class="mini-btn approve" onclick="danhDauDaXuatHoaDonXacNhan('${x.id}',true)">Đánh dấu đã xuất hóa đơn</button>`;
+        return `<tr><td class="mono">${x.ngayXacNhan}</td><td>${x.loai==='KH'?'Khách hàng':'Nhà cung cấp DV'}</td><td>${x.doiTac}</td><td>${x.huong==='nhap'?'Nhập':'Xuất'}</td><td>${kyLabel}</td>
+          <td class="num">${fmt(x.tongKhoiLuongKg)}</td><td>${x.nguoiXacNhan}</td><td><span class="pill ${x.daXuatHoaDon?'approved':'pending'}">${x.daXuatHoaDon?'Đã xuất hóa đơn':'Chưa xuất hóa đơn'}</span>${x.ngayXuatHoaDon?`<div style="font-size:11px;color:var(--ink-soft);margin-top:3px">${x.ngayXuatHoaDon}</div>`:''}</td>
+          <td><div class="row-actions">${action}</div></td></tr>`;
+      }).join('') || `<tr class="empty-row"><td colspan="9">Chưa có xác nhận nào được Phòng Khai thác hoàn thành</td></tr>`}</tbody>
+    </table></div>`;
 }
 
 function renderDichVu(body){
