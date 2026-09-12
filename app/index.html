@@ -425,7 +425,7 @@ function defaultPermissions(){
     KT: {M1:'D',M2:'D',M3:'N',M6:'D',M7:'N',M10:'D'},
     VT: {M1:'X',M4:'D',M7:'N'},
     DV: {M2:'X',M5:'D',M7:'N'},
-    TC: {M1:'X',M2:'N',M3:'X',M4:'X',M5:'X',M6:'X',M7:'D',M10:'X'},
+    TC: {M1:'X',M2:'X',M3:'X',M4:'X',M5:'X',M6:'X',M7:'D',M10:'X'},
     NS: {M2:'X',M7:'N',M8:'D'},
     IT: {M1:'X',M2:'X',M3:'X',M4:'X',M5:'X',M6:'X',M7:'X',M8:'X',M9:'Q',M10:'X'},
     CH: {M1:'X',M3:'X'},
@@ -498,6 +498,7 @@ function loadState(){
     if(state.permissions.BLD && state.permissions.BLD.M10===undefined) state.permissions.BLD.M10 = 'X';
     if(state.permissions.IT && state.permissions.IT.M10===undefined) state.permissions.IT.M10 = 'X';
     if(state.permissions.NS && state.permissions.NS.M7===undefined) state.permissions.NS.M7 = 'N'; // NS được lập đề xuất/đề nghị/tạm ứng cho nhu cầu hành chính chung, thay cho Kế toán/BLD tự đề xuất
+    if(state.permissions.TC && state.permissions.TC.M2==='N') state.permissions.TC.M2 = 'X'; // Kế toán chỉ xem báo cáo M2, không tự thêm thiết bị/hạng mục sửa chữa — việc này để Phòng Khai thác
     if(!state.log) state.log = [];
     if(!state.doixe) state.doixe = seedState().doixe;
     if(!state.congviec) state.congviec = seedState().congviec;
@@ -3242,7 +3243,7 @@ function renderSuaChuaVatTu(body, canAdd){
   const loaiOptions = LOAI_BAO_TRI_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('');
   const logSectionHtml = `
     <div class="panel-head"><h3>Nhật ký sửa chữa/vật tư</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Ai có quyền trên module này đều ghi nhận được (kể cả Kế toán — chỉ ghi nhận chi phí, không duyệt). Người duyệt là Phòng Khai thác. Việc sửa chữa/vật tư đã qua Đề xuất mua hàng (M7) và được duyệt sẽ tự động xuất hiện ở đây, không cần ghi nhận lại — chỉ dùng form dưới cho việc phát sinh nhỏ/gấp không qua đề xuất.</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Chỉ Phòng Khai thác ghi nhận và duyệt được — Kế toán chỉ xem để theo dõi chi phí. Việc sửa chữa/vật tư đã qua Đề xuất mua hàng (M7) và được duyệt sẽ tự động xuất hiện ở đây, không cần ghi nhận lại — chỉ dùng form dưới cho việc phát sinh nhỏ/gấp không qua đề xuất.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Ghi nhận sửa chữa/vật tư</summary>
       <form class="inline-form" onsubmit="return submitNhatKy(event, document.getElementById('nk-loai').value)">
         <div class="field"><label>Ngày</label><input type="date" required id="nk-ngay"></div>
@@ -3296,7 +3297,7 @@ function renderNhatKy(body, key, canAdd){
   const phuongTienOptions = THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('');
   const logSectionHtml = `
     <div class="panel-head"><h3>Nhật ký ${cfg.ten}</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Ai có quyền trên module này đều ghi nhận được (kể cả Kế toán — chỉ ghi nhận chi phí, không duyệt). Người duyệt là Phòng Khai thác.</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Chỉ Phòng Khai thác ghi nhận và duyệt được — Kế toán chỉ xem để theo dõi chi phí.</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Ghi nhận ${cfg.ten}</summary>
       <form class="inline-form" onsubmit="return submitNhatKy(event,'${key}')">
         <div class="field"><label>Ngày</label><input type="date" required id="nk-ngay"></div>
