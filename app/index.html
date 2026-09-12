@@ -789,14 +789,14 @@ function renderTongQuan(body){
   let khachHangList = [...khachHangSet];
   if(currentUser.scopeCustomer) khachHangList = khachHangList.filter(kh=>kh===currentUser.scopeCustomer);
   const khachGroups = khachHangList.map(kh=>{
-    const baiSet = new Set(BAI_THEO_KHACH[kh]||[]);
-    lots.filter(l=>l.chuHang===kh).forEach(l=>baiSet.add(l.viTri));
+    const baiSet = new Set((BAI_THEO_KHACH[kh]||[]).filter(Boolean));
+    lots.filter(l=>l.chuHang===kh && l.viTri).forEach(l=>baiSet.add(l.viTri));
     const bais = [...baiSet].map(viTri=>{
       const lot = state.lots.find(l=>l.chuHang===kh && l.viTri===viTri);
       return {viTri, lotId: lot ? lot.id : null, ton: lot ? tonTruocNgay(lot.id, ngaySau) : 0};
     });
     return {chuHang:kh, bais};
-  });
+  }).filter(g=>g.bais.length>0); // bỏ khách hàng chưa khai báo bãi nào — tránh cột colspan="0" làm lệch bảng
 
   const LOAI_XE_BANG = LOAI_XE_BANG_CHUNG;
   const locKhoang = (list, lotId) => lotId ? list.filter(r=>r.lotId===lotId && r.ngay>=tuNgayBaoCao && r.ngay<=denNgayBaoCao) : [];
