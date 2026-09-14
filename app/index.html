@@ -485,6 +485,7 @@ function seedState(){
     khoanvay: [],
     lichtrano: [],
     xacnhanhoanthanh: [],
+    dmvattu: [], nhapkhovattu: [], xuatkhovattu: [],
     nhansu: [],
     thietBiSoLuong: {'Xúc lật':0, 'Máy múc nhỏ':0, 'Máy múc to':0, 'Cẩu điện':0},
     nextId: 1,
@@ -553,6 +554,10 @@ function loadState(){
     if(!state.khoanvay) state.khoanvay = seedState().khoanvay;
     if(!state.lichtrano) state.lichtrano = seedState().lichtrano;
     if(!state.xacnhanhoanthanh) state.xacnhanhoanthanh = seedState().xacnhanhoanthanh;
+    if(!state.dmvattu) state.dmvattu = seedState().dmvattu;
+    if(!state.nhapkhovattu) state.nhapkhovattu = seedState().nhapkhovattu;
+    if(!state.xuatkhovattu) state.xuatkhovattu = seedState().xuatkhovattu;
+    state.dexuatmuahang.forEach(x=>{ if(x.loaiLienQuan===undefined) x.loaiLienQuan = x.lienQuanThietBi ? 'thietbi' : ''; }); // đổi từ checkbox lienQuanThietBi sang chọn 1 trong 2 loại liên quan (thêm "Nhập kho vật tư/nhiên liệu")
     state.xacnhanhoanthanh.forEach(x=>{ if(!x.trangThaiXacNhan) Object.assign(x, {trangThaiXacNhan:'Đã xác nhận', nguoiXacNhanLai:'Dữ liệu cũ', ngayXacNhanLai:x.ngayXacNhan, lyDoTuChoi:null}); }); // dữ liệu cũ trước khi có bước Kế toán xác nhận lại — coi như đã được chấp nhận
     state.hoadon.forEach(h=>{ if(h.trangThaiThanhToan===undefined) h.trangThaiThanhToan = 'Chưa thanh toán'; });
     state.khachhang.forEach(k=>{
@@ -2862,6 +2867,22 @@ const FIELD_SCHEMAS = {
     {key:'ngay', label:'Ngày kiểm kê', type:'date'},
     {key:'tonSoSach', label:'Tồn sổ sách (tấn)', type:'number'}, {key:'tonThucTe', label:'Tồn thực tế (tấn)', type:'number'},
   ]},
+  dmvattu: {ten:'danh mục vật tư', fields:[
+    {key:'ten', label:'Tên vật tư/nhiên liệu', type:'text'},
+    {key:'donViTinh', label:'Đơn vị tính', type:'text'},
+    {key:'nguongCanhBao', label:'Ngưỡng cảnh báo tồn thấp', type:'number'},
+  ]},
+  nhapkhovattu: {ten:'phiếu nhập kho', fields:[
+    {key:'ngay', label:'Ngày nhập', type:'date'},
+    {key:'soLuong', label:'Số lượng', type:'number'},
+    {key:'donGia', label:'Đơn giá (đ)', type:'number'},
+    {key:'ghiChu', label:'Ghi chú', type:'text'},
+  ]},
+  xuatkhovattu: {ten:'phiếu xuất kho', fields:[
+    {key:'ngay', label:'Ngày xuất', type:'date'},
+    {key:'soLuong', label:'Số lượng', type:'number'},
+    {key:'ghiChu', label:'Ghi chú', type:'text'},
+  ]},
   vantai: {ten:'chuyến vận tải', fields:[
     {key:'ngay', label:'Ngày', type:'date'},
     {key:'loaiXe', label:'Loại xe', type:'select', options:[{v:'Tự có',t:'Tự có'},{v:'Thuê ngoài',t:'Thuê ngoài'}]},
@@ -3104,8 +3125,8 @@ function xepHangXeHayHong(){
 }
 function renderM2(){
   const content = document.getElementById('content');
-  const tabs = [{id:'thietbi',label:'Thiết bị'},{id:'nhienlieu',label:'Nhiên liệu'},{id:'suachuavattu',label:'Sửa chữa/Vật tư'},{id:'dangkiem',label:'Kiểm định'}];
-  if(!['thietbi','nhienlieu','suachuavattu','dangkiem'].includes(currentTab)) currentTab = 'thietbi';
+  const tabs = [{id:'thietbi',label:'Thiết bị'},{id:'nhienlieu',label:'Nhiên liệu'},{id:'suachuavattu',label:'Sửa chữa/Vật tư'},{id:'khovattu',label:'Kho vật tư & nhiên liệu'},{id:'dangkiem',label:'Kiểm định'}];
+  if(!['thietbi','nhienlieu','suachuavattu','khovattu','dangkiem'].includes(currentTab)) currentTab = 'thietbi';
   content.innerHTML = `<div class="tabs">` + tabs.map(t =>
     `<button class="tab-btn ${t.id===currentTab?'active':''}" onclick="currentTab='${t.id}';renderM2()">${t.label}</button>`
   ).join('') + `</div><div id="tab-body"></div>`;
@@ -3140,6 +3161,8 @@ function renderM2(){
     renderNhatKy(body, 'nhienlieu', canAdd);
   } else if(currentTab === 'suachuavattu'){
     renderSuaChuaVatTu(body, canAdd);
+  } else if(currentTab === 'khovattu'){
+    renderKhoVatTu(body, canAdd);
   } else {
     const phuongTienOptions = state.thietbi.map(t=>`<option value="${t.id}">${t.ten}${t.bienSo?' — '+t.bienSo:''}</option>`).join('');
     body.innerHTML = `
@@ -3454,6 +3477,135 @@ function duyetNhatKy(key, id){
   b.trangThai = 'Đã duyệt'; b.nguoiDuyet = ghiNguoiThucHien();
   logActivity(`Duyệt chi phí "${b.noiDung}" (${fmt(b.chiPhi)} đ)`);
   renderM2();
+}
+/* ---- Kho vật tư & nhiên liệu ---- */
+function tonKhoVatTu(danhMucId){
+  const tongNhap = state.nhapkhovattu.filter(n=>n.danhMucId===danhMucId).reduce((s,n)=>s+n.soLuong,0);
+  const tongXuat = state.xuatkhovattu.filter(x=>x.danhMucId===danhMucId).reduce((s,x)=>s+x.soLuong,0);
+  return tongNhap - tongXuat;
+}
+function donGiaBinhQuanVatTu(danhMucId){
+  const list = state.nhapkhovattu.filter(n=>n.danhMucId===danhMucId);
+  const tongSoLuong = list.reduce((s,n)=>s+n.soLuong,0);
+  if(tongSoLuong<=0) return 0;
+  const tongTien = list.reduce((s,n)=>s+n.soLuong*n.donGia,0);
+  return tongTien/tongSoLuong;
+}
+function submitDanhMucVatTu(e){
+  e.preventDefault();
+  const ten = document.getElementById('dm-ten').value.trim();
+  if(!ten) return false;
+  state.dmvattu.push({id:'DM'+(state.nextId++), ten, donViTinh:document.getElementById('dm-dvt').value.trim(),
+    nguongCanhBao:parseFloat(document.getElementById('dm-nguong').value)||0});
+  logActivity(`Thêm danh mục vật tư/nhiên liệu "${ten}"`);
+  renderM2(); return false;
+}
+function submitNhapKhoVatTu(e){
+  e.preventDefault();
+  const danhMucId = document.getElementById('nk-danhmuc').value;
+  const dm = state.dmvattu.find(d=>d.id===danhMucId); if(!dm) return false;
+  const soLuong = parseFloat(document.getElementById('nk-soluong').value)||0;
+  state.nhapkhovattu.push({id:'NKV'+(state.nextId++), danhMucId, ngay:document.getElementById('nk-ngaynhap').value,
+    soLuong, donGia:parseFloat(document.getElementById('nk-dongia').value)||0,
+    ghiChu:document.getElementById('nk-ghichunhap').value.trim(), nguon:'Nhập tay', deXuatId:null});
+  logActivity(`Nhập kho "${dm.ten}": ${fmt(soLuong)} ${dm.donViTinh}`);
+  renderM2(); return false;
+}
+function submitXuatKhoVatTu(e){
+  e.preventDefault();
+  const danhMucId = document.getElementById('xk-danhmuc').value;
+  const dm = state.dmvattu.find(d=>d.id===danhMucId); if(!dm) return false;
+  const soLuong = parseFloat(document.getElementById('xk-soluong').value)||0;
+  const ton = tonKhoVatTu(danhMucId);
+  if(soLuong > ton){
+    alert(`Tồn kho "${dm.ten}" chỉ còn ${fmt(ton)} ${dm.donViTinh} — không đủ để xuất ${fmt(soLuong)} ${dm.donViTinh}.`);
+    return false;
+  }
+  const donGiaBQ = donGiaBinhQuanVatTu(danhMucId);
+  const phuongTienId = document.getElementById('xk-phuongtien').value;
+  const bienSo = document.getElementById('xk-bienso').value;
+  state.xuatkhovattu.push({id:'XKV'+(state.nextId++), danhMucId, ngay:document.getElementById('xk-ngayxuat').value,
+    soLuong, donGiaBinhQuan:donGiaBQ, chiPhi:soLuong*donGiaBQ, phuongTienId, bienSo,
+    ghiChu:document.getElementById('xk-ghichuxuat').value.trim()});
+  logActivity(`Xuất kho "${dm.ten}": ${fmt(soLuong)} ${dm.donViTinh} cho ${phuongTienId||'—'} (${bienSo||'—'}) — ${fmt(soLuong*donGiaBQ)} đ`);
+  renderM2(); return false;
+}
+function renderKhoVatTu(body, canAdd){
+  const phuongTienOptions = THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('');
+  const danhMucOptions = state.dmvattu.map(d=>`<option value="${d.id}">${d.ten} (${d.donViTinh})</option>`).join('');
+  body.innerHTML = `
+    <div class="panel-head"><h3>Kho vật tư &amp; nhiên liệu</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Theo dõi các vật tư/nhiên liệu mua số lượng lớn về nhập kho rồi xuất dần cho từng xe (dầu diesel, dầu nhờn, lốp xe...) — chi phí mỗi lần xuất tự tính theo đơn giá bình quân nhập kho. Chỉ Phòng Khai thác ghi nhận được, Kế toán xem để theo dõi chi phí.</p>
+
+    <div class="panel-head" style="margin-top:8px"><h3 style="font-size:14px">Danh mục vật tư/nhiên liệu</h3></div>
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Thêm danh mục mới</summary>
+      <form class="inline-form" onsubmit="return submitDanhMucVatTu(event)">
+        <div class="field"><label>Tên vật tư/nhiên liệu</label><input required id="dm-ten" placeholder="VD: Dầu diesel, Dầu nhờn 15W-40, Lốp 12.00R20"></div>
+        <div class="field"><label>Đơn vị tính</label><input required id="dm-dvt" placeholder="VD: Lít, Chiếc"></div>
+        <div class="field"><label>Ngưỡng cảnh báo tồn thấp</label><input type="number" required id="dm-nguong" placeholder="VD: 1000"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Tên vật tư/nhiên liệu</th><th>Đơn vị</th><th style="text-align:right">Tồn kho hiện tại</th><th style="text-align:right">Đơn giá bình quân</th><th>Cảnh báo</th><th></th></tr></thead>
+      <tbody>${state.dmvattu.map(d=>{
+        const ton = tonKhoVatTu(d.id);
+        const canhBao = ton <= d.nguongCanhBao;
+        return `<tr><td>${d.ten}</td><td>${d.donViTinh}</td><td class="num" style="font-weight:700">${fmt(ton)}</td><td class="num">${fmt(donGiaBinhQuanVatTu(d.id))} đ</td>
+          <td>${canhBao ? `<span class="pill rejected">⚠ Tồn thấp (ngưỡng ${fmt(d.nguongCanhBao)})</span>` : `<span class="pill approved">Bình thường</span>`}</td>
+          <td>${canAdd ? `<div class="row-actions">${actionButtons('dmvattu', d.id)}</div>` : ''}</td></tr>`;
+      }).join('') || `<tr class="empty-row"><td colspan="6">Chưa có danh mục vật tư/nhiên liệu nào</td></tr>`}</tbody>
+    </table></div>
+
+    <div class="panel-head" style="margin-top:28px"><h3 style="font-size:14px">Nhập kho</h3></div>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:-6px 0 10px">Nhập tay ở đây dùng cho phát sinh nhỏ. Nhập kho số lượng lớn nên lập qua Đề xuất mua hàng (M7) — tick "Nhập kho vật tư/nhiên liệu" — để qua đúng luồng duyệt, hệ thống sẽ tự nhập kho khi được duyệt.</p>
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Nhập kho thủ công</summary>
+      <form class="inline-form" onsubmit="return submitNhapKhoVatTu(event)">
+        <div class="field"><label>Danh mục</label><select required id="nk-danhmuc">${danhMucOptions || '<option value="">— chưa có danh mục —</option>'}</select></div>
+        <div class="field"><label>Ngày nhập</label><input type="date" required id="nk-ngaynhap"></div>
+        <div class="field"><label>Số lượng</label><input type="number" required id="nk-soluong"></div>
+        <div class="field"><label>Đơn giá (đ)</label><input type="number" required id="nk-dongia"></div>
+        <div class="field"><label>Ghi chú</label><input id="nk-ghichunhap"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngày</th><th>Danh mục</th><th style="text-align:right">Số lượng</th><th style="text-align:right">Đơn giá</th><th>Nguồn</th><th></th></tr></thead>
+      <tbody>${state.nhapkhovattu.slice().sort((a,b)=>b.ngay.localeCompare(a.ngay)).map(n=>{
+        const dm = state.dmvattu.find(d=>d.id===n.danhMucId);
+        return `<tr><td class="mono">${n.ngay}</td><td>${dm?dm.ten:'—'}</td><td class="num">${fmt(n.soLuong)}</td><td class="num">${fmt(n.donGia)} đ</td>
+          <td style="font-size:12px;color:var(--ink-soft)">${n.deXuatId ? `Đề xuất mua hàng ${n.deXuatId}` : (n.nguon||'Nhập tay')}</td>
+          <td>${canAdd ? `<div class="row-actions">${actionButtons('nhapkhovattu', n.id)}</div>` : ''}</td></tr>`;
+      }).join('') || `<tr class="empty-row"><td colspan="6">Chưa có phiếu nhập kho nào</td></tr>`}</tbody>
+    </table></div>
+
+    <div class="panel-head" style="margin-top:28px"><h3 style="font-size:14px">Xuất kho</h3></div>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:-6px 0 10px">Ghi nhận mỗi lần đổ dầu/cấp vật tư thực tế cho 1 xe cụ thể — chi phí tự tính theo đơn giá bình quân, trừ vào tồn kho.</p>
+    ${canAdd ? `<details class="add-details"><summary class="add-summary">Xuất kho cho xe</summary>
+      <form class="inline-form" onsubmit="return submitXuatKhoVatTu(event)">
+        <div class="field"><label>Danh mục</label><select required id="xk-danhmuc">${danhMucOptions || '<option value="">— chưa có danh mục —</option>'}</select></div>
+        <div class="field"><label>Ngày xuất</label><input type="date" required id="xk-ngayxuat"></div>
+        <div class="field"><label>Số lượng</label><input type="number" required id="xk-soluong"></div>
+        <div class="field"><label>Thiết bị/phương tiện</label><select id="xk-phuongtien">${phuongTienOptions}</select></div>
+        <div class="field"><label>Biển số xe</label><select id="xk-bienso" onchange=""></select></div>
+        <div class="field"><label>Ghi chú</label><input id="xk-ghichuxuat"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngày</th><th>Danh mục</th><th style="text-align:right">Số lượng</th><th>Thiết bị/phương tiện</th><th>Biển số</th><th style="text-align:right">Chi phí</th><th></th></tr></thead>
+      <tbody>${state.xuatkhovattu.slice().sort((a,b)=>b.ngay.localeCompare(a.ngay)).map(x=>{
+        const dm = state.dmvattu.find(d=>d.id===x.danhMucId);
+        return `<tr><td class="mono">${x.ngay}</td><td>${dm?dm.ten:'—'}</td><td class="num">${fmt(x.soLuong)}</td><td>${x.phuongTienId||''}</td><td class="mono">${x.bienSo||''}</td><td class="num">${fmt(x.chiPhi)} đ</td>
+          <td>${canAdd ? `<div class="row-actions">${actionButtons('xuatkhovattu', x.id)}</div>` : ''}</td></tr>`;
+      }).join('') || `<tr class="empty-row"><td colspan="7">Chưa có phiếu xuất kho nào</td></tr>`}</tbody>
+    </table></div>
+  `;
+  const selPT = document.getElementById('xk-phuongtien');
+  const selBS = document.getElementById('xk-bienso');
+  function capNhatBienSoXuatKho(){
+    if(!selPT || !selBS) return;
+    const xe = state.thietbi.filter(t=>t.ten===selPT.value && t.bienSo);
+    selBS.innerHTML = xe.length ? xe.map(t=>`<option value="${t.bienSo}">${t.bienSo}</option>`).join('') : `<option value="">— chưa có xe đã lưu cho loại này —</option>`;
+  }
+  if(selPT){ selPT.onchange = capNhatBienSoXuatKho; capNhatBienSoXuatKho(); }
 }
 function submitDangKiem(e){
   e.preventDefault();
@@ -4135,13 +4287,20 @@ function renderDeXuatMuaHang(body){
         <div class="field"><label>Đơn giá (đ)</label><input type="number" required id="dx-dg"></div>
         <div class="field"><label>Nhà cung cấp</label><input id="dx-ncc"></div>
         <div class="field"><label>Mục đích</label><input id="dx-mucdich"></div>
-        <div class="field" style="grid-column:1/-1"><label style="display:inline-flex;align-items:center;gap:8px;font-weight:400;font-size:13px;padding:8px 12px;border:1px solid var(--line);border-radius:4px;background:var(--paper-raised);cursor:pointer"><input type="checkbox" id="dx-lienquantb" onchange="toggleThietBiDeXuat()"> Liên quan đến thiết bị/phương tiện (để tự ghi vào Sửa chữa/Vật tư khi được duyệt)</label></div>
+        <div class="field" style="grid-column:1/-1"><label>Liên quan đến</label><select id="dx-loailienquan" onchange="toggleThietBiDeXuat()">
+          <option value="">— Không liên quan thiết bị/kho vật tư —</option>
+          <option value="thietbi">Thiết bị/phương tiện cụ thể (tự ghi vào Sửa chữa/Vật tư khi được duyệt)</option>
+          <option value="khovattu">Nhập kho vật tư/nhiên liệu (mua số lượng lớn, chưa gắn 1 xe cụ thể)</option>
+        </select></div>
         <div id="dx-thietbifield" style="display:none;grid-column:1/-1">
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
             <div class="field"><label>Sửa chữa/Vật tư</label><select id="dx-loaisc">${LOAI_BAO_TRI_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('')}</select></div>
             <div class="field"><label>Thiết bị/phương tiện</label><select id="dx-thietbi" onchange="capNhatBienSoOptionsDX()">${THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('')}</select></div>
             <div class="field"><label>Biển số xe</label><select id="dx-bienso"></select></div>
           </div>
+        </div>
+        <div id="dx-khovattufield" style="display:none;grid-column:1/-1">
+          <div class="field"><label>Danh mục vật tư/nhiên liệu</label><select id="dx-danhmucvattu">${state.dmvattu.map(d=>`<option value="${d.id}">${d.ten} (${d.donViTinh})</option>`).join('') || '<option value="">— chưa có danh mục, thêm ở M2 · Kho vật tư & nhiên liệu —</option>'}</select></div>
         </div>
         <div class="form-actions"><button type="submit" class="add-btn">Gửi đề xuất</button></div>
       </form></details>` : ''}
@@ -4159,14 +4318,18 @@ function renderDeXuatMuaHang(body){
           action += `<button class="mini-btn approve" onclick="duyetDeXuat('${x.id}',true)">Duyệt</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetDeXuat('${x.id}',false)">Từ chối</button>`;
         }
         if(canAdd) action += actionButtons('dexuatmuahang', x.id);
-        return `<tr><td class="mono">${x.ngay}</td><td>${x.noiDung}${x.suaChuaVatTuId ? `<br><span style="font-size:11px;color:var(--ink-soft)">Đã ghi vào Sửa chữa/Vật tư (${x.bienSo||x.phuongTienId})</span>` : ''}</td><td>${x.nguoiDeXuat}</td><td>${x.boPhan}</td><td>${x.nhaCungCap||''}</td>
+        const dmNhapKho = x.nhapKhoVatTuId ? state.nhapkhovattu.find(n=>n.id===x.nhapKhoVatTuId) : null;
+        const dmTen = dmNhapKho ? (state.dmvattu.find(d=>d.id===dmNhapKho.danhMucId)||{}).ten : null;
+        return `<tr><td class="mono">${x.ngay}</td><td>${x.noiDung}${x.suaChuaVatTuId ? `<br><span style="font-size:11px;color:var(--ink-soft)">Đã ghi vào Sửa chữa/Vật tư (${x.bienSo||x.phuongTienId})</span>` : ''}${x.nhapKhoVatTuId ? `<br><span style="font-size:11px;color:var(--ink-soft)">Đã nhập kho${dmTen?` (${dmTen})`:''}</span>` : ''}</td><td>${x.nguoiDeXuat}</td><td>${x.boPhan}</td><td>${x.nhaCungCap||''}</td>
           <td class="num">${fmt(thanhTien)}</td><td><span class="pill ${pillClass}">${x.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
       }).join('') || `<tr class="empty-row"><td colspan="8">Chưa có đề xuất mua hàng nào</td></tr>`}</tbody>
     </table></div>`;
   capNhatBienSoOptionsDX();
 }
 function toggleThietBiDeXuat(){
-  document.getElementById('dx-thietbifield').style.display = document.getElementById('dx-lienquantb').checked ? '' : 'none';
+  const loai = document.getElementById('dx-loailienquan').value;
+  document.getElementById('dx-thietbifield').style.display = loai==='thietbi' ? '' : 'none';
+  document.getElementById('dx-khovattufield').style.display = loai==='khovattu' ? '' : 'none';
   capNhatBienSoOptionsDX();
 }
 function capNhatBienSoOptionsDX(){
@@ -4181,15 +4344,17 @@ function capNhatBienSoOptionsDX(){
 function submitDeXuat(e){
   e.preventDefault();
   const noiDung = document.getElementById('dx-noidung').value;
-  const lienQuanThietBi = document.getElementById('dx-lienquantb').checked;
+  const loaiLienQuan = document.getElementById('dx-loailienquan').value;
   state.dexuatmuahang.push({id:'DX'+(state.nextId++), ngay:document.getElementById('dx-ngay').value,
     nguoiDeXuat:document.getElementById('dx-nguoi').value, boPhan:document.getElementById('dx-bophan').value,
     noiDung, donViTinh:document.getElementById('dx-dvt').value, soLuong:parseFloat(document.getElementById('dx-sl').value)||1,
     donGia:parseFloat(document.getElementById('dx-dg').value)||0, nhaCungCap:document.getElementById('dx-ncc').value,
     mucDich:document.getElementById('dx-mucdich').value, trangThai: canApprove('M7') ? 'Chờ kiểm tra' : 'Chờ trưởng phòng duyệt', nguoiDuyetBoPhan:null, nguoiKiemTra:null, nguoiDuyet:null,
-    lienQuanThietBi, loaiSuaChuaVatTu: lienQuanThietBi ? document.getElementById('dx-loaisc').value : null,
-    phuongTienId: lienQuanThietBi ? document.getElementById('dx-thietbi').value : null,
-    bienSo: lienQuanThietBi ? document.getElementById('dx-bienso').value : null, suaChuaVatTuId:null});
+    loaiLienQuan, loaiSuaChuaVatTu: loaiLienQuan==='thietbi' ? document.getElementById('dx-loaisc').value : null,
+    phuongTienId: loaiLienQuan==='thietbi' ? document.getElementById('dx-thietbi').value : null,
+    bienSo: loaiLienQuan==='thietbi' ? document.getElementById('dx-bienso').value : null,
+    danhMucVatTuId: loaiLienQuan==='khovattu' ? document.getElementById('dx-danhmucvattu').value : null,
+    suaChuaVatTuId:null, nhapKhoVatTuId:null});
   logActivity(`Gửi đề xuất mua hàng "${noiDung}"`);
   renderM7(); return false;
 }
@@ -4209,7 +4374,7 @@ function duyetDeXuat(id, dong){
   const x = state.dexuatmuahang.find(x=>x.id===id); if(!x) return;
   x.trangThai = dong ? 'Đã duyệt' : 'Từ chối'; x.nguoiDuyet = ghiNguoiThucHien();
   logActivity(`${dong?'Duyệt':'Từ chối'} đề xuất mua hàng "${x.noiDung}"`);
-  if(dong && x.lienQuanThietBi && !x.suaChuaVatTuId){
+  if(dong && x.loaiLienQuan==='thietbi' && !x.suaChuaVatTuId){
     const key = x.loaiSuaChuaVatTu === 'suachua' ? 'suachua' : 'vattu';
     const rec = {id:key.slice(0,2).toUpperCase()+(state.nextId++), ngay:x.ngay,
       phuongTienId:x.phuongTienId, bienSo:x.bienSo, noiDung:x.noiDung, donViThucHien:x.nhaCungCap,
@@ -4218,6 +4383,16 @@ function duyetDeXuat(id, dong){
     state[key].push(rec);
     x.suaChuaVatTuId = rec.id;
     logActivity(`Tự động ghi nhận "${x.noiDung}" vào ${key==='suachua'?'Sửa chữa':'Vật tư'} (${x.bienSo||x.phuongTienId}) từ đề xuất mua hàng đã duyệt`);
+  }
+  if(dong && x.loaiLienQuan==='khovattu' && x.danhMucVatTuId && !x.nhapKhoVatTuId){
+    const dm = state.dmvattu.find(d=>d.id===x.danhMucVatTuId);
+    if(dm){
+      const rec = {id:'NKV'+(state.nextId++), danhMucId:x.danhMucVatTuId, ngay:x.ngay, soLuong:x.soLuong, donGia:x.donGia,
+        ghiChu:x.noiDung, nguon:'Đề xuất mua hàng', deXuatId:x.id};
+      state.nhapkhovattu.push(rec);
+      x.nhapKhoVatTuId = rec.id;
+      logActivity(`Tự động nhập kho "${dm.ten}" (${fmt(x.soLuong)} ${dm.donViTinh}) từ đề xuất mua hàng đã duyệt`);
+    }
   }
   renderM7();
 }
