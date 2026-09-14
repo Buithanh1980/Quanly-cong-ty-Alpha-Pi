@@ -4685,7 +4685,7 @@ function renderSoQuy(body){
       <div class="stat-card"><div class="slabel">Tồn quỹ chính (TP.HCM)</div><div class="sval">${fmt(soDuQuy('Chính'))} <span class="sunit">đ</span></div></div>
       <div class="stat-card"><div class="slabel">Tồn quỹ Chân Mây</div><div class="sval">${fmt(soDuQuy('Chân Mây'))} <span class="sunit">đ</span></div></div>
       <div class="stat-card" style="background:var(--grey-tint)"><div class="slabel">Tổng tồn quỹ công ty</div><div class="sval" style="font-weight:700">${fmt(soDuQuy())} <span class="sunit">đ</span></div></div>
-      ` : `<div class="stat-card"><div class="slabel">Tồn quỹ Chân Mây (bạn quản lý)</div><div class="sval">${fmt(soDuQuy('Chân Mây'))} <span class="sunit">đ</span></div></div>`}
+      ` : `<div class="stat-card"><div class="slabel">Tồn quỹ Chân Mây</div><div class="sval">${fmt(soDuQuy('Chân Mây'))} <span class="sunit">đ</span></div></div>`}
     </div>
     <div class="panel-head"><h3>Sổ quỹ${xemHet?' (tiền mặt + chuyển khoản)':' — Quỹ Chân Mây'}</h3></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Công ty có 2 quỹ: <b>Quỹ chính</b> do Kế toán quản lý tại TP.HCM, và <b>Quỹ Chân Mây</b> do thủ quỹ tại chỗ (Phòng Khai thác) quản lý — dùng chi cho công việc khẩn cấp tại Chân Mây của Khai thác, Vận tải liên vận hoặc Dịch vụ kỹ thuật khi có việc ở đó. Các dòng từ đề nghị thanh toán/tạm ứng được ghi tự động khi thực hiện chi, đúng theo quỹ đã chọn lúc lập hồ sơ.${xemHet ? ' Chỉ Kế toán được ghi bổ sung thu/chi thủ công cho quỹ chính.' : ' Bạn là thủ quỹ Chân Mây, có thể ghi bổ sung thu/chi thủ công cho quỹ này.'}</p>
@@ -5400,7 +5400,7 @@ function traLoiAI(q){
   }
   if(low.includes('tồn quỹ') || (low.includes('quỹ') && !low.includes('công'))){
     if(xemToanBoTaiChinh()) return `Tồn quỹ chính (TP.HCM): ${fmt(soDuQuy('Chính'))} đ\nTồn quỹ Chân Mây: ${fmt(soDuQuy('Chân Mây'))} đ\nTổng tồn quỹ công ty: ${fmt(soDuQuy())} đ`;
-    if(currentUser.id==='KT') return `Tồn quỹ Chân Mây (bạn quản lý): ${fmt(soDuQuy('Chân Mây'))} đ`;
+    if(currentUser.id==='KT') return `Tồn quỹ Chân Mây: ${fmt(soDuQuy('Chân Mây'))} đ`;
     return 'Tồn quỹ chỉ Kế toán, Ban lãnh đạo và thủ quỹ Chân Mây (Khai thác) xem được — bộ phận của bạn theo dõi qua tab Tạm ứng/Đề nghị thanh toán của chính mình.';
   }
   if(low.includes('tạm ứng')){
