@@ -550,6 +550,9 @@ function loadState(){
       arr.forEach(r=>{ if(r.trangThai==='Chờ trưởng phòng duyệt' && (r.boPhan==='Kế toán' || r.boPhan==='Ban lãnh đạo')) r.trangThai = 'Chờ kiểm tra'; }); // Kế toán/BLD tự đề xuất thì không có ai duyệt cấp trưởng bộ phận — bỏ qua bước này
     });
     if(!state.soquy) state.soquy = seedState().soquy;
+    state.soquy.forEach(q=>{ if(!q.quy) q.quy = 'Chính'; }); // dữ liệu cũ trước khi tách Quỹ chính/Quỹ Chân Mây — coi như thuộc Quỹ chính
+    state.denghithanhtoan.forEach(t=>{ if(!t.quy) t.quy = 'Chính'; });
+    state.tamung.forEach(t=>{ if(!t.quy) t.quy = 'Chính'; });
     if(!state.hoadon) state.hoadon = seedState().hoadon;
     if(!state.khoanvay) state.khoanvay = seedState().khoanvay;
     if(!state.lichtrano) state.lichtrano = seedState().lichtrano;
@@ -2932,6 +2935,7 @@ const FIELD_SCHEMAS = {
     {key:'soTien', label:'Số tiền (đ)', type:'number'},
     {key:'hinhThuc', label:'Hình thức', type:'select', options:[{v:'Chuyển khoản',t:'Chuyển khoản'},{v:'Tiền mặt',t:'Tiền mặt'}]},
     {key:'noiDung', label:'Nội dung', type:'text'},
+    {key:'quy', label:'Quỹ', type:'select', options:[{v:'Chính',t:'Quỹ chính'},{v:'Chân Mây',t:'Quỹ Chân Mây'}]},
   ]},
   nhansu: {ten:'nhân sự', fields:[
     {key:'hoTen', label:'Họ tên', type:'text'}, {key:'chucVu', label:'Chức vụ', type:'text'},
@@ -4020,9 +4024,10 @@ function xacNhanNhapKhachHang(){
 }
 function huyNhapKhachHang(){ pendingKhachHangImport = null; renderM6(); }
 /* ===================== M7: TÀI CHÍNH — KẾ TOÁN ===================== */
-function soDuQuy(){ return state.soquy.reduce((s,q)=>s + (q.loai==='Thu' ? q.soTien : -q.soTien), 0); }
-function themSoQuy(loai, soTien, hinhThuc, noiDung, nguon){
-  state.soquy.push({id:'SQ'+(state.nextId++), ngay:new Date().toISOString().slice(0,10), loai, soTien, hinhThuc, noiDung, nguon});
+const QUY_OPTIONS = ['Chính', 'Chân Mây'];
+function soDuQuy(quy){ return state.soquy.filter(q=>!quy || q.quy===quy).reduce((s,q)=>s + (q.loai==='Thu' ? q.soTien : -q.soTien), 0); }
+function themSoQuy(loai, soTien, hinhThuc, noiDung, nguon, quy){
+  state.soquy.push({id:'SQ'+(state.nextId++), ngay:new Date().toISOString().slice(0,10), loai, soTien, hinhThuc, noiDung, nguon, quy: quy||'Chính'});
 }
 
 /* ---- Doanh thu ước tính (từ khối lượng thực tế × đơn giá M10) ---- */
@@ -4093,7 +4098,7 @@ function renderM7(){
     {id:'dexuat', label:'Đề xuất mua hàng'},
     {id:'denghi', label:'Đề nghị thanh toán'},
     {id:'tuquy', label:'Tạm ứng'},
-    ...(xemToanBoTaiChinh() ? [{id:'soquy', label:'Sổ quỹ'}] : []),
+    ...(xemToanBoTaiChinh() || currentUser.id==='KT' ? [{id:'soquy', label:'Sổ quỹ'}] : []),
     {id:'congno', label:'Công nợ'},
     {id:'hoadon', label:'Nhật ký hóa đơn'},
     ...(xemToanBoTaiChinh() ? [{id:'khoanvay', label:'Khoản vay'}] : []),
@@ -4186,17 +4191,21 @@ function tinhViecCanXuLy(){
     ...state.dexuatmuahang.filter(x=>x.trangThai==='Chờ kiểm tra').map(x=>`Kiểm tra hồ sơ (đề xuất mua hàng) — ${x.noiDung} (${fmt(x.soLuong*x.donGia)} đ)`),
     ...state.denghithanhtoan.filter(x=>x.trangThai==='Chờ kiểm tra').map(x=>`Kiểm tra hồ sơ (đề nghị thanh toán) — ${x.noiDung} (${fmt(x.soTien)} đ)`),
     ...state.tamung.filter(x=>x.trangThai==='Chờ kiểm tra').map(x=>`Kiểm tra hồ sơ (tạm ứng) — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
-    ...state.denghithanhtoan.filter(x=>x.trangThai==='Đã duyệt').map(x=>`Thực hiện thanh toán — ${x.noiDung} (${fmt(x.soTien)} đ)`),
-    ...state.tamung.filter(x=>x.trangThai==='Đã duyệt').map(x=>`Chi tạm ứng — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
+    ...state.denghithanhtoan.filter(x=>x.trangThai==='Đã duyệt' && (x.quy||'Chính')==='Chính').map(x=>`Thực hiện thanh toán — ${x.noiDung} (${fmt(x.soTien)} đ)`),
+    ...state.tamung.filter(x=>x.trangThai==='Đã duyệt' && (x.quy||'Chính')==='Chính').map(x=>`Chi tạm ứng — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
     ...state.banggia.filter(r=>!r.nguoiDuyetTC && tinhTrangThaiBangGia(r)==='Chờ duyệt').map(r=>`M10 · Duyệt bảng giá — ${r.tenDichVu} cho "${r.doiTac}" (${fmt(r.donGia)} đ)`),
     ...state.xacnhanhoanthanh.filter(x=>x.trangThaiXacNhan==='Chờ Kế toán xác nhận lại').map(x=>`M1 · Xác nhận lại khối lượng với "${x.doiTac}" (${fmt(x.tongKhoiLuongKg)} kg)`),
+  ] : [];
+  const canChiQuyChanMay = currentUser.id==='KT' ? [
+    ...state.denghithanhtoan.filter(x=>x.trangThai==='Đã duyệt' && x.quy==='Chân Mây').map(x=>`Thực hiện thanh toán (Quỹ Chân Mây) — ${x.noiDung} (${fmt(x.soTien)} đ)`),
+    ...state.tamung.filter(x=>x.trangThai==='Đã duyệt' && x.quy==='Chân Mây').map(x=>`Chi tạm ứng (Quỹ Chân Mây) — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
   ] : [];
   const canDuyetBoPhan = (canEnter('M7') && !canApprove('M7')) ? [
     ...state.dexuatmuahang.filter(x=>x.boPhan===boPhanCuaToi() && x.trangThai==='Chờ trưởng phòng duyệt').map(x=>`Trưởng bộ phận duyệt (đề xuất mua hàng) — ${x.noiDung} (${fmt(x.soLuong*x.donGia)} đ)`),
     ...state.denghithanhtoan.filter(x=>x.boPhan===boPhanCuaToi() && x.trangThai==='Chờ trưởng phòng duyệt').map(x=>`Trưởng bộ phận duyệt (đề nghị thanh toán) — ${x.noiDung} (${fmt(x.soTien)} đ)`),
     ...state.tamung.filter(x=>x.boPhan===boPhanCuaToi() && x.trangThai==='Chờ trưởng phòng duyệt').map(x=>`Trưởng bộ phận duyệt (tạm ứng) — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
   ] : [];
-  return [...canDuyet, ...canKiemTra, ...canDuyetBoPhan];
+  return [...canDuyet, ...canKiemTra, ...canChiQuyChanMay, ...canDuyetBoPhan];
 }
 function renderTaiChinhTongQuan(body){
   const viecCanXuLy = tinhViecCanXuLy();
@@ -4421,10 +4430,11 @@ function renderDeNghiThanhToan(body){
         <div class="field"><label>Số tiền (đ)</label><input type="number" required id="tt-sotien"></div>
         <div class="field"><label>Đối tượng nhận</label><input id="tt-doituong" placeholder="Tên NCC / người nhận"></div>
         <div class="field"><label>Hình thức</label><select id="tt-hinhthuc"><option value="Chuyển khoản">Chuyển khoản</option><option value="Tiền mặt">Tiền mặt</option></select></div>
+        <div class="field"><label>Nguồn quỹ dự kiến</label><select id="tt-quy"><option value="Chính">Quỹ chính (Kế toán — TP.HCM)</option><option value="Chân Mây">Quỹ Chân Mây (thủ quỹ tại chỗ)</option></select></div>
         <div class="form-actions"><button type="submit" class="add-btn">Gửi đề nghị</button></div>
       </form></details>` : ''}
     <div class="table-wrap"><table>
-      <thead><tr><th>Ngày</th><th>Loại</th><th>Nội dung</th><th>Bộ phận</th><th style="text-align:right">Số tiền</th><th>Hình thức</th><th>Trạng thái</th><th></th></tr></thead>
+      <thead><tr><th>Ngày</th><th>Loại</th><th>Nội dung</th><th>Bộ phận</th><th style="text-align:right">Số tiền</th><th>Hình thức</th><th>Quỹ</th><th>Trạng thái</th><th></th></tr></thead>
       <tbody>${state.denghithanhtoan.map(t => {
         const pillClass = t.trangThai==='Đã thanh toán' ? 'paid' : t.trangThai==='Đã duyệt' ? 'approved' : t.trangThai==='Từ chối' ? 'rejected' : t.trangThai==='Đã kiểm tra' ? 'done' : 'pending';
         let action = '';
@@ -4433,12 +4443,14 @@ function renderDeNghiThanhToan(body){
         }
         if(currentUser.id==='TC' && t.trangThai==='Chờ kiểm tra') action += `<button class="mini-btn approve" onclick="kiemTraDeNghi('${t.id}')">Kiểm tra hồ sơ</button>`;
         if(currentUser.id==='BLD' && t.trangThai==='Đã kiểm tra') action += `<button class="mini-btn approve" onclick="duyetDeNghi('${t.id}',true)">Phê duyệt</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetDeNghi('${t.id}',false)">Từ chối</button>`;
-        if(currentUser.id==='TC' && t.trangThai==='Đã duyệt') action += `<button class="mini-btn approve" onclick="thanhToanDeNghi('${t.id}')">Thực hiện thanh toán</button>`;
+        if(t.trangThai==='Đã duyệt' && ((t.quy==='Chân Mây' && currentUser.id==='KT') || ((t.quy||'Chính')==='Chính' && currentUser.id==='TC'))){
+          action += `<button class="mini-btn approve" onclick="thanhToanDeNghi('${t.id}')">Thực hiện thanh toán</button>`;
+        }
         if(canAdd) action += actionButtons('denghithanhtoan', t.id);
         const dxLienQuan = t.deXuatId ? state.dexuatmuahang.find(x=>x.id===t.deXuatId) : null;
         return `<tr><td class="mono">${t.ngay}</td><td>${t.loai}</td><td>${t.noiDung}${dxLienQuan ? `<br><span style="font-size:11px;color:var(--ink-soft)">Theo ĐX: ${dxLienQuan.noiDung}</span>` : ''}</td><td>${t.boPhan}</td>
-          <td class="num">${fmt(t.soTien)}</td><td>${t.hinhThuc}</td><td><span class="pill ${pillClass}">${t.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
-      }).join('') || `<tr class="empty-row"><td colspan="8">Chưa có đề nghị thanh toán nào</td></tr>`}</tbody>
+          <td class="num">${fmt(t.soTien)}</td><td>${t.hinhThuc}</td><td>${t.quy||'Chính'}</td><td><span class="pill ${pillClass}">${t.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
+      }).join('') || `<tr class="empty-row"><td colspan="9">Chưa có đề nghị thanh toán nào</td></tr>`}</tbody>
     </table></div>`;
 }
 function capNhatTuDeXuatThanhToan(){
@@ -4461,7 +4473,7 @@ function submitDeNghi(e){
   state.denghithanhtoan.push({id:'TT'+(state.nextId++), ngay:document.getElementById('tt-ngay').value,
     loai, deXuatId: deXuatId||null, nguoiDeNghi:document.getElementById('tt-nguoi').value,
     boPhan:document.getElementById('tt-bophan').value, noiDung, soTien:parseFloat(document.getElementById('tt-sotien').value)||0,
-    doiTuongNhan:document.getElementById('tt-doituong').value, hinhThuc:document.getElementById('tt-hinhthuc').value,
+    doiTuongNhan:document.getElementById('tt-doituong').value, hinhThuc:document.getElementById('tt-hinhthuc').value, quy:document.getElementById('tt-quy').value,
     trangThai: canApprove('M7') ? 'Chờ kiểm tra' : 'Chờ trưởng phòng duyệt', nguoiDuyetBoPhan:null, nguoiKiemTra:null, nguoiDuyet:null});
   logActivity(`Gửi đề nghị thanh toán "${noiDung}"`);
   renderM7(); return false;
@@ -4487,7 +4499,7 @@ function duyetDeNghi(id, dong){
 function thanhToanDeNghi(id){
   const t = state.denghithanhtoan.find(t=>t.id===id); if(!t) return;
   t.trangThai = 'Đã thanh toán';
-  themSoQuy('Chi', t.soTien, t.hinhThuc, t.noiDung, `Đề nghị thanh toán ${t.id}`);
+  themSoQuy('Chi', t.soTien, t.hinhThuc, t.noiDung, `Đề nghị thanh toán ${t.id}`, t.quy);
   logActivity(`Thực hiện thanh toán "${t.noiDung}" (${fmt(t.soTien)} đ, ${t.hinhThuc}) — đã ghi sổ quỹ`);
   renderM7();
 }
@@ -4537,10 +4549,11 @@ function renderTamUng(body){
         <div class="field"><label>Nội dung công việc</label><input required id="tu-noidung"></div>
         <div class="field"><label>Số tiền tạm ứng (đ)</label><input type="number" required id="tu-sotien"></div>
         <div class="field"><label>Hình thức</label><select id="tu-hinhthuc"><option value="Chuyển khoản">Chuyển khoản</option><option value="Tiền mặt">Tiền mặt</option></select></div>
+        <div class="field"><label>Nguồn quỹ dự kiến</label><select id="tu-quy"><option value="Chính">Quỹ chính (Kế toán — TP.HCM)</option><option value="Chân Mây">Quỹ Chân Mây (thủ quỹ tại chỗ)</option></select></div>
         <div class="form-actions"><button type="submit" class="add-btn">Gửi đề nghị</button></div>
       </form></details>` : ''}
     <div class="table-wrap"><table>
-      <thead><tr><th>Ngày</th><th>Người nhận</th><th>Nội dung</th><th style="text-align:right">Tạm ứng</th><th style="text-align:right">Quyết toán</th><th style="text-align:right">Chênh lệch</th><th>Trạng thái</th><th></th></tr></thead>
+      <thead><tr><th>Ngày</th><th>Người nhận</th><th>Nội dung</th><th style="text-align:right">Tạm ứng</th><th style="text-align:right">Quyết toán</th><th style="text-align:right">Chênh lệch</th><th>Quỹ</th><th>Trạng thái</th><th></th></tr></thead>
       <tbody>${list.map(t => {
         const pillClass = t.trangThai==='Đã quyết toán' ? 'paid' : t.trangThai==='Đã chi' ? 'approved' : t.trangThai==='Đã duyệt' ? 'approved' : t.trangThai==='Từ chối' ? 'rejected' : t.trangThai==='Đã kiểm tra' ? 'done' : 'pending';
         let action = '';
@@ -4551,7 +4564,9 @@ function renderTamUng(body){
         if(currentUser.id==='BLD' && t.trangThai==='Đã kiểm tra'){
           action += `<button class="mini-btn approve" onclick="duyetTamUng('${t.id}',true)">Duyệt</button><button class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="duyetTamUng('${t.id}',false)">Từ chối</button>`;
         }
-        if(currentUser.id==='TC' && t.trangThai==='Đã duyệt') action += `<button class="mini-btn approve" onclick="chiTamUng('${t.id}')">Chi tạm ứng</button>`;
+        if(t.trangThai==='Đã duyệt' && ((t.quy==='Chân Mây' && currentUser.id==='KT') || ((t.quy||'Chính')==='Chính' && currentUser.id==='TC'))){
+          action += `<button class="mini-btn approve" onclick="chiTamUng('${t.id}')">Chi tạm ứng</button>`;
+        }
         if(canAdd && t.trangThai==='Đã chi') action += `<button class="mini-btn" onclick="moQuyetToanTamUng('${t.id}')">Quyết toán</button>`;
         if(canAdd) action += actionButtons('tamung', t.id);
         const chiTietHtml = (t.chiTietQuyetToan && t.chiTietQuyetToan.length)
@@ -4560,8 +4575,9 @@ function renderTamUng(body){
         return `<tr><td class="mono">${t.ngay}</td><td>${t.nguoiNhan}</td><td>${t.noiDung}</td><td class="num">${fmt(t.soTienTamUng)}</td>
           <td class="num">${t.soTienQuyetToan!=null?fmt(t.soTienQuyetToan):''}${chiTietHtml}</td>
           <td class="num" style="color:${t.chenhLech>0?'var(--brand)':t.chenhLech<0?'var(--red)':'inherit'}">${t.chenhLech!=null?(t.chenhLech>0?'+':'')+fmt(t.chenhLech):''}</td>
+          <td>${t.quy||'Chính'}</td>
           <td><span class="pill ${pillClass}">${t.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
-      }).join('') || `<tr class="empty-row"><td colspan="8">Chưa có đề nghị tạm ứng nào</td></tr>`}</tbody>
+      }).join('') || `<tr class="empty-row"><td colspan="9">Chưa có đề nghị tạm ứng nào</td></tr>`}</tbody>
     </table></div>`;
 }
 function submitTamUng(e){
@@ -4569,7 +4585,7 @@ function submitTamUng(e){
   const noiDung = document.getElementById('tu-noidung').value;
   state.tamung.push({id:'TU'+(state.nextId++), ngay:document.getElementById('tu-ngay').value,
     nguoiNhan:document.getElementById('tu-nguoi').value, boPhan:document.getElementById('tu-bophan').value, noiDung,
-    soTienTamUng:parseFloat(document.getElementById('tu-sotien').value)||0, hinhThuc:document.getElementById('tu-hinhthuc').value,
+    soTienTamUng:parseFloat(document.getElementById('tu-sotien').value)||0, hinhThuc:document.getElementById('tu-hinhthuc').value, quy:document.getElementById('tu-quy').value,
     trangThai: canApprove('M7') ? 'Chờ kiểm tra' : 'Chờ trưởng phòng duyệt', soTienQuyetToan:null, chenhLech:null, nguoiDuyetBoPhan:null, nguoiKiemTra:null, nguoiDuyet:null});
   logActivity(`Gửi đề nghị tạm ứng "${noiDung}"`);
   renderM7(); return false;
@@ -4595,7 +4611,7 @@ function duyetTamUng(id, dong){
 function chiTamUng(id){
   const t = state.tamung.find(t=>t.id===id); if(!t) return;
   t.trangThai = 'Đã chi';
-  themSoQuy('Chi', t.soTienTamUng, t.hinhThuc, `Tạm ứng: ${t.noiDung}`, `Tạm ứng ${t.id}`);
+  themSoQuy('Chi', t.soTienTamUng, t.hinhThuc, `Tạm ứng: ${t.noiDung}`, `Tạm ứng ${t.id}`, t.quy);
   logActivity(`Chi tạm ứng "${t.noiDung}" (${fmt(t.soTienTamUng)} đ) — đã ghi sổ quỹ`);
   renderM7();
 }
@@ -4648,8 +4664,8 @@ function luuQuyetToanTamUng(){
   const thucTe = dongHopLe.reduce((s,d)=>s+d.soTien,0);
   const lech = t.soTienTamUng - thucTe;
   t.soTienQuyetToan = thucTe; t.chenhLech = lech; t.trangThai = 'Đã quyết toán'; t.chiTietQuyetToan = dongHopLe;
-  if(lech > 0) themSoQuy('Thu', lech, t.hinhThuc, `Hoàn tạm ứng thừa: ${t.noiDung}`, `Tạm ứng ${t.id}`);
-  if(lech < 0) themSoQuy('Chi', -lech, t.hinhThuc, `Chi bổ sung tạm ứng thiếu: ${t.noiDung}`, `Tạm ứng ${t.id}`);
+  if(lech > 0) themSoQuy('Thu', lech, t.hinhThuc, `Hoàn tạm ứng thừa: ${t.noiDung}`, `Tạm ứng ${t.id}`, t.quy);
+  if(lech < 0) themSoQuy('Chi', -lech, t.hinhThuc, `Chi bổ sung tạm ứng thiếu: ${t.noiDung}`, `Tạm ứng ${t.id}`, t.quy);
   logActivity(`Quyết toán tạm ứng "${t.noiDung}": dùng ${fmt(thucTe)} đ (${dongHopLe.length} khoản chi), chênh lệch ${fmt(lech)} đ`);
   closeModal('modal-quyettoan');
   renderM7();
@@ -4657,16 +4673,22 @@ function luuQuyetToanTamUng(){
 
 /* ---- Sổ quỹ ---- */
 function renderSoQuy(body){
-  const canAdd = currentUser.id==='TC';
-  const rows = state.soquy.slice().sort((a,b)=>a.ngay.localeCompare(b.ngay));
+  const xemHet = xemToanBoTaiChinh();
+  const laThuQuyChanMay = currentUser.id==='KT';
+  const canAdd = xemHet ? currentUser.id==='TC' : laThuQuyChanMay;
+  const rows = (xemHet ? state.soquy.slice() : state.soquy.filter(q=>q.quy==='Chân Mây')).sort((a,b)=>a.ngay.localeCompare(b.ngay));
   let running = 0;
   const withBalance = rows.map(q => { running += (q.loai==='Thu'?q.soTien:-q.soTien); return {...q, running}; }).reverse();
   body.innerHTML = `
     <div class="stat-row">
-      <div class="stat-card"><div class="slabel">Tồn quỹ (tiền mặt + chuyển khoản)</div><div class="sval">${fmt(soDuQuy())} <span class="sunit">đ</span></div></div>
+      ${xemHet ? `
+      <div class="stat-card"><div class="slabel">Tồn quỹ chính (TP.HCM)</div><div class="sval">${fmt(soDuQuy('Chính'))} <span class="sunit">đ</span></div></div>
+      <div class="stat-card"><div class="slabel">Tồn quỹ Chân Mây</div><div class="sval">${fmt(soDuQuy('Chân Mây'))} <span class="sunit">đ</span></div></div>
+      <div class="stat-card" style="background:var(--grey-tint)"><div class="slabel">Tổng tồn quỹ công ty</div><div class="sval" style="font-weight:700">${fmt(soDuQuy())} <span class="sunit">đ</span></div></div>
+      ` : `<div class="stat-card"><div class="slabel">Tồn quỹ Chân Mây (bạn quản lý)</div><div class="sval">${fmt(soDuQuy('Chân Mây'))} <span class="sunit">đ</span></div></div>`}
     </div>
-    <div class="panel-head"><h3>Sổ quỹ (tiền mặt + chuyển khoản)</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Các dòng từ đề nghị thanh toán/tạm ứng được ghi tự động khi thực hiện chi. Chỉ Kế toán được ghi bổ sung thu/chi thủ công — các khoản chi khác phải đi qua Đề nghị thanh toán/Tạm ứng để đảm bảo qua đúng quy trình duyệt.</p>
+    <div class="panel-head"><h3>Sổ quỹ${xemHet?' (tiền mặt + chuyển khoản)':' — Quỹ Chân Mây'}</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Công ty có 2 quỹ: <b>Quỹ chính</b> do Kế toán quản lý tại TP.HCM, và <b>Quỹ Chân Mây</b> do thủ quỹ tại chỗ (Phòng Khai thác) quản lý — dùng chi cho công việc khẩn cấp tại Chân Mây của Khai thác, Vận tải liên vận hoặc Dịch vụ kỹ thuật khi có việc ở đó. Các dòng từ đề nghị thanh toán/tạm ứng được ghi tự động khi thực hiện chi, đúng theo quỹ đã chọn lúc lập hồ sơ.${xemHet ? ' Chỉ Kế toán được ghi bổ sung thu/chi thủ công cho quỹ chính.' : ' Bạn là thủ quỹ Chân Mây, có thể ghi bổ sung thu/chi thủ công cho quỹ này.'}</p>
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Ghi thu/chi khác</summary>
       <form class="inline-form" onsubmit="return submitSoQuy(event)">
         <div class="field"><label>Ngày</label><input type="date" required id="sq-ngay"></div>
@@ -4674,23 +4696,52 @@ function renderSoQuy(body){
         <div class="field"><label>Số tiền (đ)</label><input type="number" required id="sq-sotien"></div>
         <div class="field"><label>Hình thức</label><select id="sq-hinhthuc"><option value="Chuyển khoản">Chuyển khoản</option><option value="Tiền mặt">Tiền mặt</option></select></div>
         <div class="field"><label>Nội dung</label><input required id="sq-noidung"></div>
+        ${xemHet ? `<div class="field"><label>Quỹ</label><select id="sq-quy"><option value="Chính">Quỹ chính</option><option value="Chân Mây">Quỹ Chân Mây</option></select></div>` : ''}
         <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
       </form></details>` : ''}
     <div class="table-wrap"><table>
-      <thead><tr><th>Ngày</th><th>Loại</th><th style="text-align:right">Số tiền</th><th>Hình thức</th><th>Nội dung</th><th>Nguồn gốc</th><th style="text-align:right">Tồn sau GD</th><th></th></tr></thead>
+      <thead><tr><th>Ngày</th><th>Loại</th><th style="text-align:right">Số tiền</th><th>Hình thức</th>${xemHet?'<th>Quỹ</th>':''}<th>Nội dung</th><th>Nguồn gốc</th><th style="text-align:right">Tồn sau GD</th><th></th></tr></thead>
       <tbody>${withBalance.map(q => `<tr><td class="mono">${q.ngay}</td><td><span class="pill ${q.loai==='Thu'?'approved':'rejected'}">${q.loai}</span></td>
-        <td class="num">${fmt(q.soTien)}</td><td>${q.hinhThuc}</td><td>${q.noiDung}</td><td style="font-size:12px;color:var(--ink-soft)">${q.nguon||'Nhập tay'}</td>
+        <td class="num">${fmt(q.soTien)}</td><td>${q.hinhThuc}</td>${xemHet?`<td>${q.quy||'Chính'}</td>`:''}<td>${q.noiDung}</td><td style="font-size:12px;color:var(--ink-soft)">${q.nguon||'Nhập tay'}</td>
         <td class="num" style="font-weight:700">${fmt(q.running)}</td><td>${canAdd ? `<div class="row-actions">${actionButtons('soquy', q.id)}</div>` : ''}</td></tr>`).join('')
-        || `<tr class="empty-row"><td colspan="8">Chưa có giao dịch nào trong sổ quỹ</td></tr>`}</tbody>
-    </table></div>`;
+        || `<tr class="empty-row"><td colspan="${xemHet?9:8}">Chưa có giao dịch nào trong sổ quỹ</td></tr>`}</tbody>
+    </table></div>
+    ${xemHet && currentUser.id==='TC' ? `
+    <div class="panel-head" style="margin-top:24px"><h3 style="font-size:14px">Điều chuyển quỹ</h3></div>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:-6px 0 10px">Cấp thêm tiền cho quỹ Chân Mây, hoặc nhận Chân Mây nộp tiền thừa về quỹ chính — ghi đồng thời Chi ở quỹ gửi đi và Thu ở quỹ nhận.</p>
+    <form class="inline-form" onsubmit="return submitDieuChuyenQuy(event)">
+      <div class="field"><label>Ngày</label><input type="date" required id="dcq-ngay"></div>
+      <div class="field"><label>Hướng điều chuyển</label><select id="dcq-huong">
+        <option value="denChanMay">Quỹ chính → cấp cho Quỹ Chân Mây</option>
+        <option value="veChinh">Quỹ Chân Mây → nộp về Quỹ chính</option>
+      </select></div>
+      <div class="field"><label>Số tiền (đ)</label><input type="number" required id="dcq-sotien"></div>
+      <div class="field"><label>Hình thức</label><select id="dcq-hinhthuc"><option value="Chuyển khoản">Chuyển khoản</option><option value="Tiền mặt">Tiền mặt</option></select></div>
+      <div class="form-actions"><button type="submit" class="add-btn">Ghi điều chuyển</button></div>
+    </form>` : ''}`;
 }
 function submitSoQuy(e){
   e.preventDefault();
   const noiDung = document.getElementById('sq-noidung').value;
+  const quySel = document.getElementById('sq-quy');
   state.soquy.push({id:'SQ'+(state.nextId++), ngay:document.getElementById('sq-ngay').value,
     loai:document.getElementById('sq-loai').value, soTien:parseFloat(document.getElementById('sq-sotien').value)||0,
-    hinhThuc:document.getElementById('sq-hinhthuc').value, noiDung, nguon:'Nhập tay'});
+    hinhThuc:document.getElementById('sq-hinhthuc').value, noiDung, nguon:'Nhập tay', quy: quySel ? quySel.value : 'Chân Mây'});
   logActivity(`Ghi sổ quỹ thủ công: "${noiDung}"`);
+  renderM7(); return false;
+}
+function submitDieuChuyenQuy(e){
+  e.preventDefault();
+  const ngay = document.getElementById('dcq-ngay').value;
+  const huong = document.getElementById('dcq-huong').value;
+  const soTien = parseFloat(document.getElementById('dcq-sotien').value)||0;
+  const hinhThuc = document.getElementById('dcq-hinhthuc').value;
+  if(soTien<=0) return false;
+  const quyGui = huong==='denChanMay' ? 'Chính' : 'Chân Mây';
+  const quyNhan = huong==='denChanMay' ? 'Chân Mây' : 'Chính';
+  state.soquy.push({id:'SQ'+(state.nextId++), ngay, loai:'Chi', soTien, hinhThuc, noiDung:`Điều chuyển quỹ sang ${quyNhan==='Chân Mây'?'Quỹ Chân Mây':'Quỹ chính'}`, nguon:'Điều chuyển quỹ nội bộ', quy:quyGui});
+  state.soquy.push({id:'SQ'+(state.nextId++), ngay, loai:'Thu', soTien, hinhThuc, noiDung:`Nhận điều chuyển quỹ từ ${quyGui==='Chân Mây'?'Quỹ Chân Mây':'Quỹ chính'}`, nguon:'Điều chuyển quỹ nội bộ', quy:quyNhan});
+  logActivity(`Điều chuyển quỹ: ${fmt(soTien)} đ từ ${quyGui==='Chân Mây'?'Quỹ Chân Mây':'Quỹ chính'} sang ${quyNhan==='Chân Mây'?'Quỹ Chân Mây':'Quỹ chính'}`);
   renderM7(); return false;
 }
 
@@ -5348,8 +5399,9 @@ function traLoiAI(q){
     return `Tổng phải trả NCC (chưa thanh toán)${xemHet?'':` — bộ phận ${boPhanLoc}`}: ${fmt(cho.reduce((s,t)=>s+t.soTien,0))} đ\n` + cho.map(t=>`• ${t.noiDung}: ${fmt(t.soTien)} đ (${t.trangThai})`).join('\n');
   }
   if(low.includes('tồn quỹ') || (low.includes('quỹ') && !low.includes('công'))){
-    if(!xemToanBoTaiChinh()) return 'Tồn quỹ (sổ quỹ chung của công ty) chỉ Kế toán và Ban lãnh đạo xem được — bộ phận của bạn theo dõi qua tab Tạm ứng/Đề nghị thanh toán của chính mình.';
-    return `Tồn quỹ hiện tại (tiền mặt + chuyển khoản): ${fmt(soDuQuy())} đ`;
+    if(xemToanBoTaiChinh()) return `Tồn quỹ chính (TP.HCM): ${fmt(soDuQuy('Chính'))} đ\nTồn quỹ Chân Mây: ${fmt(soDuQuy('Chân Mây'))} đ\nTổng tồn quỹ công ty: ${fmt(soDuQuy())} đ`;
+    if(currentUser.id==='KT') return `Tồn quỹ Chân Mây (bạn quản lý): ${fmt(soDuQuy('Chân Mây'))} đ`;
+    return 'Tồn quỹ chỉ Kế toán, Ban lãnh đạo và thủ quỹ Chân Mây (Khai thác) xem được — bộ phận của bạn theo dõi qua tab Tạm ứng/Đề nghị thanh toán của chính mình.';
   }
   if(low.includes('tạm ứng')){
     const xemHet = xemToanBoTaiChinh();
@@ -5371,8 +5423,8 @@ function traLoiAI(q){
       state.dexuatmuahang.filter(x=>x.trangThai==='Chờ kiểm tra').forEach(x=>items.push(`Kiểm tra hồ sơ đề xuất mua hàng: ${x.noiDung}`));
       state.denghithanhtoan.filter(x=>x.trangThai==='Chờ kiểm tra').forEach(x=>items.push(`Kiểm tra hồ sơ đề nghị thanh toán: ${x.noiDung}`));
       state.tamung.filter(x=>x.trangThai==='Chờ kiểm tra').forEach(x=>items.push(`Kiểm tra hồ sơ tạm ứng: ${x.noiDung}`));
-      state.denghithanhtoan.filter(x=>x.trangThai==='Đã duyệt').forEach(x=>items.push(`Thực hiện thanh toán: ${x.noiDung}`));
-      state.tamung.filter(x=>x.trangThai==='Đã duyệt').forEach(x=>items.push(`Chi tạm ứng: ${x.noiDung}`));
+      state.denghithanhtoan.filter(x=>x.trangThai==='Đã duyệt' && (x.quy||'Chính')==='Chính').forEach(x=>items.push(`Thực hiện thanh toán: ${x.noiDung}`));
+      state.tamung.filter(x=>x.trangThai==='Đã duyệt' && (x.quy||'Chính')==='Chính').forEach(x=>items.push(`Chi tạm ứng: ${x.noiDung}`));
       state.banggia.filter(r=>!r.nguoiDuyetTC && tinhTrangThaiBangGia(r)==='Chờ duyệt').forEach(r=>items.push(`M10 · Duyệt bảng giá "${r.tenDichVu}" cho ${r.doiTac}`));
       state.xacnhanhoanthanh.filter(x=>x.trangThaiXacNhan==='Chờ Kế toán xác nhận lại').forEach(x=>items.push(`M1 · Xác nhận lại khối lượng với ${x.doiTac}`));
     }
@@ -5384,6 +5436,8 @@ function traLoiAI(q){
     }
     if(currentUser.id==='KT'){
       state.kiemke.filter(k=>k.trangThai==='Chờ xử lý' && (k.tonThucTe-k.tonSoSach)===0).forEach(k=>items.push(`M3 · Kiểm kê khớp sổ sách, chờ hoàn tất lô ${k.lotId}`));
+      state.denghithanhtoan.filter(x=>x.trangThai==='Đã duyệt' && x.quy==='Chân Mây').forEach(x=>items.push(`Thực hiện thanh toán (Quỹ Chân Mây): ${x.noiDung}`));
+      state.tamung.filter(x=>x.trangThai==='Đã duyệt' && x.quy==='Chân Mây').forEach(x=>items.push(`Chi tạm ứng (Quỹ Chân Mây): ${x.noiDung}`));
     }
     if(!items.length) return 'Hiện không có việc gì đang chờ bạn xử lý.';
     return `Có ${items.length} việc đang chờ bạn:\n` + items.map(i=>'• '+i).join('\n');
