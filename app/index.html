@@ -552,6 +552,7 @@ function loadState(){
     if(!state.soquy) state.soquy = seedState().soquy;
     state.soquy.forEach(q=>{ if(!q.quy) q.quy = 'Chính'; }); // dữ liệu cũ trước khi tách Quỹ chính/Quỹ Chân Mây — coi như thuộc Quỹ chính
     state.denghithanhtoan.forEach(t=>{ if(!t.quy) t.quy = 'Chính'; });
+    state.denghithanhtoan.forEach(t=>{ if(t.coHoaDon===undefined) t.coHoaDon = true; if(t.soHoaDon===undefined) t.soHoaDon = ''; }); // dữ liệu cũ trước khi có cờ hóa đơn — mặc định coi như có, tránh báo động giả cho hồ sơ cũ
     state.tamung.forEach(t=>{ if(!t.quy) t.quy = 'Chính'; });
     if(!state.hoadon) state.hoadon = seedState().hoadon;
     if(!state.khoanvay) state.khoanvay = seedState().khoanvay;
@@ -4431,10 +4432,12 @@ function renderDeNghiThanhToan(body){
         <div class="field"><label>Đối tượng nhận</label><input id="tt-doituong" placeholder="Tên NCC / người nhận"></div>
         <div class="field"><label>Hình thức</label><select id="tt-hinhthuc"><option value="Chuyển khoản">Chuyển khoản</option><option value="Tiền mặt">Tiền mặt</option></select></div>
         <div class="field"><label>Nguồn quỹ dự kiến</label><select id="tt-quy"><option value="Chính">Quỹ chính (Kế toán — TP.HCM)</option><option value="Chân Mây">Quỹ Chân Mây (thủ quỹ tại chỗ)</option></select></div>
+        <div class="field"><label>Có hóa đơn/chứng từ?</label><select id="tt-cohoadon" onchange="toggleSoHoaDonDeNghi()"><option value="true">Có</option><option value="false">Không có (chi phát sinh nhỏ/khẩn cấp)</option></select></div>
+        <div class="field" id="tt-sohoadonfield"><label>Số hóa đơn</label><input id="tt-sohoadon" placeholder="VD: 0001234"></div>
         <div class="form-actions"><button type="submit" class="add-btn">Gửi đề nghị</button></div>
       </form></details>` : ''}
     <div class="table-wrap"><table>
-      <thead><tr><th>Ngày</th><th>Loại</th><th>Nội dung</th><th>Bộ phận</th><th style="text-align:right">Số tiền</th><th>Hình thức</th><th>Quỹ</th><th>Trạng thái</th><th></th></tr></thead>
+      <thead><tr><th>Ngày</th><th>Loại</th><th>Nội dung</th><th>Bộ phận</th><th style="text-align:right">Số tiền</th><th>Hình thức</th><th>Quỹ</th><th>Hóa đơn</th><th>Trạng thái</th><th></th></tr></thead>
       <tbody>${state.denghithanhtoan.map(t => {
         const pillClass = t.trangThai==='Đã thanh toán' ? 'paid' : t.trangThai==='Đã duyệt' ? 'approved' : t.trangThai==='Từ chối' ? 'rejected' : t.trangThai==='Đã kiểm tra' ? 'done' : 'pending';
         let action = '';
@@ -4448,10 +4451,21 @@ function renderDeNghiThanhToan(body){
         }
         if(canAdd) action += actionButtons('denghithanhtoan', t.id);
         const dxLienQuan = t.deXuatId ? state.dexuatmuahang.find(x=>x.id===t.deXuatId) : null;
+        const hoaDonKhop = state.hoadon.find(h=>h.deNghiId===t.id);
+        const hoaDonHtml = hoaDonKhop ? `<span class="pill approved">HĐ ${hoaDonKhop.soHoaDon}</span>`
+          : t.coHoaDon ? `<span class="pill done">${t.soHoaDon||'Có, chưa nhập số'}</span>`
+          : `<span class="pill rejected">⚠ Chưa có</span>`;
         return `<tr><td class="mono">${t.ngay}</td><td>${t.loai}</td><td>${t.noiDung}${dxLienQuan ? `<br><span style="font-size:11px;color:var(--ink-soft)">Theo ĐX: ${dxLienQuan.noiDung}</span>` : ''}</td><td>${t.boPhan}</td>
-          <td class="num">${fmt(t.soTien)}</td><td>${t.hinhThuc}</td><td>${t.quy||'Chính'}</td><td><span class="pill ${pillClass}">${t.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
-      }).join('') || `<tr class="empty-row"><td colspan="9">Chưa có đề nghị thanh toán nào</td></tr>`}</tbody>
+          <td class="num">${fmt(t.soTien)}</td><td>${t.hinhThuc}</td><td>${t.quy||'Chính'}</td><td>${hoaDonHtml}</td><td><span class="pill ${pillClass}">${t.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
+      }).join('') || `<tr class="empty-row"><td colspan="10">Chưa có đề nghị thanh toán nào</td></tr>`}</tbody>
     </table></div>`;
+  toggleSoHoaDonDeNghi();
+}
+function toggleSoHoaDonDeNghi(){
+  const sel = document.getElementById('tt-cohoadon');
+  const field = document.getElementById('tt-sohoadonfield');
+  if(!sel || !field) return;
+  field.style.display = sel.value==='true' ? '' : 'none';
 }
 function capNhatTuDeXuatThanhToan(){
   const id = document.getElementById('tt-dexuat').value;
@@ -4474,6 +4488,7 @@ function submitDeNghi(e){
     loai, deXuatId: deXuatId||null, nguoiDeNghi:document.getElementById('tt-nguoi').value,
     boPhan:document.getElementById('tt-bophan').value, noiDung, soTien:parseFloat(document.getElementById('tt-sotien').value)||0,
     doiTuongNhan:document.getElementById('tt-doituong').value, hinhThuc:document.getElementById('tt-hinhthuc').value, quy:document.getElementById('tt-quy').value,
+    coHoaDon:document.getElementById('tt-cohoadon').value==='true', soHoaDon:document.getElementById('tt-cohoadon').value==='true' ? document.getElementById('tt-sohoadon').value.trim() : '',
     trangThai: canApprove('M7') ? 'Chờ kiểm tra' : 'Chờ trưởng phòng duyệt', nguoiDuyetBoPhan:null, nguoiKiemTra:null, nguoiDuyet:null});
   logActivity(`Gửi đề nghị thanh toán "${noiDung}"`);
   renderM7(); return false;
@@ -4823,16 +4838,37 @@ function renderNhatKyHoaDon(body){
         <div class="field"><label>Bộ phận liên quan</label><select id="hd-bophan">${BO_PHAN_OPTIONS.map(o=>`<option value="${o}">${o}</option>`).join('')}</select></div>
         <div class="field"><label>Giá trị trước thuế (đ)</label><input type="number" required id="hd-truocthue"></div>
         <div class="field"><label>Tiền thuế VAT (đ)</label><input type="number" id="hd-vat" value="0"></div>
+        <div class="field" style="grid-column:1/-1"><label>Khớp với đề nghị thanh toán nào (nếu có)</label>
+          <select id="hd-denghi">
+            <option value="">— Không liên kết —</option>
+            ${state.denghithanhtoan.filter(t=>!state.hoadon.some(h=>h.deNghiId===t.id)).sort((a,b)=>b.ngay.localeCompare(a.ngay)).map(t=>`<option value="${t.id}">${t.ngay} — ${t.noiDung} (${fmt(t.soTien)} đ)</option>`).join('')}
+          </select>
+        </div>
         <div class="field" style="grid-column:1/-1"><label>Ghi chú</label><input id="hd-ghichu"></div>
         <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
       </form></details>` : ''}
     <div class="table-wrap"><table>
       <thead><tr><th>Ngày</th><th>Số hóa đơn</th><th>Đối tác</th><th>Loại</th><th>Bộ phận</th><th style="text-align:right">Trước thuế</th><th style="text-align:right">VAT</th><th style="text-align:right">Sau thuế</th><th>Thanh toán</th><th>Ghi chú</th><th></th></tr></thead>
-      <tbody>${rows.map(h=>`<tr><td class="mono">${h.ngay}</td><td class="mono">${h.soHoaDon}</td><td>${h.doiTac}</td><td>${h.loai}</td><td>${h.boPhan||'Khác'}</td>
+      <tbody>${rows.map(h=>{
+        const deNghiKhop = h.deNghiId ? state.denghithanhtoan.find(t=>t.id===h.deNghiId) : null;
+        return `<tr><td class="mono">${h.ngay}</td><td class="mono">${h.soHoaDon}</td><td>${h.doiTac}</td><td>${h.loai}</td><td>${h.boPhan||'Khác'}</td>
         <td class="num">${fmt(h.giaTriTruocThue)}</td><td class="num">${fmt(h.soTienVAT)}</td><td class="num">${fmt(h.giaTriTruocThue+h.soTienVAT)}</td>
-        <td><span class="pill ${h.trangThaiThanhToan==='Đã thanh toán'?'approved':'pending'}">${h.trangThaiThanhToan}</span></td><td>${h.ghiChu||''}</td>
-        <td><div class="row-actions">${(canAdd && h.trangThaiThanhToan!=='Đã thanh toán') ? `<button class="mini-btn approve" onclick="ghiNhanThanhToanHoaDon('${h.id}')">Ghi nhận thanh toán</button>` : ''}${canAdd ? actionButtons('hoadon', h.id) : ''}</div></td></tr>`).join('')
+        <td><span class="pill ${h.trangThaiThanhToan==='Đã thanh toán'?'approved':'pending'}">${h.trangThaiThanhToan}</span></td><td>${h.ghiChu||''}${deNghiKhop?`<br><span style="font-size:11px;color:var(--ink-soft)">Khớp ĐNTT: ${deNghiKhop.noiDung}</span>`:''}</td>
+        <td><div class="row-actions">${(canAdd && h.trangThaiThanhToan!=='Đã thanh toán') ? `<button class="mini-btn approve" onclick="ghiNhanThanhToanHoaDon('${h.id}')">Ghi nhận thanh toán</button>` : ''}${canAdd ? actionButtons('hoadon', h.id) : ''}</div></td></tr>`;
+      }).join('')
         || `<tr class="empty-row"><td colspan="11">Chưa có hóa đơn nào được ghi nhận</td></tr>`}</tbody>
+    </table></div>
+    ${xemHet ? renderChiChuaCoHoaDon() : ''}`;
+}
+function renderChiChuaCoHoaDon(){
+  const list = state.denghithanhtoan.filter(t=>!t.coHoaDon && !state.hoadon.some(h=>h.deNghiId===t.id) && t.trangThai!=='Từ chối');
+  if(!list.length) return '';
+  return `
+    <div class="panel-head" style="margin-top:28px"><h3 style="font-size:14px">Chi chưa có hóa đơn</h3></div>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:-6px 0 10px">Các đề nghị thanh toán đánh dấu "Không có hóa đơn/chứng từ" lúc lập — cần theo dõi riêng khi làm sổ sách thuế (dùng bảng kê mua hàng không hóa đơn nếu đủ điều kiện), hoặc bổ sung hóa đơn sau nếu có.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngày</th><th>Nội dung</th><th>Bộ phận</th><th>Quỹ</th><th style="text-align:right">Số tiền</th><th>Trạng thái</th></tr></thead>
+      <tbody>${list.map(t=>`<tr><td class="mono">${t.ngay}</td><td>${t.noiDung}</td><td>${t.boPhan}</td><td>${t.quy||'Chính'}</td><td class="num">${fmt(t.soTien)}</td><td><span class="pill rejected">⚠ Chưa có hóa đơn</span></td></tr>`).join('')}</tbody>
     </table></div>`;
 }
 function submitHoaDon(e){
@@ -4847,6 +4883,7 @@ function submitHoaDon(e){
     soTienVAT: parseFloat(document.getElementById('hd-vat').value)||0,
     trangThaiThanhToan: 'Chưa thanh toán',
     ghiChu: document.getElementById('hd-ghichu').value.trim(),
+    deNghiId: document.getElementById('hd-denghi').value || null,
   });
   logActivity(`Ghi nhận hóa đơn "${soHoaDon}" (${doiTac})`);
   renderM7(); return false;
