@@ -4455,8 +4455,11 @@ function renderDeNghiThanhToan(body){
         const hoaDonHtml = hoaDonKhop ? `<span class="pill approved">HĐ ${hoaDonKhop.soHoaDon}</span>`
           : t.coHoaDon ? `<span class="pill done">${t.soHoaDon||'Có, chưa nhập số'}</span>`
           : `<span class="pill rejected">⚠ Chưa có</span>`;
+        const soDuHienTai = soDuQuy(t.quy||'Chính');
+        const khongDuQuy = t.trangThai==='Đã duyệt' && t.soTien > soDuHienTai;
+        const quyHtml = `${t.quy||'Chính'}${khongDuQuy ? `<br><span class="pill rejected" style="font-size:10px">⚠ Thiếu ${fmt(t.soTien-soDuHienTai)} đ</span>` : ''}`;
         return `<tr><td class="mono">${t.ngay}</td><td>${t.loai}</td><td>${t.noiDung}${dxLienQuan ? `<br><span style="font-size:11px;color:var(--ink-soft)">Theo ĐX: ${dxLienQuan.noiDung}</span>` : ''}</td><td>${t.boPhan}</td>
-          <td class="num">${fmt(t.soTien)}</td><td>${t.hinhThuc}</td><td>${t.quy||'Chính'}</td><td>${hoaDonHtml}</td><td><span class="pill ${pillClass}">${t.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
+          <td class="num">${fmt(t.soTien)}</td><td>${t.hinhThuc}</td><td>${quyHtml}</td><td>${hoaDonHtml}</td><td><span class="pill ${pillClass}">${t.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
       }).join('') || `<tr class="empty-row"><td colspan="10">Chưa có đề nghị thanh toán nào</td></tr>`}</tbody>
     </table></div>`;
   toggleSoHoaDonDeNghi();
@@ -4513,6 +4516,12 @@ function duyetDeNghi(id, dong){
 }
 function thanhToanDeNghi(id){
   const t = state.denghithanhtoan.find(t=>t.id===id); if(!t) return;
+  const quy = t.quy || 'Chính';
+  const soDu = soDuQuy(quy);
+  if(t.soTien > soDu){
+    const tiepTuc = confirm(`Cảnh báo: Quỹ ${quy} hiện chỉ còn ${fmt(soDu)} đ, không đủ để thanh toán ${fmt(t.soTien)} đ (quỹ sẽ âm ${fmt(t.soTien-soDu)} đ).\n\nVẫn thực hiện thanh toán?`);
+    if(!tiepTuc) return;
+  }
   t.trangThai = 'Đã thanh toán';
   themSoQuy('Chi', t.soTien, t.hinhThuc, t.noiDung, `Đề nghị thanh toán ${t.id}`, t.quy);
   logActivity(`Thực hiện thanh toán "${t.noiDung}" (${fmt(t.soTien)} đ, ${t.hinhThuc}) — đã ghi sổ quỹ`);
@@ -4587,10 +4596,13 @@ function renderTamUng(body){
         const chiTietHtml = (t.chiTietQuyetToan && t.chiTietQuyetToan.length)
           ? `<div style="font-size:11px;color:var(--ink-soft);margin-top:3px">${t.chiTietQuyetToan.map(d=>`${d.noiDung}: ${fmt(d.soTien)} đ${d.coHoaDon?` (HĐ ${d.soHoaDon||'—'})`:' (không HĐ)'}`).join('; ')}</div>`
           : '';
+        const soDuHienTaiTU = soDuQuy(t.quy||'Chính');
+        const khongDuQuyTU = t.trangThai==='Đã duyệt' && t.soTienTamUng > soDuHienTaiTU;
+        const quyHtmlTU = `${t.quy||'Chính'}${khongDuQuyTU ? `<br><span class="pill rejected" style="font-size:10px">⚠ Thiếu ${fmt(t.soTienTamUng-soDuHienTaiTU)} đ</span>` : ''}`;
         return `<tr><td class="mono">${t.ngay}</td><td>${t.nguoiNhan}</td><td>${t.noiDung}</td><td class="num">${fmt(t.soTienTamUng)}</td>
           <td class="num">${t.soTienQuyetToan!=null?fmt(t.soTienQuyetToan):''}${chiTietHtml}</td>
           <td class="num" style="color:${t.chenhLech>0?'var(--brand)':t.chenhLech<0?'var(--red)':'inherit'}">${t.chenhLech!=null?(t.chenhLech>0?'+':'')+fmt(t.chenhLech):''}</td>
-          <td>${t.quy||'Chính'}</td>
+          <td>${quyHtmlTU}</td>
           <td><span class="pill ${pillClass}">${t.trangThai}</span></td><td><div class="row-actions">${action}</div></td></tr>`;
       }).join('') || `<tr class="empty-row"><td colspan="9">Chưa có đề nghị tạm ứng nào</td></tr>`}</tbody>
     </table></div>`;
@@ -4625,6 +4637,12 @@ function duyetTamUng(id, dong){
 }
 function chiTamUng(id){
   const t = state.tamung.find(t=>t.id===id); if(!t) return;
+  const quy = t.quy || 'Chính';
+  const soDu = soDuQuy(quy);
+  if(t.soTienTamUng > soDu){
+    const tiepTuc = confirm(`Cảnh báo: Quỹ ${quy} hiện chỉ còn ${fmt(soDu)} đ, không đủ để chi tạm ứng ${fmt(t.soTienTamUng)} đ (quỹ sẽ âm ${fmt(t.soTienTamUng-soDu)} đ).\n\nVẫn thực hiện chi?`);
+    if(!tiepTuc) return;
+  }
   t.trangThai = 'Đã chi';
   themSoQuy('Chi', t.soTienTamUng, t.hinhThuc, `Tạm ứng: ${t.noiDung}`, `Tạm ứng ${t.id}`, t.quy);
   logActivity(`Chi tạm ứng "${t.noiDung}" (${fmt(t.soTienTamUng)} đ) — đã ghi sổ quỹ`);
