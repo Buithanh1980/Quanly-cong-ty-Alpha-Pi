@@ -4098,7 +4098,7 @@ function renderM7(){
     {id:'dexuat', label:'Đề xuất mua hàng'},
     {id:'denghi', label:'Đề nghị thanh toán'},
     {id:'tuquy', label:'Tạm ứng'},
-    ...(xemToanBoTaiChinh() || currentUser.id==='KT' ? [{id:'soquy', label:'Sổ quỹ'}] : []),
+    ...(xemToanBoTaiChinh() ? [{id:'soquy', label:'Sổ quỹ'}] : currentUser.id==='KT' ? [{id:'soquy', label:'Sổ quỹ Chân Mây'}] : []),
     {id:'congno', label:'Công nợ'},
     {id:'hoadon', label:'Nhật ký hóa đơn'},
     ...(xemToanBoTaiChinh() ? [{id:'khoanvay', label:'Khoản vay'}] : []),
