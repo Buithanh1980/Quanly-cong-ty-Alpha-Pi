@@ -486,6 +486,14 @@ function seedState(){
     lichtrano: [],
     xacnhanhoanthanh: [],
     dmvattu: [], nhapkhovattu: [], xuatkhovattu: [],
+    bieuphibai: [
+      {id:'BP1', bai:'Bãi Alpha Pi', loaiXe:'Xe thùng', loaiPhi:'Mở bửng', donGia:40000},
+      {id:'BP2', bai:'Bãi Alpha Pi', loaiXe:'Xe thùng', loaiPhi:'Rửa xe', donGia:50000},
+      {id:'BP3', bai:'Bãi Alpha Pi', loaiXe:'Xe container', loaiPhi:'Rửa xe', donGia:50000},
+      {id:'BP4', bai:'Bãi Alpha Pi', loaiXe:'Xe ben', loaiPhi:'Rửa xe', donGia:50000},
+      {id:'BP5', bai:'Bãi Coalimex', loaiXe:'Xe thùng', loaiPhi:'Mở bửng', donGia:60000},
+      {id:'BP6', bai:'Bãi Coalimex', loaiXe:'Xe thùng', loaiPhi:'Rửa xe', donGia:50000},
+    ],
     nhansu: [],
     thietBiSoLuong: {'Xúc lật':0, 'Máy múc nhỏ':0, 'Máy múc to':0, 'Cẩu điện':0},
     nextId: 1,
@@ -561,6 +569,13 @@ function loadState(){
     if(!state.dmvattu) state.dmvattu = seedState().dmvattu;
     if(!state.nhapkhovattu) state.nhapkhovattu = seedState().nhapkhovattu;
     if(!state.xuatkhovattu) state.xuatkhovattu = seedState().xuatkhovattu;
+    if(!state.bieuphibai) state.bieuphibai = seedState().bieuphibai;
+    if(state.nhap) state.nhap.forEach(n=>{
+      if(n.mienPhiTramCan===undefined) n.mienPhiTramCan = false;
+      if(n.lyDoMienPhiTramCan===undefined) n.lyDoMienPhiTramCan = '';
+      if(n.phiTramCanDaGhiQuy===undefined) n.phiTramCanDaGhiQuy = false;
+      if(n.phiTramCanSoTien===undefined) n.phiTramCanSoTien = null;
+    });
     state.dexuatmuahang.forEach(x=>{ if(x.loaiLienQuan===undefined) x.loaiLienQuan = x.lienQuanThietBi ? 'thietbi' : ''; }); // đổi từ checkbox lienQuanThietBi sang chọn 1 trong 2 loại liên quan (thêm "Nhập kho vật tư/nhiên liệu")
     state.xacnhanhoanthanh.forEach(x=>{ if(!x.trangThaiXacNhan) Object.assign(x, {trangThaiXacNhan:'Đã xác nhận', nguoiXacNhanLai:'Dữ liệu cũ', ngayXacNhanLai:x.ngayXacNhan, lyDoTuChoi:null}); }); // dữ liệu cũ trước khi có bước Kế toán xác nhận lại — coi như đã được chấp nhận
     state.hoadon.forEach(h=>{ if(h.trangThaiThanhToan===undefined) h.trangThaiThanhToan = 'Chưa thanh toán'; });
@@ -755,6 +770,7 @@ function renderM1(){
     {id:'nhap', label:'Nhập hàng'},
     {id:'xuat', label:'Xuất hàng'},
     {id:'dichvu', label:'Dịch vụ tại bãi'},
+    {id:'phitramcan', label:'Phí trạm cân'},
     ...(laKT ? [{id:'giaoviec', label:'Giao việc'}] : []),
     ...(laKT || laTC ? [{id:'xacnhan', label:'Xác nhận KL với KH/ nhà CCDV'}] : []),
   ];
@@ -771,6 +787,7 @@ function renderM1(){
   if(currentTab === 'nhap') return renderNhap(body);
   if(currentTab === 'xuat') return renderXuat(body);
   if(currentTab === 'dichvu') return renderDichVu(body);
+  if(currentTab === 'phitramcan') return renderPhiTramCan(body);
 }
 
 let reportDate = null;
@@ -1677,6 +1694,111 @@ function baiOptionsHtml(khachHang, selected){
 function danhSachBaiPhang(){
   return [...new Set(Object.values(BAI_THEO_KHACH).flat())];
 }
+/* ---- Phí trạm cân (mở bửng / rửa xe) ---- */
+function baiCuaPhieuNhap(n){ const lot = state.lots.find(l=>l.id===n.lotId); return lot ? lot.viTri : ''; }
+function tinhPhiTramCan(bai, loaiXe){
+  return state.bieuphibai.filter(b=>b.bai===bai && b.loaiXe===loaiXe).reduce((s,b)=>s+b.donGia,0);
+}
+function phieuApDungPhiTramCan(){
+  return state.nhap.filter(n=>n.tuyen==='Đường bộ' && LOAI_XE_BANG_CHUNG.includes(n.loaiXe) && tinhPhiTramCan(baiCuaPhieuNhap(n), n.loaiXe) > 0);
+}
+function toggleMienPhiTramCan(id){
+  const n = state.nhap.find(x=>x.id===id); if(!n) return;
+  if(n.mienPhiTramCan){
+    n.mienPhiTramCan = false; n.lyDoMienPhiTramCan = '';
+  } else {
+    const ly = prompt('Lý do miễn thu phí trạm cân cho xe này (VD: Mất điện trạm rửa xe) — Phòng Khai thác xác nhận:');
+    if(ly===null) return;
+    n.mienPhiTramCan = true; n.lyDoMienPhiTramCan = ly.trim();
+  }
+  renderM1();
+}
+function ghiNhanThuPhiTramCan(ngay){
+  const list = phieuApDungPhiTramCan().filter(n=>n.ngay===ngay && !n.phiTramCanDaGhiQuy);
+  if(!list.length) return;
+  const tong = list.reduce((s,n)=> s + (n.mienPhiTramCan ? 0 : tinhPhiTramCan(baiCuaPhieuNhap(n), n.loaiXe)), 0);
+  const nhap = prompt(`Tổng tính toán ngày ${ngay}: ${fmt(tong)} đ (${list.length} xe qua trạm cân). Nhập số tiền thực nhận từ Phòng Khai thác:`, tong);
+  if(nhap===null) return;
+  const soTien = parseFloat(nhap)||0;
+  const lech = soTien - tong;
+  list.forEach(n=>{
+    n.phiTramCanSoTien = n.mienPhiTramCan ? 0 : tinhPhiTramCan(baiCuaPhieuNhap(n), n.loaiXe);
+    n.phiTramCanDaGhiQuy = true;
+  });
+  themSoQuy('Thu', soTien, 'Tiền mặt', `Thu phí trạm cân ngày ${ngay} (${list.length} xe)${lech!==0 ? `, chênh lệch ${lech>0?'+':''}${fmt(lech)} đ so với tính toán` : ''}`, `Phí trạm cân ${ngay}`, 'Chân Mây');
+  logActivity(`Ghi nhận thu phí trạm cân ngày ${ngay}: ${fmt(soTien)} đ vào Sổ quỹ Chân Mây (tính toán ${fmt(tong)} đ, ${list.length} xe)`);
+  renderM1();
+}
+function submitBieuPhiBai(e){
+  e.preventDefault();
+  const bai = document.getElementById('bp-bai').value, loaiXe = document.getElementById('bp-loaixe').value, loaiPhi = document.getElementById('bp-loaiphi').value;
+  state.bieuphibai.push({id:'BP'+(state.nextId++), bai, loaiXe, loaiPhi, donGia:parseFloat(document.getElementById('bp-dongia').value)||0});
+  logActivity(`Thêm biểu phí bãi: ${bai} — ${loaiXe} — ${loaiPhi}`);
+  renderM1(); return false;
+}
+function renderPhiTramCan(body){
+  const laKT = currentUser.id === 'KT';
+  const baiOpts = danhSachBaiPhang();
+  const apDung = phieuApDungPhiTramCan();
+  const chuaGhiQuy = apDung.filter(n=>!n.phiTramCanDaGhiQuy);
+  const ngayList = [...new Set(chuaGhiQuy.map(n=>n.ngay))].sort();
+  const tongChuaGhiQuy = chuaGhiQuy.reduce((s,n)=> s + (n.mienPhiTramCan ? 0 : tinhPhiTramCan(baiCuaPhieuNhap(n), n.loaiXe)), 0);
+  const daGhiQuy = apDung.filter(n=>n.phiTramCanDaGhiQuy).sort((a,b)=>b.ngay.localeCompare(a.ngay));
+  body.innerHTML = `
+    <div class="stat-row">
+      <div class="stat-card"><div class="slabel">Chưa ghi vào Sổ quỹ Chân Mây</div><div class="sval">${fmt(tongChuaGhiQuy)} <span class="sunit">đ</span></div></div>
+      <div class="stat-card"><div class="slabel">Số xe chưa đối soát</div><div class="sval">${chuaGhiQuy.length} <span class="sunit">xe</span></div></div>
+    </div>
+    <div class="panel-head"><h3>Phí trạm cân (mở bửng / rửa xe)</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Nhân viên trạm cân thu tiền mặt trực tiếp từ từng xe theo Biểu phí bên dưới, cuối ngày nộp cho Phòng Khai thác → báo Kế toán → đưa thủ quỹ Chân Mây nhập quỹ. Bảng "Cần đối soát" tổng hợp theo ngày để thủ quỹ ghi 1 lần vào Sổ quỹ Chân Mây khi nhận đủ tiền.</p>
+
+    <div class="panel-head" style="margin-top:8px"><h3 style="font-size:14px">Biểu phí bãi</h3></div>
+    ${laKT ? `<details class="add-details"><summary class="add-summary">Thêm mức phí mới</summary>
+      <form class="inline-form" onsubmit="return submitBieuPhiBai(event)">
+        <div class="field"><label>Bãi</label><select required id="bp-bai">${baiOpts.map(b=>`<option value="${b}">${b}</option>`).join('')}</select></div>
+        <div class="field"><label>Loại xe</label><select required id="bp-loaixe">${LOAI_XE_BANG_CHUNG.map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div>
+        <div class="field"><label>Loại phí</label><select required id="bp-loaiphi"><option value="Mở bửng">Mở bửng</option><option value="Rửa xe">Rửa xe</option></select></div>
+        <div class="field"><label>Đơn giá (đ)</label><input type="number" required id="bp-dongia"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Bãi</th><th>Loại xe</th><th>Loại phí</th><th style="text-align:right">Đơn giá</th><th></th></tr></thead>
+      <tbody>${state.bieuphibai.map(b=>`<tr><td>${b.bai}</td><td>${b.loaiXe}</td><td>${b.loaiPhi}</td><td class="num">${fmt(b.donGia)} đ</td>
+        <td>${laKT ? `<div class="row-actions">${actionButtons('bieuphibai', b.id)}</div>` : ''}</td></tr>`).join('')
+        || `<tr class="empty-row"><td colspan="5">Chưa có biểu phí nào</td></tr>`}</tbody>
+    </table></div>
+
+    <div class="panel-head" style="margin-top:28px"><h3 style="font-size:14px">Cần đối soát &amp; ghi vào Sổ quỹ Chân Mây</h3></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngày</th><th style="text-align:right">Số xe</th><th style="text-align:right">Tổng tính toán</th><th></th></tr></thead>
+      <tbody>${ngayList.length ? ngayList.map(ngay=>{
+        const dong = chuaGhiQuy.filter(n=>n.ngay===ngay);
+        const tong = dong.reduce((s,n)=> s + (n.mienPhiTramCan ? 0 : tinhPhiTramCan(baiCuaPhieuNhap(n), n.loaiXe)), 0);
+        return `<tr><td class="mono">${ngay}</td><td class="num">${dong.length}</td><td class="num" style="font-weight:700">${fmt(tong)} đ</td>
+          <td>${laKT ? `<button class="mini-btn approve" onclick="ghiNhanThuPhiTramCan('${ngay}')">Ghi nhận đã thu vào Sổ quỹ</button>` : ''}</td></tr>`;
+      }).join('') : `<tr class="empty-row"><td colspan="4">Không có ngày nào đang chờ đối soát</td></tr>`}</tbody>
+    </table></div>
+
+    <div class="panel-head" style="margin-top:24px"><h3 style="font-size:14px">Chi tiết từng xe (chưa đối soát)</h3></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngày</th><th>Bãi</th><th>Biển số</th><th>Loại xe</th><th style="text-align:right">Phí</th><th>Trạng thái</th><th></th></tr></thead>
+      <tbody>${chuaGhiQuy.length ? chuaGhiQuy.slice().sort((a,b)=>b.ngay.localeCompare(a.ngay)).map(n=>{
+        const bai = baiCuaPhieuNhap(n);
+        const phi = tinhPhiTramCan(bai, n.loaiXe);
+        return `<tr><td class="mono">${n.ngay}</td><td>${bai}</td><td class="mono">${n.bienSo||''}</td><td>${n.loaiXe}</td>
+          <td class="num">${n.mienPhiTramCan ? '—' : fmt(phi)+' đ'}</td>
+          <td>${n.mienPhiTramCan ? `<span class="pill rejected">Miễn thu — ${n.lyDoMienPhiTramCan||'không ghi lý do'}</span>` : `<span class="pill approved">Phải thu</span>`}</td>
+          <td>${laKT ? `<button class="mini-btn" onclick="toggleMienPhiTramCan('${n.id}')">${n.mienPhiTramCan?'Bỏ miễn thu':'Đánh dấu miễn thu'}</button>` : ''}</td></tr>`;
+      }).join('') : `<tr class="empty-row"><td colspan="7">Không có xe nào đang chờ đối soát</td></tr>`}</tbody>
+    </table></div>
+
+    ${daGhiQuy.length ? `
+    <div class="panel-head" style="margin-top:24px"><h3 style="font-size:14px">Lịch sử đã ghi vào Sổ quỹ Chân Mây</h3></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ngày</th><th>Bãi</th><th>Biển số</th><th>Loại xe</th><th style="text-align:right">Phí đã ghi</th></tr></thead>
+      <tbody>${daGhiQuy.slice(0,100).map(n=>`<tr><td class="mono">${n.ngay}</td><td>${baiCuaPhieuNhap(n)}</td><td class="mono">${n.bienSo||''}</td><td>${n.loaiXe}</td><td class="num">${fmt(n.phiTramCanSoTien||0)} đ</td></tr>`).join('')}</tbody>
+    </table></div>` : ''}`;
+}
 function findOrCreateLot(chuHang, viTri, goiYLoaiHang){
   let lot = state.lots.find(l=>l.chuHang===chuHang && l.viTri===viTri);
   if(!lot){
@@ -1940,7 +2062,8 @@ function confirmWeighImport(){
     if(pw.huong === 'nhap'){
       state.nhap.push({id:'N'+(state.nextId++), lotId:pw.lotId, ngay:t.ngay||new Date().toISOString().slice(0,10),
         khoiLuong:t.khoiLuongTan, tuyen:pw.tuyen, phuongTien, bienSo:t.bienSo||'', roMoc:t.roMoc||'', nguoiNhap:currentUser.name, nguon:pw.tenTau||null, loaiXe,
-        hangHoaRaw:t.hangHoa||'', klCoHang:t.klCoHang||0, klXe:t.klXe||0, gioCanTong:t.gioCanTong||'', gioCanXe:t.gioCanXe||'', ghiChuPhieu:t.ghiChu||'', soPhieu:t.soPhieu||''});
+        hangHoaRaw:t.hangHoa||'', klCoHang:t.klCoHang||0, klXe:t.klXe||0, gioCanTong:t.gioCanTong||'', gioCanXe:t.gioCanXe||'', ghiChuPhieu:t.ghiChu||'', soPhieu:t.soPhieu||'',
+        mienPhiTramCan:false, lyDoMienPhiTramCan:'', phiTramCanDaGhiQuy:false, phiTramCanSoTien:null});
     } else {
       state.xuat.push({id:'X'+(state.nextId++), lotId:pw.lotId, ngay:t.ngay||new Date().toISOString().slice(0,10),
         khoiLuong:t.khoiLuongTan, tuyen:pw.tuyen, phuongTien, bienSo:t.bienSo||'', roMoc:t.roMoc||'', nguoiTao:currentUser.name, nguon:pw.tenTau||null, loaiXe,
@@ -2886,6 +3009,12 @@ const FIELD_SCHEMAS = {
     {key:'ngay', label:'Ngày xuất', type:'date'},
     {key:'soLuong', label:'Số lượng', type:'number'},
     {key:'ghiChu', label:'Ghi chú', type:'text'},
+  ]},
+  bieuphibai: {ten:'biểu phí bãi', fields:[
+    {key:'bai', label:'Bãi', type:'select', options:danhSachBaiPhang().map(v=>({v,t:v}))},
+    {key:'loaiXe', label:'Loại xe', type:'select', options:LOAI_XE_BANG_CHUNG.map(v=>({v,t:v}))},
+    {key:'loaiPhi', label:'Loại phí', type:'select', options:[{v:'Mở bửng',t:'Mở bửng'},{v:'Rửa xe',t:'Rửa xe'}]},
+    {key:'donGia', label:'Đơn giá (đ)', type:'number'},
   ]},
   vantai: {ten:'chuyến vận tải', fields:[
     {key:'ngay', label:'Ngày', type:'date'},
