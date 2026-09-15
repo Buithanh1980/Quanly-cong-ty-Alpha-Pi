@@ -1772,25 +1772,9 @@ function renderPhiTramCan(body){
       <div class="stat-card"><div class="slabel">Đã bàn giao, chờ thủ quỹ xác nhận</div><div class="sval">${fmt(choXacNhan.reduce((s,d)=>s+d.soTienBanGiao,0))} <span class="sunit">đ</span></div></div>
     </div>
     <div class="panel-head"><h3>Phí trạm cân (mở bửng / rửa xe)</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Nhân viên trạm cân thu tiền mặt trực tiếp từ từng xe theo Biểu phí bên dưới. Quy trình 2 bước, tách riêng theo từng bãi: (1) Khai thác/trạm cân <b>bàn giao</b> số tiền đã thu cho thủ quỹ Chân Mây; (2) <b>thủ quỹ Chân Mây tự xác nhận</b> số tiền thực nhận — chỉ bước này mới ghi vào Sổ quỹ, và chỉ tài khoản thủ quỹ mới có nút xác nhận. Kế toán xem báo cáo này để đối chiếu, không cần thao tác gì. Bản demo dùng chung 1 tài khoản Khai thác cho cả trạm cân lẫn thủ quỹ nên 2 bước có thể do cùng người bấm — khi triển khai chính thức với tài khoản riêng sẽ tách hẳn người bàn giao và người xác nhận.</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Nhân viên trạm cân thu tiền mặt trực tiếp từ từng xe theo Biểu phí (xem cuối trang). Quy trình 2 bước, tách riêng theo từng bãi: (1) Khai thác/trạm cân <b>bàn giao</b> số tiền đã thu cho thủ quỹ Chân Mây; (2) <b>thủ quỹ Chân Mây tự xác nhận</b> số tiền thực nhận — chỉ bước này mới ghi vào Sổ quỹ, và chỉ tài khoản thủ quỹ mới có nút xác nhận. Kế toán xem báo cáo này để đối chiếu, không cần thao tác gì. Bản demo dùng chung 1 tài khoản Khai thác cho cả trạm cân lẫn thủ quỹ nên 2 bước có thể do cùng người bấm — khi triển khai chính thức với tài khoản riêng sẽ tách hẳn người bàn giao và người xác nhận.</p>
 
-    <div class="panel-head" style="margin-top:8px"><h3 style="font-size:14px">Biểu phí bãi</h3></div>
-    ${laKT ? `<details class="add-details"><summary class="add-summary">Thêm mức phí mới</summary>
-      <form class="inline-form" onsubmit="return submitBieuPhiBai(event)">
-        <div class="field"><label>Bãi</label><select required id="bp-bai">${baiOpts.map(b=>`<option value="${b}">${b}</option>`).join('')}</select></div>
-        <div class="field"><label>Loại xe</label><select required id="bp-loaixe">${LOAI_XE_BANG_CHUNG.map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div>
-        <div class="field"><label>Loại phí</label><select required id="bp-loaiphi"><option value="Mở bửng">Mở bửng</option><option value="Rửa xe">Rửa xe</option></select></div>
-        <div class="field"><label>Đơn giá (đ)</label><input type="number" required id="bp-dongia"></div>
-        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
-      </form></details>` : ''}
-    <div class="table-wrap"><table>
-      <thead><tr><th>Bãi</th><th>Loại xe</th><th>Loại phí</th><th style="text-align:right">Đơn giá</th><th></th></tr></thead>
-      <tbody>${state.bieuphibai.map(b=>`<tr><td>${b.bai}</td><td>${b.loaiXe}</td><td>${b.loaiPhi}</td><td class="num">${fmt(b.donGia)} đ</td>
-        <td>${laKT ? `<div class="row-actions">${actionButtons('bieuphibai', b.id)}</div>` : ''}</td></tr>`).join('')
-        || `<tr class="empty-row"><td colspan="5">Chưa có biểu phí nào</td></tr>`}</tbody>
-    </table></div>
-
-    <div class="panel-head" style="margin-top:28px"><h3 style="font-size:14px">1. Cần bàn giao (theo từng bãi)</h3></div>
+    <div class="panel-head" style="margin-top:8px"><h3 style="font-size:14px">1. Cần bàn giao (theo từng bãi)</h3></div>
     <div class="table-wrap"><table>
       <thead><tr><th>Ngày</th><th>Bãi</th><th style="text-align:right">Số xe</th><th style="text-align:right">Tổng tính toán</th><th></th></tr></thead>
       <tbody>${nhomChuaBanGiao.length ? nhomChuaBanGiao.map(nh=>{
@@ -1830,7 +1814,23 @@ function renderPhiTramCan(body){
           <td class="num" style="font-weight:700">${fmt(d.soTienXacNhan||0)} đ${lech!==0 ? `<br><span class="pill rejected" style="font-size:10px">Chênh ${lech>0?'+':''}${fmt(lech)} đ</span>` : ''}</td>
           <td style="font-size:12px;color:var(--ink-soft)">${d.nguoiBanGiao} → ${d.nguoiXacNhan}</td></tr>`;
       }).join('')}</tbody>
-    </table></div>` : ''}`;
+    </table></div>` : ''}
+
+    <div class="panel-head" style="margin-top:28px"><h3 style="font-size:14px">Biểu phí bãi</h3></div>
+    ${laKT ? `<details class="add-details"><summary class="add-summary">Thêm mức phí mới</summary>
+      <form class="inline-form" onsubmit="return submitBieuPhiBai(event)">
+        <div class="field"><label>Bãi</label><select required id="bp-bai">${baiOpts.map(b=>`<option value="${b}">${b}</option>`).join('')}</select></div>
+        <div class="field"><label>Loại xe</label><select required id="bp-loaixe">${LOAI_XE_BANG_CHUNG.map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div>
+        <div class="field"><label>Loại phí</label><select required id="bp-loaiphi"><option value="Mở bửng">Mở bửng</option><option value="Rửa xe">Rửa xe</option></select></div>
+        <div class="field"><label>Đơn giá (đ)</label><input type="number" required id="bp-dongia"></div>
+        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+      </form></details>` : ''}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Bãi</th><th>Loại xe</th><th>Loại phí</th><th style="text-align:right">Đơn giá</th><th></th></tr></thead>
+      <tbody>${state.bieuphibai.map(b=>`<tr><td>${b.bai}</td><td>${b.loaiXe}</td><td>${b.loaiPhi}</td><td class="num">${fmt(b.donGia)} đ</td>
+        <td>${laKT ? `<div class="row-actions">${actionButtons('bieuphibai', b.id)}</div>` : ''}</td></tr>`).join('')
+        || `<tr class="empty-row"><td colspan="5">Chưa có biểu phí nào</td></tr>`}</tbody>
+    </table></div>`;
 }
 function findOrCreateLot(chuHang, viTri, goiYLoaiHang){
   let lot = state.lots.find(l=>l.chuHang===chuHang && l.viTri===viTri);
