@@ -4411,9 +4411,11 @@ function duyetDeXuat(id, dong){
 function renderDeNghiThanhToan(body){
   const canAdd = canEnter('M7');
   const canSubmit = canEnter('M7') && !canApprove('M7');
+  const laThuQuyChanMay = currentUser.id==='KT';
+  const list = laThuQuyChanMay ? state.denghithanhtoan.filter(t=>t.boPhan===boPhanCuaToi() || t.quy==='Chân Mây') : state.denghithanhtoan;
   body.innerHTML = `
     <div class="panel-head"><h3>Đề nghị thanh toán</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Áp dụng cho cả thanh toán nội bộ và thanh toán nhà cung cấp. Đề nghị cho nhà cung cấp phải liên kết với 1 đề xuất mua hàng đã duyệt (số tiền thực tế có thể khác số dự kiến). Luồng: Trưởng bộ phận duyệt → Kế toán kiểm tra → Ban lãnh đạo duyệt → Kế toán/Thủ quỹ thực hiện chi. Nhu cầu chung/hành chính do phòng Nhân sự — hành chính đứng ra lập.</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Áp dụng cho cả thanh toán nội bộ và thanh toán nhà cung cấp. Đề nghị cho nhà cung cấp phải liên kết với 1 đề xuất mua hàng đã duyệt (số tiền thực tế có thể khác số dự kiến). Luồng: Trưởng bộ phận duyệt → Kế toán kiểm tra → Ban lãnh đạo duyệt → Kế toán/Thủ quỹ thực hiện chi. Nhu cầu chung/hành chính do phòng Nhân sự — hành chính đứng ra lập.${laThuQuyChanMay ? ' Chỉ hiển thị hồ sơ của phòng Khai thác hoặc hồ sơ chi từ Quỹ Chân Mây (dù phòng nào lập).' : ''}</p>
     <p style="font-size:11.5px;color:var(--ink-soft);margin:-10px 0 14px;font-style:italic">Ghi chú: bản demo dùng chung 1 tài khoản cho cả phòng ban nên bước "Trưởng bộ phận duyệt" vẫn thực hiện trên cùng tài khoản đó (chỉ mang tính quy trình/nhắc việc) — khi triển khai chính thức với tài khoản riêng từng người sẽ tách hẳn người lập và người duyệt. Cũng chưa có server dùng chung nên chưa thể báo (mở máy/tin nhắn) cho cấp duyệt — cấp duyệt cần chủ động vào tab này để xem việc chờ xử lý.</p>
     ${canSubmit ? `<details class="add-details"><summary class="add-summary">Lập đề nghị thanh toán</summary>
       <form class="inline-form" onsubmit="return submitDeNghi(event)">
@@ -4438,7 +4440,7 @@ function renderDeNghiThanhToan(body){
       </form></details>` : ''}
     <div class="table-wrap"><table>
       <thead><tr><th>Ngày</th><th>Loại</th><th>Nội dung</th><th>Bộ phận</th><th style="text-align:right">Số tiền</th><th>Hình thức</th><th>Quỹ</th><th>Hóa đơn</th><th>Trạng thái</th><th></th></tr></thead>
-      <tbody>${state.denghithanhtoan.map(t => {
+      <tbody>${list.map(t => {
         const pillClass = t.trangThai==='Đã thanh toán' ? 'paid' : t.trangThai==='Đã duyệt' ? 'approved' : t.trangThai==='Từ chối' ? 'rejected' : t.trangThai==='Đã kiểm tra' ? 'done' : 'pending';
         let action = '';
         if(canEnter('M7') && !canApprove('M7') && t.boPhan===boPhanCuaToi() && t.trangThai==='Chờ trưởng phòng duyệt'){
@@ -4543,7 +4545,7 @@ function renderTamUng(body){
   const canAdd = canEnter('M7');
   const canSubmit = canEnter('M7') && !canApprove('M7');
   const xemHet = xemToanBoTaiChinh();
-  const list = xemHet ? state.tamung : state.tamung.filter(t=>t.boPhan===boPhanCuaToi());
+  const list = xemHet ? state.tamung : state.tamung.filter(t=>t.boPhan===boPhanCuaToi() || (currentUser.id==='KT' && t.quy==='Chân Mây'));
   const tamUngChuaQuyetToan = list.filter(t=>t.trangThai!=='Đã quyết toán').reduce((s,t)=>s+t.soTienTamUng,0);
   const tongHopNguoi = tongHopTamUngTheoNguoi(list);
   body.innerHTML = `
@@ -4551,7 +4553,7 @@ function renderTamUng(body){
       <div class="stat-card"><div class="slabel">Tạm ứng chưa quyết toán</div><div class="sval">${fmt(tamUngChuaQuyetToan)} <span class="sunit">đ</span></div></div>
     </div>
     <div class="panel-head"><h3>Tạm ứng${xemHet ? '' : ` — bộ phận ${boPhanCuaToi()}`}</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Luồng: Trưởng bộ phận duyệt → Kế toán kiểm tra → Ban lãnh đạo duyệt → Kế toán chi tạm ứng → Người nhận quyết toán sau khi hoàn thành công việc. Nhu cầu tạm ứng của Kế toán/Ban lãnh đạo do phòng Nhân sự — hành chính đứng ra lập.${xemHet ? '' : ' Chỉ hiển thị tạm ứng của bộ phận bạn.'}</p>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Luồng: Trưởng bộ phận duyệt → Kế toán kiểm tra → Ban lãnh đạo duyệt → Kế toán chi tạm ứng → Người nhận quyết toán sau khi hoàn thành công việc. Nhu cầu tạm ứng của Kế toán/Ban lãnh đạo do phòng Nhân sự — hành chính đứng ra lập.${xemHet ? '' : currentUser.id==='KT' ? ' Chỉ hiển thị tạm ứng của phòng Khai thác hoặc tạm ứng chi từ Quỹ Chân Mây (dù phòng nào lập).' : ' Chỉ hiển thị tạm ứng của bộ phận bạn.'}</p>
     <p style="font-size:11.5px;color:var(--ink-soft);margin:-10px 0 14px;font-style:italic">Ghi chú: bản demo dùng chung 1 tài khoản cho cả phòng ban nên bước "Trưởng bộ phận duyệt" vẫn thực hiện trên cùng tài khoản đó (chỉ mang tính quy trình/nhắc việc) — khi triển khai chính thức với tài khoản riêng từng người sẽ tách hẳn người lập và người duyệt.</p>
     ${tongHopNguoi.length ? `<div class="section-block" style="margin:0 0 18px">
       <h3 style="font-size:13.5px">Tổng hợp tạm ứng chưa quyết toán theo người nhận</h3>
@@ -4705,6 +4707,28 @@ function luuQuyetToanTamUng(){
 }
 
 /* ---- Sổ quỹ ---- */
+function renderCanChiQuyChanMay(){
+  const dnList = state.denghithanhtoan.filter(t=>t.trangThai==='Đã duyệt' && t.quy==='Chân Mây')
+    .map(t=>({loai:'Đề nghị thanh toán', ngay:t.ngay, noiDung:t.noiDung, boPhan:t.boPhan, soTien:t.soTien, action:`thanhToanDeNghi('${t.id}')`, nhan:'Thực hiện thanh toán'}));
+  const tuList = state.tamung.filter(t=>t.trangThai==='Đã duyệt' && t.quy==='Chân Mây')
+    .map(t=>({loai:'Tạm ứng', ngay:t.ngay, noiDung:t.noiDung, boPhan:t.boPhan, soTien:t.soTienTamUng, action:`chiTamUng('${t.id}')`, nhan:'Chi tạm ứng'}));
+  const list = [...dnList, ...tuList].sort((a,b)=>a.ngay.localeCompare(b.ngay));
+  const soDu = soDuQuy('Chân Mây');
+  if(!list.length) return `<div class="panel-head" style="margin-top:4px"><h3 style="font-size:14px">Cần chi từ Quỹ Chân Mây</h3></div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 18px">Không có khoản đã duyệt nào đang chờ chi.</p>`;
+  return `
+    <div class="panel-head" style="margin-top:4px"><h3 style="font-size:14px">Cần chi từ Quỹ Chân Mây (${list.length})</h3></div>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:-6px 0 10px">Các đề nghị thanh toán/tạm ứng đã qua đủ 3 bước duyệt, chọn nguồn quỹ Chân Mây — bấm để thực hiện chi ngay tại đây, không cần qua tab khác.</p>
+    <div class="table-wrap" style="margin-bottom:20px"><table>
+      <thead><tr><th>Ngày</th><th>Loại</th><th>Nội dung</th><th>Bộ phận</th><th style="text-align:right">Số tiền</th><th></th></tr></thead>
+      <tbody>${list.map(x=>{
+        const khongDu = x.soTien > soDu;
+        return `<tr><td class="mono">${x.ngay}</td><td>${x.loai}</td><td>${x.noiDung}</td><td>${x.boPhan}</td>
+          <td class="num">${fmt(x.soTien)}${khongDu ? `<br><span class="pill rejected" style="font-size:10px">⚠ Thiếu ${fmt(x.soTien-soDu)} đ</span>` : ''}</td>
+          <td><button class="mini-btn approve" onclick="${x.action}">${x.nhan}</button></td></tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+}
 function renderSoQuy(body){
   const xemHet = xemToanBoTaiChinh();
   const laThuQuyChanMay = currentUser.id==='KT';
@@ -4722,6 +4746,7 @@ function renderSoQuy(body){
     </div>
     <div class="panel-head"><h3>Sổ quỹ${xemHet?' (tiền mặt + chuyển khoản)':' — Quỹ Chân Mây'}</h3></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">Công ty có 2 quỹ: <b>Quỹ chính</b> do Kế toán quản lý tại TP.HCM, và <b>Quỹ Chân Mây</b> do thủ quỹ tại chỗ (Phòng Khai thác) quản lý — dùng chi cho công việc khẩn cấp tại Chân Mây của Khai thác, Vận tải liên vận hoặc Dịch vụ kỹ thuật khi có việc ở đó. Các dòng từ đề nghị thanh toán/tạm ứng được ghi tự động khi thực hiện chi, đúng theo quỹ đã chọn lúc lập hồ sơ.${xemHet ? ' Chỉ Kế toán được ghi bổ sung thu/chi thủ công cho quỹ chính.' : ''}</p>
+    ${laThuQuyChanMay ? renderCanChiQuyChanMay() : ''}
     ${canAdd ? `<details class="add-details"><summary class="add-summary">Ghi thu/chi khác</summary>
       <form class="inline-form" onsubmit="return submitSoQuy(event)">
         <div class="field"><label>Ngày</label><input type="date" required id="sq-ngay"></div>
