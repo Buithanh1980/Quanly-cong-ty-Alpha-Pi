@@ -576,6 +576,7 @@ function loadState(){
       if(n.mienPhiTramCan===undefined) n.mienPhiTramCan = false;
       if(n.lyDoMienPhiTramCan===undefined) n.lyDoMienPhiTramCan = '';
       if(n.phienDoiSoatId===undefined) n.phienDoiSoatId = null; // dữ liệu cũ trước khi tách bước "bàn giao" / "thủ quỹ xác nhận" — coi như chưa bàn giao
+      if(!n.loaiXe && n.tuyen==='Đường bộ' && BAI_QUY_LUAT_GHICHU_LOAIXE.includes(baiCuaPhieuNhap(n))) n.loaiXe = suyLuanLoaiXeTuGhiChu(n.ghiChuPhieu); // phiếu cũ nhập từ file cân trước khi có quy luật đọc cột Ghi chú theo từng trạm cân — suy luận lại từ ghi chú đã lưu sẵn
     });
     state.dexuatmuahang.forEach(x=>{ if(x.loaiLienQuan===undefined) x.loaiLienQuan = x.lienQuanThietBi ? 'thietbi' : ''; }); // đổi từ checkbox lienQuanThietBi sang chọn 1 trong 2 loại liên quan (thêm "Nhập kho vật tư/nhiên liệu")
     state.xacnhanhoanthanh.forEach(x=>{ if(!x.trangThaiXacNhan) Object.assign(x, {trangThaiXacNhan:'Đã xác nhận', nguoiXacNhanLai:'Dữ liệu cũ', ngayXacNhanLai:x.ngayXacNhan, lyDoTuChoi:null}); }); // dữ liệu cũ trước khi có bước Kế toán xác nhận lại — coi như đã được chấp nhận
@@ -2086,12 +2087,21 @@ function parseWeighFile(formKey){
   reader.readAsArrayBuffer(file);
 }
 function cancelWeighImport(){ pendingWeigh = null; renderM1(); }
+const BAI_QUY_LUAT_GHICHU_LOAIXE = ['Bãi Alpha Pi', 'Bãi Coalimex']; // trạm cân của các bãi này dùng chung 1 phần mềm/team, ghi "Cont"/"Ben" ở cột Ghi chú, để trống hoặc ghi "Xe thùng" nghĩa là xe thùng
+function suyLuanLoaiXeTuGhiChu(ghiChu){
+  const gc = (ghiChu||'').trim().toLowerCase();
+  if(gc.includes('cont')) return 'Xe container';
+  if(gc.includes('ben')) return 'Xe ben';
+  return 'Xe thùng';
+}
 function confirmWeighImport(){
   const pw = pendingWeigh; if(!pw) return;
   let count = 0;
   pw.tickets.forEach(t=>{
     const phuongTien = `${t.bienSo}${t.roMoc?' — '+t.roMoc:''} (phiếu ${t.soPhieu})${pw.tenTau?', tàu '+pw.tenTau:''}`;
-    const loaiXe = pw.tuyen === 'Đường thủy' ? 'Tàu' : (t.roMoc ? 'Xe container' : null);
+    const loaiXe = pw.tuyen === 'Đường thủy' ? 'Tàu'
+      : BAI_QUY_LUAT_GHICHU_LOAIXE.includes(pw.bai) ? suyLuanLoaiXeTuGhiChu(t.ghiChu)
+      : (t.roMoc ? 'Xe container' : null);
     if(pw.huong === 'nhap'){
       state.nhap.push({id:'N'+(state.nextId++), lotId:pw.lotId, ngay:t.ngay||new Date().toISOString().slice(0,10),
         khoiLuong:t.khoiLuongTan, tuyen:pw.tuyen, phuongTien, bienSo:t.bienSo||'', roMoc:t.roMoc||'', nguoiNhap:currentUser.name, nguon:pw.tenTau||null, loaiXe,
