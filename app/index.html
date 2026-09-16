@@ -1873,8 +1873,7 @@ function renderPhiTramCan(body){
       <tbody>${nhomChuaBanGiao.length ? nhomChuaBanGiao.map(nh=>{
         const tong = nh.phieu.reduce((s,n)=> s + (n.mienPhiTramCan ? 0 : tinhPhiTramCan(nh.bai, n.loaiXe)), 0);
         const dangXem = loCanXemChiTietPhiTramCan === nh.loCanId;
-        const theoLoai = LOAI_XE_BANG_CHUNG.map(lx=>({lx, sl:nh.phieu.filter(n=>n.loaiXe===lx).length})).filter(x=>x.sl>0)
-          .map(x=>`${x.sl} ${x.lx.replace('Xe ','')}`).join(' · ');
+        const theoLoai = theoLoaiXeText(nh.phieu);
         return `<tr${dangXem?' style="background:var(--grey-tint)"':''}><td><button class="mini-btn" onclick="chonLoCanXemChiTiet('${nh.loCanId}')" style="font-family:var(--mono,monospace)">${nh.ma}</button></td><td class="mono">${nh.ngay}</td><td>${nh.bai}</td><td class="num">${nh.phieu.length}${theoLoai?`<br><span style="font-size:11px;color:var(--ink-soft);font-weight:400">${theoLoai}</span>`:''}</td><td class="num" style="font-weight:700">${fmt(tong)} đ</td>
           <td>${canBanGiao ? `<button class="mini-btn approve" onclick="banGiaoPhiTramCan('${nh.loCanId}')">Bàn giao cho thủ quỹ</button>` : ''}</td></tr>`;
       }).join('') : `<tr class="empty-row"><td colspan="6">Không có xe nào chưa bàn giao</td></tr>`}</tbody>
