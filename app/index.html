@@ -1902,7 +1902,7 @@ function renderWeighImportBlock(huong){
   const tonKhaDung = pw.huong==='xuat' ? tonHienTai(pw.lotId) : null;
   const chuaXacDinh = pw.tickets.filter(t=>!duDoanLoaiXeXemTruoc(t, pw)).length;
   const ngayCoTrongLo = [...new Set(pw.tickets.map(t=>t.ngay||new Date().toISOString().slice(0,10)))].sort();
-  const maLoCanDuKien = ngayCoTrongLo.map(ngay=>`${taoMaLoCan(pw.khachHang, pw.bai, ngay)} (${ngay})`).join(', ');
+  const maLoCanDuKien = ngayCoTrongLo.map(ngay=>`${taoMaLoCan(pw.khachHang, pw.bai, ngay, pw.huong, pw.tuyen)} (${ngay})`).join(', ');
   return `<div class="inline-form" style="grid-template-columns:1fr;border-color:var(--brand)">
     <div class="panel-head" style="margin:0"><h3 style="font-size:14px">Xem trước — ${pw.huong==='nhap'?'Nhập':'Xuất'} hàng, ${pw.khachHang} — ${pw.bai}${pw.tenTau?' — tàu '+pw.tenTau:''} (lô ${pw.lotId})</h3></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:0">Đọc được <b>${pw.tickets.length}</b> phiếu cân, tổng <b>${fmt(tong)} tấn</b>. Sẽ gộp vào mã lô cân: <b>${maLoCanDuKien}</b>. Kiểm tra kỹ từng dòng bên dưới (đặc biệt cột Loại xe dự kiến) trước khi bấm xác nhận — xác nhận xong không sửa hàng loạt lại được, phải sửa tay từng phiếu.
@@ -2166,20 +2166,22 @@ function vietTatTen(ten){
   if(tu.length >= 2) return (tu[0][0]+tu[tu.length-1][0]).toUpperCase();
   return (tu[0]||'XX').slice(0,2).toUpperCase();
 }
-function tienToMaLoCan(khachHang, bai, ngay){
+function kyHieuHuong(huong){ return huong==='xuat' ? 'O' : 'I'; }
+function kyHieuTuyen(tuyen){ return tuyen==='Đường thủy' ? 'T' : tuyen==='Khác' ? 'K' : 'B'; }
+function tienToMaLoCan(khachHang, bai, ngay, huong, tuyen){
   const d = new Date(ngay+'T00:00:00');
   const ddmmyy = String(d.getDate()).padStart(2,'0') + String(d.getMonth()+1).padStart(2,'0') + String(d.getFullYear()).slice(2);
-  return `${vietTatTen(khachHang)}${vietTatTen(bai)}${ddmmyy}`;
+  return `${kyHieuHuong(huong)}${kyHieuTuyen(tuyen)}${vietTatTen(khachHang)}${vietTatTen(bai)}${ddmmyy}`;
 }
-function taoMaLoCan(khachHang, bai, ngay){
-  const prefix = tienToMaLoCan(khachHang, bai, ngay);
+function taoMaLoCan(khachHang, bai, ngay, huong, tuyen){
+  const prefix = tienToMaLoCan(khachHang, bai, ngay, huong, tuyen);
   const soLuongTrung = state.locan.filter(l=>l.ma.startsWith(prefix)).length;
   return prefix + String(soLuongTrung+1).padStart(2,'0');
 }
-function layHoacTaoLoCan(khachHang, bai, ngay, huong, cache, nguoiTao){
-  const key = khachHang+'|'+bai+'|'+ngay+'|'+huong;
+function layHoacTaoLoCan(khachHang, bai, ngay, huong, tuyen, cache, nguoiTao){
+  const key = khachHang+'|'+bai+'|'+ngay+'|'+huong+'|'+tuyen;
   if(cache[key]) return cache[key];
-  const lc = {id:'LC'+(state.nextId++), ma:taoMaLoCan(khachHang, bai, ngay), khachHang, bai, ngay, huong,
+  const lc = {id:'LC'+(state.nextId++), ma:taoMaLoCan(khachHang, bai, ngay, huong, tuyen), khachHang, bai, ngay, huong, tuyen,
     phieuIds:[], soLuongXe:0, tongKhoiLuong:0, thoiGianTao:new Date().toLocaleString('vi-VN'), nguoiTao};
   state.locan.push(lc);
   cache[key] = lc;
@@ -2192,7 +2194,7 @@ function ganLoCanHoiTo(){
     list.forEach(n=>{
       if(n.loCanId) return;
       const lot = state.lots.find(l=>l.id===n.lotId); if(!lot) return;
-      const lc = layHoacTaoLoCan(lot.chuHang, lot.viTri, n.ngay, huong, cache, 'Dữ liệu cũ');
+      const lc = layHoacTaoLoCan(lot.chuHang, lot.viTri, n.ngay, huong, n.tuyen, cache, 'Dữ liệu cũ');
       n.loCanId = lc.id; lc.phieuIds.push(n.id); lc.soLuongXe++; lc.tongKhoiLuong += n.khoiLuong;
     });
   });
@@ -2206,7 +2208,7 @@ function confirmWeighImport(){
     let loaiXe = duDoanLoaiXeXemTruoc(t, pw);
     if(!loaiXe && pw.tuyen !== 'Đường thủy') loaiXe = hoiLoaiXeThuCong(t, pw.bai);
     const ngayPhieu = t.ngay || new Date().toISOString().slice(0,10);
-    const lc = layHoacTaoLoCan(pw.khachHang, pw.bai, ngayPhieu, pw.huong, loCanTheoNgay, currentUser.name);
+    const lc = layHoacTaoLoCan(pw.khachHang, pw.bai, ngayPhieu, pw.huong, pw.tuyen, loCanTheoNgay, currentUser.name);
     if(pw.huong === 'nhap'){
       const id = 'N'+(state.nextId++);
       state.nhap.push({id, lotId:pw.lotId, ngay:ngayPhieu,
