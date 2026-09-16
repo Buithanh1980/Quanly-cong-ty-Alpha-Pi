@@ -581,6 +581,7 @@ function loadState(){
         const bai = baiCuaPhieuNhap(n);
         if(BAI_QUY_LUAT_GHICHU_LOAIXE.includes(bai)) n.loaiXe = suyLuanLoaiXeTuGhiChu(n.ghiChuPhieu); // phiếu cũ nhập từ file cân trước khi có quy luật đọc cột Ghi chú theo từng trạm cân — suy luận lại từ ghi chú đã lưu sẵn
         else if(bai==='Bãi Vinalift') n.loaiXe = suyLuanLoaiXeVinaliftMigration(n.ghiChuPhieu);
+        else if(bai==='Bãi Phú Thái') n.loaiXe = suyLuanLoaiXePhuThai(n.ghiChuPhieu); // quy luật Phú Thái chỉ dựa vào Ghi chú đã lưu sẵn, không mất dữ liệu như Vinalift nên suy lại trực tiếp được
       }
     });
     state.dexuatmuahang.forEach(x=>{ if(x.loaiLienQuan===undefined) x.loaiLienQuan = x.lienQuanThietBi ? 'thietbi' : ''; }); // đổi từ checkbox lienQuanThietBi sang chọn 1 trong 2 loại liên quan (thêm "Nhập kho vật tư/nhiên liệu")
@@ -2111,6 +2112,15 @@ function suyLuanLoaiXeVinalift(soHopDong, ghiChu){
   if(gc.includes('thùng') || gc.includes('thung')) return 'Xe thùng';
   return null; // ghi chú lạ — không đoán bừa
 }
+function suyLuanLoaiXePhuThai(ghiChu){
+  const gc = (ghiChu||'').trim();
+  if(!gc) return null; // trạm cân Phú Thái luôn ghi rõ từng xe — trống nghĩa là chưa được phân loại, không mặc định Xe thùng như các bãi khác
+  const gcLower = gc.toLowerCase();
+  if(gcLower.includes('ben')) return 'Xe ben'; // bắt cả "XE NHẬP (XE BEN)" và "XE NHẬP ( BEN NGANG)"
+  if(gcLower.includes('thùng') || gcLower.includes('thung')) return 'Xe thùng';
+  if(/^[a-z]{2,4}\s?\d{4,8}$/i.test(gc)) return 'Xe container'; // trạm cân Phú Thái ghi thẳng ký hiệu container vào Ghi chú, không kèm từ khóa "cont"
+  return null; // không khớp mẫu nào đã biết — không đoán bừa
+}
 function hoiLoaiXeThuCong(t, bai){
   let dap;
   do {
@@ -2133,6 +2143,7 @@ function confirmWeighImport(){
     let loaiXe = pw.tuyen === 'Đường thủy' ? 'Tàu'
       : BAI_QUY_LUAT_GHICHU_LOAIXE.includes(pw.bai) ? suyLuanLoaiXeTuGhiChu(t.ghiChu)
       : pw.bai === 'Bãi Vinalift' ? suyLuanLoaiXeVinalift(t.soHopDong, t.ghiChu)
+      : pw.bai === 'Bãi Phú Thái' ? suyLuanLoaiXePhuThai(t.ghiChu)
       : (t.roMoc ? 'Xe container' : null);
     if(!loaiXe && pw.tuyen !== 'Đường thủy') loaiXe = hoiLoaiXeThuCong(t, pw.bai);
     if(pw.huong === 'nhap'){
