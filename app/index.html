@@ -494,6 +494,8 @@ function seedState(){
       {id:'BP5', bai:'Bãi Coalimex', loaiXe:'Xe thùng', loaiPhi:'Mở bửng', donGia:60000},
       {id:'BP6', bai:'Bãi Coalimex', loaiXe:'Xe thùng', loaiPhi:'Rửa xe', donGia:50000},
       {id:'BP7', bai:'Bãi Phú Thái', loaiXe:'Xe thùng', loaiPhi:'Mở bửng', donGia:40000},
+      {id:'BP8', bai:'Bãi Coalimex', loaiXe:'Xe ben', loaiPhi:'Rửa xe', donGia:50000},
+      {id:'BP9', bai:'Bãi Coalimex', loaiXe:'Xe container', loaiPhi:'Rửa xe', donGia:50000},
     ],
     doisoatphitramcan: [],
     locan: [],
@@ -575,6 +577,12 @@ function loadState(){
     if(!state.bieuphibai) state.bieuphibai = seedState().bieuphibai;
     if(!state.bieuphibai.some(b=>b.bai==='Bãi Phú Thái' && b.loaiXe==='Xe thùng' && b.loaiPhi==='Mở bửng')){
       state.bieuphibai.push({id:'BP'+(state.nextId++), bai:'Bãi Phú Thái', loaiXe:'Xe thùng', loaiPhi:'Mở bửng', donGia:40000});
+    }
+    if(!state.bieuphibai.some(b=>b.bai==='Bãi Coalimex' && b.loaiXe==='Xe ben' && b.loaiPhi==='Rửa xe')){
+      state.bieuphibai.push({id:'BP'+(state.nextId++), bai:'Bãi Coalimex', loaiXe:'Xe ben', loaiPhi:'Rửa xe', donGia:50000});
+    }
+    if(!state.bieuphibai.some(b=>b.bai==='Bãi Coalimex' && b.loaiXe==='Xe container' && b.loaiPhi==='Rửa xe')){
+      state.bieuphibai.push({id:'BP'+(state.nextId++), bai:'Bãi Coalimex', loaiXe:'Xe container', loaiPhi:'Rửa xe', donGia:50000});
     }
     if(!state.doisoatphitramcan) state.doisoatphitramcan = seedState().doisoatphitramcan;
     if(!state.locan) state.locan = seedState().locan;
