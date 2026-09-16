@@ -576,7 +576,12 @@ function loadState(){
       if(n.mienPhiTramCan===undefined) n.mienPhiTramCan = false;
       if(n.lyDoMienPhiTramCan===undefined) n.lyDoMienPhiTramCan = '';
       if(n.phienDoiSoatId===undefined) n.phienDoiSoatId = null; // dữ liệu cũ trước khi tách bước "bàn giao" / "thủ quỹ xác nhận" — coi như chưa bàn giao
-      if(!n.loaiXe && n.tuyen==='Đường bộ' && BAI_QUY_LUAT_GHICHU_LOAIXE.includes(baiCuaPhieuNhap(n))) n.loaiXe = suyLuanLoaiXeTuGhiChu(n.ghiChuPhieu); // phiếu cũ nhập từ file cân trước khi có quy luật đọc cột Ghi chú theo từng trạm cân — suy luận lại từ ghi chú đã lưu sẵn
+      if(n.soHopDong===undefined) n.soHopDong = '';
+      if(!n.loaiXe && n.tuyen==='Đường bộ'){
+        const bai = baiCuaPhieuNhap(n);
+        if(BAI_QUY_LUAT_GHICHU_LOAIXE.includes(bai)) n.loaiXe = suyLuanLoaiXeTuGhiChu(n.ghiChuPhieu); // phiếu cũ nhập từ file cân trước khi có quy luật đọc cột Ghi chú theo từng trạm cân — suy luận lại từ ghi chú đã lưu sẵn
+        else if(bai==='Bãi Vinalift') n.loaiXe = suyLuanLoaiXeVinaliftMigration(n.ghiChuPhieu);
+      }
     });
     state.dexuatmuahang.forEach(x=>{ if(x.loaiLienQuan===undefined) x.loaiLienQuan = x.lienQuanThietBi ? 'thietbi' : ''; }); // đổi từ checkbox lienQuanThietBi sang chọn 1 trong 2 loại liên quan (thêm "Nhập kho vật tư/nhiên liệu")
     state.xacnhanhoanthanh.forEach(x=>{ if(!x.trangThaiXacNhan) Object.assign(x, {trangThaiXacNhan:'Đã xác nhận', nguoiXacNhanLai:'Dữ liệu cũ', ngayXacNhanLai:x.ngayXacNhan, lyDoTuChoi:null}); }); // dữ liệu cũ trước khi có bước Kế toán xác nhận lại — coi như đã được chấp nhận
@@ -1986,6 +1991,7 @@ function extractWeighTickets(rows){
     soPhieu: findWeighCol(header,['số phiếu','s.phiếu']),
     bienSo: findWeighCol(header,['biển số xe','số xe']),
     roMoc: findWeighCol(header,['rơ móc','r.mooc','romoc']),
+    soHopDong: findWeighCol(header,['số hợp đồng','so hop dong']),
     khachHang: findWeighCol(header,['tên khách hàng','tên kh','tên k.hàng']),
     hangHoa: findWeighCol(header,['tên hàng hóa','loại hàng']),
     klCoHang: findWeighCol(header,['kl có hàng','lượng ra','kl tổng']),
@@ -2027,6 +2033,7 @@ function extractWeighTickets(rows){
       soPhieu: String(soPhieu),
       bienSo: col.bienSo>=0 ? String(r[col.bienSo]||'').trim() : '',
       roMoc: col.roMoc>=0 ? String(r[col.roMoc]||'').trim() : '',
+      soHopDong: col.soHopDong>=0 ? String(r[col.soHopDong]||'').trim() : '',
       khachHang: col.khachHang>=0 ? String(r[col.khachHang]||'').trim() : khachHangHeaderBlock,
       hangHoa: col.hangHoa>=0 ? String(r[col.hangHoa]||'').trim() : hangHoaHeaderBlock,
       klCoHang: col.klCoHang>=0 ? (parseFloat(r[col.klCoHang])||0) : 0,
@@ -2094,6 +2101,18 @@ function suyLuanLoaiXeTuGhiChu(ghiChu){
   if(gc.includes('ben')) return 'Xe ben';
   return 'Xe thùng';
 }
+function suyLuanLoaiXeVinalift(soHopDong, ghiChu){
+  if((soHopDong||'').trim()) return 'Xe container'; // trạm cân Vinalift ghi ký hiệu container vào cột "Số hợp đồng" thay vì cột Ghi chú
+  const gc = (ghiChu||'').trim().toLowerCase();
+  if(gc.includes('ben')) return 'Xe ben'; // bắt cả "Ben" và "Ben ngang"
+  return 'Xe thùng';
+}
+function suyLuanLoaiXeVinaliftMigration(ghiChu){
+  // dùng cho phiếu Vinalift cũ nhập trước khi có quy luật này — cột "Số hợp đồng" chưa từng được lưu nên KHÔNG đủ căn cứ suy ra Cont, chỉ suy được Ben từ ghi chú đã lưu sẵn; còn lại để trống để tự kiểm tra lại file gốc, tránh gán nhầm Cont thành Thùng
+  const gc = (ghiChu||'').trim().toLowerCase();
+  if(gc.includes('ben')) return 'Xe ben';
+  return null;
+}
 function confirmWeighImport(){
   const pw = pendingWeigh; if(!pw) return;
   let count = 0;
@@ -2101,15 +2120,16 @@ function confirmWeighImport(){
     const phuongTien = `${t.bienSo}${t.roMoc?' — '+t.roMoc:''} (phiếu ${t.soPhieu})${pw.tenTau?', tàu '+pw.tenTau:''}`;
     const loaiXe = pw.tuyen === 'Đường thủy' ? 'Tàu'
       : BAI_QUY_LUAT_GHICHU_LOAIXE.includes(pw.bai) ? suyLuanLoaiXeTuGhiChu(t.ghiChu)
+      : pw.bai === 'Bãi Vinalift' ? suyLuanLoaiXeVinalift(t.soHopDong, t.ghiChu)
       : (t.roMoc ? 'Xe container' : null);
     if(pw.huong === 'nhap'){
       state.nhap.push({id:'N'+(state.nextId++), lotId:pw.lotId, ngay:t.ngay||new Date().toISOString().slice(0,10),
-        khoiLuong:t.khoiLuongTan, tuyen:pw.tuyen, phuongTien, bienSo:t.bienSo||'', roMoc:t.roMoc||'', nguoiNhap:currentUser.name, nguon:pw.tenTau||null, loaiXe,
+        khoiLuong:t.khoiLuongTan, tuyen:pw.tuyen, phuongTien, bienSo:t.bienSo||'', roMoc:t.roMoc||'', soHopDong:t.soHopDong||'', nguoiNhap:currentUser.name, nguon:pw.tenTau||null, loaiXe,
         hangHoaRaw:t.hangHoa||'', klCoHang:t.klCoHang||0, klXe:t.klXe||0, gioCanTong:t.gioCanTong||'', gioCanXe:t.gioCanXe||'', ghiChuPhieu:t.ghiChu||'', soPhieu:t.soPhieu||'',
         mienPhiTramCan:false, lyDoMienPhiTramCan:'', phienDoiSoatId:null});
     } else {
       state.xuat.push({id:'X'+(state.nextId++), lotId:pw.lotId, ngay:t.ngay||new Date().toISOString().slice(0,10),
-        khoiLuong:t.khoiLuongTan, tuyen:pw.tuyen, phuongTien, bienSo:t.bienSo||'', roMoc:t.roMoc||'', nguoiTao:currentUser.name, nguon:pw.tenTau||null, loaiXe,
+        khoiLuong:t.khoiLuongTan, tuyen:pw.tuyen, phuongTien, bienSo:t.bienSo||'', roMoc:t.roMoc||'', soHopDong:t.soHopDong||'', nguoiTao:currentUser.name, nguon:pw.tenTau||null, loaiXe,
         hangHoaRaw:t.hangHoa||'', klCoHang:t.klCoHang||0, klXe:t.klXe||0, gioCanTong:t.gioCanTong||'', gioCanXe:t.gioCanXe||'', ghiChuPhieu:t.ghiChu||'', soPhieu:t.soPhieu||''});
     }
     count++;
@@ -2890,6 +2910,7 @@ const FIELD_SCHEMAS = {
     {key:'tuyen', label:'Tuyến', type:'select', options:[{v:'Đường bộ',t:'Đường bộ'},{v:'Đường thủy',t:'Đường thủy'},{v:'Khác',t:'Khác'}]},
     {key:'bienSo', label:'Biển số xe', type:'text'},
     {key:'roMoc', label:'Biển số mooc', type:'text'},
+    {key:'soHopDong', label:'Số hợp đồng (ký hiệu container, nếu có)', type:'text'},
     {key:'loaiXe', label:'Loại xe / phương tiện', type:'select', options:LOAI_XE_OPTIONS},
     {key:'nguon', label:'Tên lệnh / tàu (để gộp báo cáo)', type:'text'},
     {key:'hangHoaRaw', label:'Tên hàng hóa (theo phiếu cân)', type:'text'},
@@ -2906,6 +2927,7 @@ const FIELD_SCHEMAS = {
     {key:'tuyen', label:'Tuyến', type:'select', options:[{v:'Đường bộ',t:'Đường bộ'},{v:'Đường thủy',t:'Đường thủy'},{v:'Khác',t:'Khác'}]},
     {key:'bienSo', label:'Tên tàu/BS xe', type:'text'},
     {key:'roMoc', label:'Biển số mooc', type:'text'},
+    {key:'soHopDong', label:'Số hợp đồng (ký hiệu container, nếu có)', type:'text'},
     {key:'loaiXe', label:'Loại xe / phương tiện', type:'select', options:LOAI_XE_OPTIONS},
     {key:'nguon', label:'Tên lệnh / tàu (để gộp báo cáo)', type:'text'},
     {key:'hangHoaRaw', label:'Tên hàng hóa (theo phiếu cân)', type:'text'},
