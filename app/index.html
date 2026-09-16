@@ -1887,21 +1887,23 @@ function renderPhiTramCan(body){
       }).join('')}</tbody>
     </table></div>` : ''}
 
-    <div class="panel-head" style="margin-top:28px"><h3 style="font-size:14px">Biểu phí bãi</h3></div>
-    ${laKT ? `<details class="add-details"><summary class="add-summary">Thêm mức phí mới</summary>
-      <form class="inline-form" onsubmit="return submitBieuPhiBai(event)">
-        <div class="field"><label>Bãi</label><select required id="bp-bai">${baiOpts.map(b=>`<option value="${b}">${b}</option>`).join('')}</select></div>
-        <div class="field"><label>Loại xe</label><select required id="bp-loaixe">${LOAI_XE_BANG_CHUNG.map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div>
-        <div class="field"><label>Loại phí</label><select required id="bp-loaiphi"><option value="Mở bửng">Mở bửng</option><option value="Rửa xe">Rửa xe</option></select></div>
-        <div class="field"><label>Đơn giá (đ)</label><input type="number" required id="bp-dongia"></div>
-        <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
-      </form></details>` : ''}
-    <div class="table-wrap"><table>
-      <thead><tr><th>Bãi</th><th>Loại xe</th><th>Loại phí</th><th style="text-align:right">Đơn giá</th><th></th></tr></thead>
-      <tbody>${state.bieuphibai.map(b=>`<tr><td>${b.bai}</td><td>${b.loaiXe}</td><td>${b.loaiPhi}</td><td class="num">${fmt(b.donGia)} đ</td>
-        <td>${laKT ? `<div class="row-actions">${actionButtons('bieuphibai', b.id)}</div>` : ''}</td></tr>`).join('')
-        || `<tr class="empty-row"><td colspan="5">Chưa có biểu phí nào</td></tr>`}</tbody>
-    </table></div>`;
+    <details class="add-details" style="margin-top:28px">
+      <summary class="add-summary" style="font-size:14px;font-weight:600">Biểu phí bãi (bấm để xem / chỉnh sửa)</summary>
+      ${laKT ? `<details class="add-details"><summary class="add-summary">Thêm mức phí mới</summary>
+        <form class="inline-form" onsubmit="return submitBieuPhiBai(event)">
+          <div class="field"><label>Bãi</label><select required id="bp-bai">${baiOpts.map(b=>`<option value="${b}">${b}</option>`).join('')}</select></div>
+          <div class="field"><label>Loại xe</label><select required id="bp-loaixe">${LOAI_XE_BANG_CHUNG.map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div>
+          <div class="field"><label>Loại phí</label><select required id="bp-loaiphi"><option value="Mở bửng">Mở bửng</option><option value="Rửa xe">Rửa xe</option></select></div>
+          <div class="field"><label>Đơn giá (đ)</label><input type="number" required id="bp-dongia"></div>
+          <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
+        </form></details>` : ''}
+      <div class="table-wrap"><table>
+        <thead><tr><th>Bãi</th><th>Loại xe</th><th>Loại phí</th><th style="text-align:right">Đơn giá</th><th></th></tr></thead>
+        <tbody>${state.bieuphibai.map(b=>`<tr><td>${b.bai}</td><td>${b.loaiXe}</td><td>${b.loaiPhi}</td><td class="num">${fmt(b.donGia)} đ</td>
+          <td>${laKT ? `<div class="row-actions">${actionButtons('bieuphibai', b.id)}</div>` : ''}</td></tr>`).join('')
+          || `<tr class="empty-row"><td colspan="5">Chưa có biểu phí nào</td></tr>`}</tbody>
+      </table></div>
+    </details>`;
 }
 function findOrCreateLot(chuHang, viTri, goiYLoaiHang){
   let lot = state.lots.find(l=>l.chuHang===chuHang && l.viTri===viTri);
