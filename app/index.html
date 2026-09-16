@@ -2097,15 +2097,27 @@ function cancelWeighImport(){ pendingWeigh = null; renderM1(); }
 const BAI_QUY_LUAT_GHICHU_LOAIXE = ['Bãi Alpha Pi', 'Bãi Coalimex']; // trạm cân của các bãi này dùng chung 1 phần mềm/team, ghi "Cont"/"Ben" ở cột Ghi chú, để trống hoặc ghi "Xe thùng" nghĩa là xe thùng
 function suyLuanLoaiXeTuGhiChu(ghiChu){
   const gc = (ghiChu||'').trim().toLowerCase();
+  if(!gc) return 'Xe thùng';
   if(gc.includes('cont')) return 'Xe container';
   if(gc.includes('ben')) return 'Xe ben';
-  return 'Xe thùng';
+  if(gc.includes('thùng') || gc.includes('thung')) return 'Xe thùng';
+  return null; // ghi chú lạ, không khớp quy luật đã biết — không đoán bừa, để hoiLoaiXeThuCong bắt buộc làm rõ
 }
 function suyLuanLoaiXeVinalift(soHopDong, ghiChu){
   if((soHopDong||'').trim()) return 'Xe container'; // trạm cân Vinalift ghi ký hiệu container vào cột "Số hợp đồng" thay vì cột Ghi chú
   const gc = (ghiChu||'').trim().toLowerCase();
+  if(!gc) return 'Xe thùng';
   if(gc.includes('ben')) return 'Xe ben'; // bắt cả "Ben" và "Ben ngang"
-  return 'Xe thùng';
+  if(gc.includes('thùng') || gc.includes('thung')) return 'Xe thùng';
+  return null; // ghi chú lạ — không đoán bừa
+}
+function hoiLoaiXeThuCong(t, bai){
+  let dap;
+  do {
+    dap = prompt(`Bãi ${bai} — phiếu ${t.soPhieu} (biển số ${t.bienSo||'?'}, ghi chú: "${t.ghiChu||'(để trống)'}", số hợp đồng: "${t.soHopDong||'(để trống)'}")\nKhông tự xác định được Loại xe — bắt buộc chọn để tiếp tục (phân loại xe ảnh hưởng cả phí trạm cân lẫn phí xuống hàng).\n\nNhập 1 = Xe thùng, 2 = Xe ben, 3 = Xe container:`);
+    if(dap===null) return null; // hủy — phiếu vẫn được lưu nhưng để trống Loại xe, cần vào tab Nhập hàng sửa lại sau
+  } while(!['1','2','3'].includes((dap||'').trim()));
+  return {'1':'Xe thùng','2':'Xe ben','3':'Xe container'}[dap.trim()];
 }
 function suyLuanLoaiXeVinaliftMigration(ghiChu){
   // dùng cho phiếu Vinalift cũ nhập trước khi có quy luật này — cột "Số hợp đồng" chưa từng được lưu nên KHÔNG đủ căn cứ suy ra Cont, chỉ suy được Ben từ ghi chú đã lưu sẵn; còn lại để trống để tự kiểm tra lại file gốc, tránh gán nhầm Cont thành Thùng
@@ -2118,10 +2130,11 @@ function confirmWeighImport(){
   let count = 0;
   pw.tickets.forEach(t=>{
     const phuongTien = `${t.bienSo}${t.roMoc?' — '+t.roMoc:''} (phiếu ${t.soPhieu})${pw.tenTau?', tàu '+pw.tenTau:''}`;
-    const loaiXe = pw.tuyen === 'Đường thủy' ? 'Tàu'
+    let loaiXe = pw.tuyen === 'Đường thủy' ? 'Tàu'
       : BAI_QUY_LUAT_GHICHU_LOAIXE.includes(pw.bai) ? suyLuanLoaiXeTuGhiChu(t.ghiChu)
       : pw.bai === 'Bãi Vinalift' ? suyLuanLoaiXeVinalift(t.soHopDong, t.ghiChu)
       : (t.roMoc ? 'Xe container' : null);
+    if(!loaiXe && pw.tuyen !== 'Đường thủy') loaiXe = hoiLoaiXeThuCong(t, pw.bai);
     if(pw.huong === 'nhap'){
       state.nhap.push({id:'N'+(state.nextId++), lotId:pw.lotId, ngay:t.ngay||new Date().toISOString().slice(0,10),
         khoiLuong:t.khoiLuongTan, tuyen:pw.tuyen, phuongTien, bienSo:t.bienSo||'', roMoc:t.roMoc||'', soHopDong:t.soHopDong||'', nguoiNhap:currentUser.name, nguon:pw.tenTau||null, loaiXe,
