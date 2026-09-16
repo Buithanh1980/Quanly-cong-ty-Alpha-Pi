@@ -1895,19 +1895,34 @@ function renderWeighImportBlock(huong){
   const pw = pendingWeigh;
   const tong = pw.tickets.reduce((s,t)=>s+t.khoiLuongTan,0);
   const tonKhaDung = pw.huong==='xuat' ? tonHienTai(pw.lotId) : null;
+  const chuaXacDinh = pw.tickets.filter(t=>!duDoanLoaiXeXemTruoc(t, pw)).length;
   return `<div class="inline-form" style="grid-template-columns:1fr;border-color:var(--brand)">
     <div class="panel-head" style="margin:0"><h3 style="font-size:14px">Xem trước — ${pw.huong==='nhap'?'Nhập':'Xuất'} hàng, ${pw.khachHang} — ${pw.bai}${pw.tenTau?' — tàu '+pw.tenTau:''} (lô ${pw.lotId})</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:0">Đọc được <b>${pw.tickets.length}</b> phiếu cân, tổng <b>${fmt(tong)} tấn</b>.
-      ${pw.huong==='xuat' ? `Tồn khả dụng của lô hiện tại: <b>${fmt(tonKhaDung)} tấn</b>${tong>tonKhaDung?' — <span style="color:var(--red)">vượt tồn, kiểm tra lại trước khi duyệt từng phiếu!</span>':''}.` : ''}</p>
-    <div class="table-wrap" style="max-height:260px;overflow-y:auto">
-      <table><thead><tr><th>Số phiếu</th><th>Phương tiện</th><th>Ngày</th><th style="text-align:right">KL hàng (tấn)</th></tr></thead>
-      <tbody>${pw.tickets.slice(0,300).map(t=>`<tr><td class="mono">${t.soPhieu}</td><td>${t.bienSo}${t.roMoc?' — '+t.roMoc:''}</td><td class="mono">${t.ngay||pw.tuyen}</td><td class="num">${fmt(t.khoiLuongTan)}</td></tr>`).join('')}</tbody></table>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:0">Đọc được <b>${pw.tickets.length}</b> phiếu cân, tổng <b>${fmt(tong)} tấn</b>. Kiểm tra kỹ từng dòng bên dưới (đặc biệt cột Loại xe dự kiến) trước khi bấm xác nhận — xác nhận xong không sửa hàng loạt lại được, phải sửa tay từng phiếu.
+      ${pw.huong==='xuat' ? `Tồn khả dụng của lô hiện tại: <b>${fmt(tonKhaDung)} tấn</b>${tong>tonKhaDung?' — <span style="color:var(--red)">vượt tồn, kiểm tra lại trước khi duyệt từng phiếu!</span>':''}.` : ''}
+      ${chuaXacDinh>0 ? `<br><span style="color:var(--red)">⚠ ${chuaXacDinh} phiếu chưa tự xác định được Loại xe — sẽ được hỏi bắt buộc khi bấm xác nhận.</span>` : ''}</p>
+    <div class="table-wrap" style="max-height:320px;overflow-y:auto">
+      <table><thead><tr><th>Số phiếu</th><th>Ngày</th><th>BS xe</th><th>BS mooc/Số HĐ</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">KL hàng (tấn)</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Loại xe (dự kiến)</th></tr></thead>
+      <tbody>${pw.tickets.slice(0,300).map(t=>{
+        const duDoan = duDoanLoaiXeXemTruoc(t, pw);
+        return `<tr${duDoan?'':' style="background:rgba(163,55,43,.08)"'}><td class="mono">${t.soPhieu}</td><td class="mono">${t.ngay||pw.tuyen}</td><td class="mono">${t.bienSo}</td><td class="mono">${t.roMoc||t.soHopDong||''}</td><td>${t.hangHoa||''}</td>
+        <td class="num">${t.klCoHang?fmt(t.klCoHang):''}</td><td class="num">${t.klXe?fmt(t.klXe):''}</td><td class="num">${fmt(t.khoiLuongTan)}</td>
+        <td class="mono">${t.gioCanTong||''}</td><td class="mono">${t.gioCanXe||''}</td><td>${t.ghiChu||''}</td>
+        <td>${duDoan ? duDoan : '<span class="pill rejected">⚠ Chưa xác định</span>'}</td></tr>`;
+      }).join('')}</tbody></table>
     </div>
     <div class="form-actions" style="gap:10px">
       <button type="button" class="btn-secondary" onclick="cancelWeighImport()">Hủy</button>
       <button type="button" class="add-btn" onclick="confirmWeighImport()">Xác nhận nhập ${pw.tickets.length} phiếu</button>
     </div>
   </div>`;
+}
+function duDoanLoaiXeXemTruoc(t, pw){
+  if(pw.tuyen === 'Đường thủy') return 'Tàu';
+  if(BAI_QUY_LUAT_GHICHU_LOAIXE.includes(pw.bai)) return suyLuanLoaiXeTuGhiChu(t.ghiChu);
+  if(pw.bai === 'Bãi Vinalift') return suyLuanLoaiXeVinalift(t.soHopDong, t.ghiChu);
+  if(pw.bai === 'Bãi Phú Thái') return suyLuanLoaiXePhuThai(t.ghiChu);
+  return t.roMoc ? 'Xe container' : null;
 }
 function updateWeighBaiOptions(huong){
   const kh = document.getElementById('wg-khachhang-'+huong).value;
@@ -2140,11 +2155,7 @@ function confirmWeighImport(){
   let count = 0;
   pw.tickets.forEach(t=>{
     const phuongTien = `${t.bienSo}${t.roMoc?' — '+t.roMoc:''} (phiếu ${t.soPhieu})${pw.tenTau?', tàu '+pw.tenTau:''}`;
-    let loaiXe = pw.tuyen === 'Đường thủy' ? 'Tàu'
-      : BAI_QUY_LUAT_GHICHU_LOAIXE.includes(pw.bai) ? suyLuanLoaiXeTuGhiChu(t.ghiChu)
-      : pw.bai === 'Bãi Vinalift' ? suyLuanLoaiXeVinalift(t.soHopDong, t.ghiChu)
-      : pw.bai === 'Bãi Phú Thái' ? suyLuanLoaiXePhuThai(t.ghiChu)
-      : (t.roMoc ? 'Xe container' : null);
+    let loaiXe = duDoanLoaiXeXemTruoc(t, pw);
     if(!loaiXe && pw.tuyen !== 'Đường thủy') loaiXe = hoiLoaiXeThuCong(t, pw.bai);
     if(pw.huong === 'nhap'){
       state.nhap.push({id:'N'+(state.nextId++), lotId:pw.lotId, ngay:t.ngay||new Date().toISOString().slice(0,10),
