@@ -1833,10 +1833,10 @@ function renderPhiTramCan(body){
 
     <div class="panel-head" style="margin-top:24px"><h3 style="font-size:14px">Chi tiết từng xe chưa bàn giao${loCanXemChiTietDetail ? ` — mã lô ${loCanXemChiTietDetail.ma}` : ''}</h3></div>
     ${loCanXemChiTietDetail ? `<div class="table-wrap"><table>
-      <thead><tr><th>Ngày</th><th>Bãi</th><th>Biển số</th><th>Loại xe</th><th style="text-align:right">Phí</th><th>Trạng thái</th><th></th></tr></thead>
-      <tbody>${loCanXemChiTietDetail.phieu.map(n=>{
+      <thead><tr><th>Số TT</th><th>Ngày</th><th>Bãi</th><th>Biển số</th><th>Loại xe</th><th style="text-align:right">Phí</th><th>Trạng thái</th><th></th></tr></thead>
+      <tbody>${loCanXemChiTietDetail.phieu.map((n,i)=>{
         const phi = tinhPhiTramCan(loCanXemChiTietDetail.bai, n.loaiXe);
-        return `<tr><td class="mono">${n.ngay}</td><td>${loCanXemChiTietDetail.bai}</td><td class="mono">${n.bienSo||''}</td><td>${n.loaiXe}</td>
+        return `<tr><td class="mono">${i+1}</td><td class="mono">${n.ngay}</td><td>${loCanXemChiTietDetail.bai}</td><td class="mono">${n.bienSo||''}</td><td>${n.loaiXe}</td>
           <td class="num">${n.mienPhiTramCan ? '—' : fmt(phi)+' đ'}</td>
           <td>${n.mienPhiTramCan ? `<span class="pill rejected">Miễn thu — ${n.lyDoMienPhiTramCan||'không ghi lý do'}</span>` : `<span class="pill approved">Phải thu</span>`}</td>
           <td>${canBanGiao ? `<button class="mini-btn" onclick="toggleMienPhiTramCan('${n.id}')">${n.mienPhiTramCan?'Bỏ miễn thu':'Đánh dấu miễn thu'}</button>` : ''}</td></tr>`;
