@@ -495,6 +495,7 @@ function seedState(){
       {id:'BP6', bai:'Bãi Coalimex', loaiXe:'Xe thùng', loaiPhi:'Rửa xe', donGia:50000},
     ],
     doisoatphitramcan: [],
+    locan: [],
     nhansu: [],
     thietBiSoLuong: {'Xúc lật':0, 'Máy múc nhỏ':0, 'Máy múc to':0, 'Cẩu điện':0},
     nextId: 1,
@@ -572,11 +573,13 @@ function loadState(){
     if(!state.xuatkhovattu) state.xuatkhovattu = seedState().xuatkhovattu;
     if(!state.bieuphibai) state.bieuphibai = seedState().bieuphibai;
     if(!state.doisoatphitramcan) state.doisoatphitramcan = seedState().doisoatphitramcan;
+    if(!state.locan) state.locan = seedState().locan;
     if(state.nhap) state.nhap.forEach(n=>{
       if(n.mienPhiTramCan===undefined) n.mienPhiTramCan = false;
       if(n.lyDoMienPhiTramCan===undefined) n.lyDoMienPhiTramCan = '';
       if(n.phienDoiSoatId===undefined) n.phienDoiSoatId = null; // dữ liệu cũ trước khi tách bước "bàn giao" / "thủ quỹ xác nhận" — coi như chưa bàn giao
       if(n.soHopDong===undefined) n.soHopDong = '';
+      if(n.loCanId===undefined) n.loCanId = null;
       if(!n.loaiXe && n.tuyen==='Đường bộ'){
         const bai = baiCuaPhieuNhap(n);
         if(BAI_QUY_LUAT_GHICHU_LOAIXE.includes(bai)) n.loaiXe = suyLuanLoaiXeTuGhiChu(n.ghiChuPhieu); // phiếu cũ nhập từ file cân trước khi có quy luật đọc cột Ghi chú theo từng trạm cân — suy luận lại từ ghi chú đã lưu sẵn
@@ -584,6 +587,8 @@ function loadState(){
         else if(bai==='Bãi Phú Thái') n.loaiXe = suyLuanLoaiXePhuThai(n.ghiChuPhieu); // quy luật Phú Thái chỉ dựa vào Ghi chú đã lưu sẵn, không mất dữ liệu như Vinalift nên suy lại trực tiếp được
       }
     });
+    if(state.xuat) state.xuat.forEach(x=>{ if(x.loCanId===undefined) x.loCanId = null; if(x.soHopDong===undefined) x.soHopDong = ''; });
+    ganLoCanHoiTo(); // gán mã lô cân cho phiếu nhập/xuất cũ chưa từng có (trước khi có tính năng gộp mã theo khách hàng+bãi+ngày)
     state.dexuatmuahang.forEach(x=>{ if(x.loaiLienQuan===undefined) x.loaiLienQuan = x.lienQuanThietBi ? 'thietbi' : ''; }); // đổi từ checkbox lienQuanThietBi sang chọn 1 trong 2 loại liên quan (thêm "Nhập kho vật tư/nhiên liệu")
     state.xacnhanhoanthanh.forEach(x=>{ if(!x.trangThaiXacNhan) Object.assign(x, {trangThaiXacNhan:'Đã xác nhận', nguoiXacNhanLai:'Dữ liệu cũ', ngayXacNhanLai:x.ngayXacNhan, lyDoTuChoi:null}); }); // dữ liệu cũ trước khi có bước Kế toán xác nhận lại — coi như đã được chấp nhận
     state.hoadon.forEach(h=>{ if(h.trangThaiThanhToan===undefined) h.trangThaiThanhToan = 'Chưa thanh toán'; });
@@ -1538,12 +1543,12 @@ function renderNhap(body){
     <div class="panel-head"><h3>Phiếu nhập hàng</h3></div>
     ${renderWeighImportBlock('nhap')}
     <div class="table-wrap"><table>
-      <thead><tr><th>Số TT</th><th>Ngày nhập</th><th>Số phiếu</th><th>Chủ Hàng</th><th>Bãi nhận hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">Khối lượng hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Phương tiện</th><th></th></tr></thead>
+      <thead><tr><th>Số TT</th><th>Ngày nhập</th><th>Số phiếu</th><th>Mã lô cân</th><th>Chủ Hàng</th><th>Bãi nhận hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">Khối lượng hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Phương tiện</th><th></th></tr></thead>
       <tbody>
-        ${rows.map((n,i) => { const lot = state.lots.find(l=>l.id===n.lotId);
-          return `<tr><td class="mono">${i+1}</td><td class="mono">${n.ngay}</td><td class="mono">${n.soPhieu||''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${n.tuyen}</td><td>${n.bienSo||n.nguon||''}</td><td>${n.roMoc||''}</td><td>${n.hangHoaRaw||''}</td><td class="num">${n.klCoHang?fmt(n.klCoHang):''}</td><td class="num">${n.klXe?fmt(n.klXe):''}</td><td class="num">${fmt(n.khoiLuong)}</td><td class="mono">${n.gioCanTong||''}</td><td class="mono">${n.gioCanXe||''}</td><td>${n.ghiChuPhieu||''}</td><td>${n.loaiXe||''}</td>
+        ${rows.map((n,i) => { const lot = state.lots.find(l=>l.id===n.lotId); const loCan = state.locan.find(l=>l.id===n.loCanId);
+          return `<tr><td class="mono">${i+1}</td><td class="mono">${n.ngay}</td><td class="mono">${n.soPhieu||''}</td><td class="mono">${loCan?loCan.ma:''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${n.tuyen}</td><td>${n.bienSo||n.nguon||''}</td><td>${n.roMoc||''}</td><td>${n.hangHoaRaw||''}</td><td class="num">${n.klCoHang?fmt(n.klCoHang):''}</td><td class="num">${n.klXe?fmt(n.klXe):''}</td><td class="num">${fmt(n.khoiLuong)}</td><td class="mono">${n.gioCanTong||''}</td><td class="mono">${n.gioCanXe||''}</td><td>${n.ghiChuPhieu||''}</td><td>${n.loaiXe||''}</td>
             <td>${canEnter('M1') ? `<div class="row-actions">${actionButtons('nhap', n.id)}</div>` : ''}</td></tr>`;
-        }).join('') || `<tr class="empty-row"><td colspan="17">Chưa có phiếu nhập nào</td></tr>`}
+        }).join('') || `<tr class="empty-row"><td colspan="18">Chưa có phiếu nhập nào</td></tr>`}
       </tbody>
     </table></div>`;
   initWeighDropzone('nhap');
@@ -1673,12 +1678,12 @@ function renderXuat(body){
     <div class="panel-head"><h3>Phiếu xuất hàng</h3></div>
     ${renderWeighImportBlock('xuat')}
     <div class="table-wrap"><table>
-      <thead><tr><th>Số TT</th><th>Ngày xuất</th><th>Số phiếu</th><th>Chủ Hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">Khối lượng hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Phương tiện</th><th></th></tr></thead>
+      <thead><tr><th>Số TT</th><th>Ngày xuất</th><th>Số phiếu</th><th>Mã lô cân</th><th>Chủ Hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">Khối lượng hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Phương tiện</th><th></th></tr></thead>
       <tbody>
-        ${rows.map((x,i) => { const lot = state.lots.find(l=>l.id===x.lotId);
-          return `<tr><td class="mono">${i+1}</td><td class="mono">${x.ngay}</td><td class="mono">${x.soPhieu||''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${x.tuyen}</td><td>${x.bienSo||x.nguon||''}</td><td>${x.roMoc||''}</td><td>${x.hangHoaRaw||''}</td><td class="num">${x.klCoHang?fmt(x.klCoHang):''}</td><td class="num">${x.klXe?fmt(x.klXe):''}</td><td class="num">${fmt(x.khoiLuong)}</td><td class="mono">${x.gioCanTong||''}</td><td class="mono">${x.gioCanXe||''}</td><td>${x.ghiChuPhieu||''}</td><td>${x.loaiXe||''}</td>
+        ${rows.map((x,i) => { const lot = state.lots.find(l=>l.id===x.lotId); const loCan = state.locan.find(l=>l.id===x.loCanId);
+          return `<tr><td class="mono">${i+1}</td><td class="mono">${x.ngay}</td><td class="mono">${x.soPhieu||''}</td><td class="mono">${loCan?loCan.ma:''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${x.tuyen}</td><td>${x.bienSo||x.nguon||''}</td><td>${x.roMoc||''}</td><td>${x.hangHoaRaw||''}</td><td class="num">${x.klCoHang?fmt(x.klCoHang):''}</td><td class="num">${x.klXe?fmt(x.klXe):''}</td><td class="num">${fmt(x.khoiLuong)}</td><td class="mono">${x.gioCanTong||''}</td><td class="mono">${x.gioCanXe||''}</td><td>${x.ghiChuPhieu||''}</td><td>${x.loaiXe||''}</td>
             <td>${canEnter('M1') ? `<div class="row-actions">${actionButtons('xuat', x.id)}</div>` : ''}</td></tr>`;
-        }).join('') || `<tr class="empty-row"><td colspan="17">Chưa có phiếu xuất nào</td></tr>`}
+        }).join('') || `<tr class="empty-row"><td colspan="18">Chưa có phiếu xuất nào</td></tr>`}
       </tbody>
     </table></div>`;
   initWeighDropzone('xuat');
@@ -1896,9 +1901,11 @@ function renderWeighImportBlock(huong){
   const tong = pw.tickets.reduce((s,t)=>s+t.khoiLuongTan,0);
   const tonKhaDung = pw.huong==='xuat' ? tonHienTai(pw.lotId) : null;
   const chuaXacDinh = pw.tickets.filter(t=>!duDoanLoaiXeXemTruoc(t, pw)).length;
+  const ngayCoTrongLo = [...new Set(pw.tickets.map(t=>t.ngay||new Date().toISOString().slice(0,10)))].sort();
+  const maLoCanDuKien = ngayCoTrongLo.map(ngay=>`${taoMaLoCan(pw.khachHang, pw.bai, ngay)} (${ngay})`).join(', ');
   return `<div class="inline-form" style="grid-template-columns:1fr;border-color:var(--brand)">
     <div class="panel-head" style="margin:0"><h3 style="font-size:14px">Xem trước — ${pw.huong==='nhap'?'Nhập':'Xuất'} hàng, ${pw.khachHang} — ${pw.bai}${pw.tenTau?' — tàu '+pw.tenTau:''} (lô ${pw.lotId})</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:0">Đọc được <b>${pw.tickets.length}</b> phiếu cân, tổng <b>${fmt(tong)} tấn</b>. Kiểm tra kỹ từng dòng bên dưới (đặc biệt cột Loại xe dự kiến) trước khi bấm xác nhận — xác nhận xong không sửa hàng loạt lại được, phải sửa tay từng phiếu.
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:0">Đọc được <b>${pw.tickets.length}</b> phiếu cân, tổng <b>${fmt(tong)} tấn</b>. Sẽ gộp vào mã lô cân: <b>${maLoCanDuKien}</b>. Kiểm tra kỹ từng dòng bên dưới (đặc biệt cột Loại xe dự kiến) trước khi bấm xác nhận — xác nhận xong không sửa hàng loạt lại được, phải sửa tay từng phiếu.
       ${pw.huong==='xuat' ? `Tồn khả dụng của lô hiện tại: <b>${fmt(tonKhaDung)} tấn</b>${tong>tonKhaDung?' — <span style="color:var(--red)">vượt tồn, kiểm tra lại trước khi duyệt từng phiếu!</span>':''}.` : ''}
       ${chuaXacDinh>0 ? `<br><span style="color:var(--red)">⚠ ${chuaXacDinh} phiếu chưa tự xác định được Loại xe — sẽ được hỏi bắt buộc khi bấm xác nhận.</span>` : ''}</p>
     <div class="table-wrap" style="max-height:320px;overflow-y:auto">
@@ -2150,23 +2157,71 @@ function suyLuanLoaiXeVinaliftMigration(ghiChu){
   if(gc.includes('ben')) return 'Xe ben';
   return null;
 }
+function boDauTiengViet(s){
+  return s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D');
+}
+function vietTatTen(ten){
+  const boBai = (ten||'').replace(/^Bãi\s+/i,'').trim(); // bỏ tiền tố "Bãi " trước khi bỏ dấu, vì bỏ dấu xong "Bãi" thành "Bai" không khớp regex nữa
+  const tu = boDauTiengViet(boBai).split(/\s+/).filter(Boolean);
+  if(tu.length >= 2) return (tu[0][0]+tu[tu.length-1][0]).toUpperCase();
+  return (tu[0]||'XX').slice(0,2).toUpperCase();
+}
+function tienToMaLoCan(khachHang, bai, ngay){
+  const d = new Date(ngay+'T00:00:00');
+  const ddmmyy = String(d.getDate()).padStart(2,'0') + String(d.getMonth()+1).padStart(2,'0') + String(d.getFullYear()).slice(2);
+  return `${vietTatTen(khachHang)}${vietTatTen(bai)}${ddmmyy}`;
+}
+function taoMaLoCan(khachHang, bai, ngay){
+  const prefix = tienToMaLoCan(khachHang, bai, ngay);
+  const soLuongTrung = state.locan.filter(l=>l.ma.startsWith(prefix)).length;
+  return prefix + String(soLuongTrung+1).padStart(2,'0');
+}
+function layHoacTaoLoCan(khachHang, bai, ngay, huong, cache, nguoiTao){
+  const key = khachHang+'|'+bai+'|'+ngay+'|'+huong;
+  if(cache[key]) return cache[key];
+  const lc = {id:'LC'+(state.nextId++), ma:taoMaLoCan(khachHang, bai, ngay), khachHang, bai, ngay, huong,
+    phieuIds:[], soLuongXe:0, tongKhoiLuong:0, thoiGianTao:new Date().toLocaleString('vi-VN'), nguoiTao};
+  state.locan.push(lc);
+  cache[key] = lc;
+  return lc;
+}
+function ganLoCanHoiTo(){
+  // chạy trong loadState() — lúc này currentUser CHƯA đăng nhập (null), tuyệt đối không được đọc currentUser ở đây
+  const cache = {};
+  [['nhap', state.nhap], ['xuat', state.xuat]].forEach(([huong, list])=>{
+    list.forEach(n=>{
+      if(n.loCanId) return;
+      const lot = state.lots.find(l=>l.id===n.lotId); if(!lot) return;
+      const lc = layHoacTaoLoCan(lot.chuHang, lot.viTri, n.ngay, huong, cache, 'Dữ liệu cũ');
+      n.loCanId = lc.id; lc.phieuIds.push(n.id); lc.soLuongXe++; lc.tongKhoiLuong += n.khoiLuong;
+    });
+  });
+}
 function confirmWeighImport(){
   const pw = pendingWeigh; if(!pw) return;
   let count = 0;
+  const loCanTheoNgay = {};
   pw.tickets.forEach(t=>{
     const phuongTien = `${t.bienSo}${t.roMoc?' — '+t.roMoc:''} (phiếu ${t.soPhieu})${pw.tenTau?', tàu '+pw.tenTau:''}`;
     let loaiXe = duDoanLoaiXeXemTruoc(t, pw);
     if(!loaiXe && pw.tuyen !== 'Đường thủy') loaiXe = hoiLoaiXeThuCong(t, pw.bai);
+    const ngayPhieu = t.ngay || new Date().toISOString().slice(0,10);
+    const lc = layHoacTaoLoCan(pw.khachHang, pw.bai, ngayPhieu, pw.huong, loCanTheoNgay, currentUser.name);
     if(pw.huong === 'nhap'){
-      state.nhap.push({id:'N'+(state.nextId++), lotId:pw.lotId, ngay:t.ngay||new Date().toISOString().slice(0,10),
+      const id = 'N'+(state.nextId++);
+      state.nhap.push({id, lotId:pw.lotId, ngay:ngayPhieu,
         khoiLuong:t.khoiLuongTan, tuyen:pw.tuyen, phuongTien, bienSo:t.bienSo||'', roMoc:t.roMoc||'', soHopDong:t.soHopDong||'', nguoiNhap:currentUser.name, nguon:pw.tenTau||null, loaiXe,
         hangHoaRaw:t.hangHoa||'', klCoHang:t.klCoHang||0, klXe:t.klXe||0, gioCanTong:t.gioCanTong||'', gioCanXe:t.gioCanXe||'', ghiChuPhieu:t.ghiChu||'', soPhieu:t.soPhieu||'',
-        mienPhiTramCan:false, lyDoMienPhiTramCan:'', phienDoiSoatId:null});
+        mienPhiTramCan:false, lyDoMienPhiTramCan:'', phienDoiSoatId:null, loCanId:lc.id});
+      lc.phieuIds.push(id);
     } else {
-      state.xuat.push({id:'X'+(state.nextId++), lotId:pw.lotId, ngay:t.ngay||new Date().toISOString().slice(0,10),
+      const id = 'X'+(state.nextId++);
+      state.xuat.push({id, lotId:pw.lotId, ngay:ngayPhieu,
         khoiLuong:t.khoiLuongTan, tuyen:pw.tuyen, phuongTien, bienSo:t.bienSo||'', roMoc:t.roMoc||'', soHopDong:t.soHopDong||'', nguoiTao:currentUser.name, nguon:pw.tenTau||null, loaiXe,
-        hangHoaRaw:t.hangHoa||'', klCoHang:t.klCoHang||0, klXe:t.klXe||0, gioCanTong:t.gioCanTong||'', gioCanXe:t.gioCanXe||'', ghiChuPhieu:t.ghiChu||'', soPhieu:t.soPhieu||''});
+        hangHoaRaw:t.hangHoa||'', klCoHang:t.klCoHang||0, klXe:t.klXe||0, gioCanTong:t.gioCanTong||'', gioCanXe:t.gioCanXe||'', ghiChuPhieu:t.ghiChu||'', soPhieu:t.soPhieu||'', loCanId:lc.id});
+      lc.phieuIds.push(id);
     }
+    lc.soLuongXe++; lc.tongKhoiLuong += t.khoiLuongTan;
     count++;
   });
   if(pw.huong === 'xuat' && (pw.sangThan || pw.tronThan)){
