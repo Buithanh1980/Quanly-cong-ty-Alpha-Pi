@@ -493,6 +493,7 @@ function seedState(){
       {id:'BP4', bai:'Bãi Alpha Pi', loaiXe:'Xe ben', loaiPhi:'Rửa xe', donGia:50000},
       {id:'BP5', bai:'Bãi Coalimex', loaiXe:'Xe thùng', loaiPhi:'Mở bửng', donGia:60000},
       {id:'BP6', bai:'Bãi Coalimex', loaiXe:'Xe thùng', loaiPhi:'Rửa xe', donGia:50000},
+      {id:'BP7', bai:'Bãi Phú Thái', loaiXe:'Xe thùng', loaiPhi:'Mở bửng', donGia:40000},
     ],
     doisoatphitramcan: [],
     locan: [],
@@ -572,6 +573,9 @@ function loadState(){
     if(!state.nhapkhovattu) state.nhapkhovattu = seedState().nhapkhovattu;
     if(!state.xuatkhovattu) state.xuatkhovattu = seedState().xuatkhovattu;
     if(!state.bieuphibai) state.bieuphibai = seedState().bieuphibai;
+    if(!state.bieuphibai.some(b=>b.bai==='Bãi Phú Thái' && b.loaiXe==='Xe thùng' && b.loaiPhi==='Mở bửng')){
+      state.bieuphibai.push({id:'BP'+(state.nextId++), bai:'Bãi Phú Thái', loaiXe:'Xe thùng', loaiPhi:'Mở bửng', donGia:40000});
+    }
     if(!state.doisoatphitramcan) state.doisoatphitramcan = seedState().doisoatphitramcan;
     if(!state.locan) state.locan = seedState().locan;
     if(state.nhap) state.nhap.forEach(n=>{
