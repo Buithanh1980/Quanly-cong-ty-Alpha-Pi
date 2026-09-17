@@ -601,6 +601,7 @@ function loadState(){
     });
     if(state.xuat) state.xuat.forEach(x=>{ if(x.loCanId===undefined) x.loCanId = null; if(x.soHopDong===undefined) x.soHopDong = ''; });
     ganLoCanHoiTo(); // gán mã lô cân cho phiếu nhập/xuất cũ chưa từng có (trước khi có tính năng gộp mã theo khách hàng+bãi+ngày)
+    ganLaiLoCanThuyHoiTo(); // phiếu đường thủy nhập trước khi có quy luật gộp theo tàu — gộp lại đúng theo tàu thay vì đang tách theo từng ngày
     state.dexuatmuahang.forEach(x=>{ if(x.loaiLienQuan===undefined) x.loaiLienQuan = x.lienQuanThietBi ? 'thietbi' : ''; }); // đổi từ checkbox lienQuanThietBi sang chọn 1 trong 2 loại liên quan (thêm "Nhập kho vật tư/nhiên liệu")
     state.xacnhanhoanthanh.forEach(x=>{ if(!x.trangThaiXacNhan) Object.assign(x, {trangThaiXacNhan:'Đã xác nhận', nguoiXacNhanLai:'Dữ liệu cũ', ngayXacNhanLai:x.ngayXacNhan, lyDoTuChoi:null}); }); // dữ liệu cũ trước khi có bước Kế toán xác nhận lại — coi như đã được chấp nhận
     state.hoadon.forEach(h=>{ if(h.trangThaiThanhToan===undefined) h.trangThaiThanhToan = 'Chưa thanh toán'; });
@@ -2314,11 +2315,43 @@ function ganLoCanHoiTo(){
   [['nhap', state.nhap], ['xuat', state.xuat]].forEach(([huong, list])=>{
     list.forEach(n=>{
       if(n.loCanId) return;
+      if(n.tuyen === 'Đường thủy') return; // để ganLaiLoCanThuyHoiTo xử lý riêng theo tàu, không gộp theo ngày ở đây
       const lot = state.lots.find(l=>l.id===n.lotId); if(!lot) return;
       const lc = layHoacTaoLoCan(lot.chuHang, lot.viTri, n.ngay, huong, n.tuyen, cache, 'Dữ liệu cũ');
       n.loCanId = lc.id; lc.phieuIds.push(n.id); lc.soLuongXe++; lc.tongKhoiLuong += n.khoiLuong;
     });
   });
+}
+function ganLaiLoCanThuyHoiTo(){
+  // chạy trong loadState() — lúc này currentUser CHƯA đăng nhập (null), tuyệt đối không được đọc currentUser ở đây.
+  // Gộp lại phiếu đường thủy theo đúng tàu (thay vì theo từng ngày như trước khi có quy luật này), dùng lại state.nhap/n.nguon (tên tàu đã lưu sẵn lúc nhập).
+  [['nhap', state.nhap], ['xuat', state.xuat]].forEach(([huong, list])=>{
+    const canSua = list.filter(n=>{
+      if(n.tuyen !== 'Đường thủy') return false;
+      if(!n.loCanId) return true;
+      const lc = state.locan.find(l=>l.id===n.loCanId);
+      return !lc || lc.tenTau===undefined; // lô kiểu cũ (theo ngày) chưa từng có trường tenTau
+    });
+    if(!canSua.length) return;
+    const nhom = {};
+    canSua.forEach(n=>{
+      const lot = state.lots.find(l=>l.id===n.lotId); if(!lot) return;
+      const key = lot.chuHang+'|'+lot.viTri+'|'+(n.nguon||'');
+      if(!nhom[key]) nhom[key] = [];
+      nhom[key].push(n);
+    });
+    Object.values(nhom).forEach(nhomList=>{
+      const first = nhomList[0];
+      const lot = state.lots.find(l=>l.id===first.lotId); if(!lot) return;
+      const ngays = nhomList.map(n=>n.ngay);
+      const ngayBD = ngays.reduce((a,b)=>a<b?a:b);
+      const ngayKT = ngays.reduce((a,b)=>a>b?a:b);
+      const lcMoi = taoLoCanThuy(lot.chuHang, lot.viTri, ngayBD, ngayKT, first.nguon||'', huong, 'Dữ liệu cũ (gộp lại theo tàu)');
+      nhomList.forEach(n=>{ n.loCanId = lcMoi.id; lcMoi.phieuIds.push(n.id); lcMoi.soLuongXe++; lcMoi.tongKhoiLuong += n.khoiLuong; });
+    });
+  });
+  const idsConDung = new Set([...state.nhap, ...state.xuat].map(n=>n.loCanId).filter(Boolean));
+  state.locan = state.locan.filter(l=>idsConDung.has(l.id)); // dọn các lô cân cũ không còn phiếu nào tham chiếu tới nữa
 }
 function confirmWeighImport(){
   const pw = pendingWeigh; if(!pw) return;
