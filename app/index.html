@@ -3598,14 +3598,6 @@ const FIELD_SCHEMAS = {
     {key:'soTienTamUng', label:'Số tiền tạm ứng (đ)', type:'number'},
     {key:'hinhThuc', label:'Hình thức', type:'select', options:[{v:'Chuyển khoản',t:'Chuyển khoản'},{v:'Tiền mặt',t:'Tiền mặt'}]},
   ]},
-  soquy: {ten:'giao dịch sổ quỹ', fields:[
-    {key:'ngay', label:'Ngày', type:'date'},
-    {key:'loai', label:'Loại', type:'select', options:[{v:'Thu',t:'Thu'},{v:'Chi',t:'Chi'}]},
-    {key:'soTien', label:'Số tiền (đ)', type:'number'},
-    {key:'hinhThuc', label:'Hình thức', type:'select', options:[{v:'Chuyển khoản',t:'Chuyển khoản'},{v:'Tiền mặt',t:'Tiền mặt'}]},
-    {key:'noiDung', label:'Nội dung', type:'text'},
-    {key:'quy', label:'Quỹ', type:'select', options:[{v:'Chính',t:'Quỹ chính'},{v:'Chân Mây',t:'Quỹ Chân Mây'}]},
-  ]},
   nhansu: {ten:'nhân sự', fields:[
     {key:'hoTen', label:'Họ tên', type:'text'}, {key:'chucVu', label:'Chức vụ', type:'text'},
     {key:'phongBan', label:'Phòng ban', type:'text'}, {key:'ngayVaoLam', label:'Ngày vào làm', type:'date'},
@@ -4694,9 +4686,39 @@ function xacNhanNhapKhachHang(){
 function huyNhapKhachHang(){ pendingKhachHangImport = null; renderM6(); }
 /* ===================== M7: TÀI CHÍNH — KẾ TOÁN ===================== */
 const QUY_OPTIONS = ['Chính', 'Chân Mây'];
-function soDuQuy(quy){ return state.soquy.filter(q=>!quy || q.quy===quy).reduce((s,q)=>s + (q.loai==='Thu' ? q.soTien : -q.soTien), 0); }
+function soDuQuy(quy){ return state.soquy.filter(q=>!q.daHuy && (!quy || q.quy===quy)).reduce((s,q)=>s + (q.loai==='Thu' ? q.soTien : -q.soTien), 0); }
 function themSoQuy(loai, soTien, hinhThuc, noiDung, nguon, quy){
   state.soquy.push({id:'SQ'+(state.nextId++), ngay:new Date().toISOString().slice(0,10), loai, soTien, hinhThuc, noiDung, nguon, quy: quy||'Chính'});
+}
+// Sổ quỹ không cho Sửa/Xóa trực tiếp: bút toán tự động (có nguồn gốc từ hồ sơ đã duyệt) khóa cứng;
+// bút toán nhập tay chỉ được "Hủy" (giữ lại, loại khỏi tồn quỹ, bắt buộc ghi lý do) để không mất dấu vết kiểm toán.
+function coQuyenSoQuy(q){
+  if(xemToanBoTaiChinh()) return currentUser.id==='TC';
+  return currentUser.id==='KT' && q.quy==='Chân Mây';
+}
+function soQuyActionCell(q, canAdd){
+  if(!canAdd) return '';
+  if(q.nguon && q.nguon !== 'Nhập tay'){
+    return `<span style="font-size:11px;color:var(--ink-soft);font-style:italic" title="Bút toán tự động ghi theo hồ sơ đã duyệt — muốn điều chỉnh phải sửa đúng hồ sơ gốc">Tự động — không sửa/xóa</span>`;
+  }
+  if(q.daHuy) return `<span style="font-size:11px;color:var(--ink-soft);font-style:italic">Đã hủy</span>`;
+  return `<button type="button" class="mini-btn" style="color:var(--red);border-color:var(--red)" onclick="huyButToanSoQuy('${q.id}')">Hủy bút toán</button>`;
+}
+function huyButToanSoQuy(id){
+  const q = state.soquy.find(x=>x.id===id);
+  if(!q || q.daHuy) return;
+  if(q.nguon && q.nguon !== 'Nhập tay'){ alert('Bút toán tự động theo hồ sơ đã duyệt — không thể hủy tại đây.'); return; }
+  if(!coQuyenSoQuy(q)){ alert('Bạn không có quyền hủy bút toán này.'); return; }
+  const lyDo = prompt(`Hủy bút toán "${q.noiDung}" (${fmt(q.soTien)} đ, ngày ${q.ngay})?\n\nBút toán sẽ được giữ lại trong sổ quỹ để đối chiếu, không bị xóa — chỉ không còn tính vào tồn quỹ. Nếu ghi nhầm, hãy ghi thêm bút toán đúng qua "Ghi thu/chi khác".\n\nBắt buộc nhập lý do hủy:`);
+  if(lyDo === null) return;
+  if(!lyDo.trim()){ alert('Phải nhập lý do hủy bút toán.'); return; }
+  q.daHuy = true;
+  q.lyDoHuy = lyDo.trim();
+  q.nguoiHuy = currentUser.name;
+  q.thoiGianHuy = new Date().toLocaleString('vi-VN');
+  logActivity(`Hủy bút toán sổ quỹ "${q.noiDung}" (${fmt(q.soTien)} đ, ${q.quy||'Chính'}) — lý do: ${lyDo.trim()}`);
+  saveState();
+  renderContent();
 }
 
 /* ---- Doanh thu ước tính (từ khối lượng thực tế × đơn giá M10) ---- */
@@ -5403,7 +5425,7 @@ function renderSoQuy(body){
   const canAdd = xemHet ? currentUser.id==='TC' : laThuQuyChanMay;
   const rows = (xemHet ? state.soquy.slice() : state.soquy.filter(q=>q.quy==='Chân Mây')).sort((a,b)=>a.ngay.localeCompare(b.ngay));
   let running = 0;
-  const withBalance = rows.map(q => { running += (q.loai==='Thu'?q.soTien:-q.soTien); return {...q, running}; }).reverse();
+  const withBalance = rows.map(q => { if(!q.daHuy) running += (q.loai==='Thu'?q.soTien:-q.soTien); return {...q, running}; }).reverse();
   body.innerHTML = `
     <div class="stat-row">
       ${xemHet ? `
@@ -5427,9 +5449,9 @@ function renderSoQuy(body){
       </form></details>` : ''}
     <div class="table-wrap"><table>
       <thead><tr><th>Ngày</th><th>Loại</th><th style="text-align:right">Số tiền</th><th>Hình thức</th>${xemHet?'<th>Quỹ</th>':''}<th>Nội dung</th><th>Nguồn gốc</th><th style="text-align:right">Tồn sau GD</th><th></th></tr></thead>
-      <tbody>${withBalance.map(q => `<tr><td class="mono">${q.ngay}</td><td><span class="pill ${q.loai==='Thu'?'approved':'rejected'}">${q.loai}</span></td>
-        <td class="num">${fmt(q.soTien)}</td><td>${q.hinhThuc}</td>${xemHet?`<td>${q.quy||'Chính'}</td>`:''}<td>${q.noiDung}</td><td style="font-size:12px;color:var(--ink-soft)">${q.nguon||'Nhập tay'}</td>
-        <td class="num" style="font-weight:700">${fmt(q.running)}</td><td>${canAdd ? `<div class="row-actions">${actionButtons('soquy', q.id)}</div>` : ''}</td></tr>`).join('')
+      <tbody>${withBalance.map(q => `<tr${q.daHuy?' style="opacity:.55;text-decoration:line-through"':''}><td class="mono">${q.ngay}</td><td><span class="pill ${q.loai==='Thu'?'approved':'rejected'}">${q.loai}</span></td>
+        <td class="num">${fmt(q.soTien)}</td><td>${q.hinhThuc}</td>${xemHet?`<td>${q.quy||'Chính'}</td>`:''}<td>${q.noiDung}${q.daHuy?`<div style="text-decoration:none;font-size:11px;color:var(--red)">Đã hủy — ${q.lyDoHuy||''} (${q.nguoiHuy||''}, ${q.thoiGianHuy||''})</div>`:''}</td><td style="font-size:12px;color:var(--ink-soft)">${q.nguon||'Nhập tay'}</td>
+        <td class="num" style="font-weight:700">${q.daHuy?'—':fmt(q.running)}</td><td style="text-decoration:none">${soQuyActionCell(q, canAdd)}</td></tr>`).join('')
         || `<tr class="empty-row"><td colspan="${xemHet?9:8}">Chưa có giao dịch nào trong sổ quỹ</td></tr>`}</tbody>
     </table></div>
     ${xemHet && currentUser.id==='TC' ? `
