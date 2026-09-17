@@ -1873,7 +1873,7 @@ function hangMaLoHtml(nh, dangXemLoCanId, tenHam){
 function hangGomKyHtml(nhan, key, list, dangXemKey, tenHam){
   const {soLo, tongKL} = tongHopNhomKy(list);
   const dangXem = dangXemKey === key;
-  return `<tr${dangXem?' style="background:var(--grey-tint)"':''}><td><button class="mini-btn" onclick="${tenHam||'chonKyXemDanhSachNhap'}('${key}')" style="font-family:var(--mono,monospace)">${nhan}</button></td><td colspan="5" style="color:var(--ink-soft);font-style:italic">Đã gộp — ${soLo} mã lô</td><td class="num" style="font-weight:700">${fmt(tongKL)}</td></tr>`;
+  return `<tr${dangXem?' style="background:var(--grey-tint)"':''}><td><button class="mini-btn" onclick="${tenHam||'chonKyXemDanhSachNhap'}('${key}')" style="font-family:var(--mono,monospace);font-weight:700;font-size:14px">${nhan}</button></td><td colspan="5" style="color:var(--ink-soft);font-style:italic">Đã gộp — ${soLo} mã lô</td><td class="num" style="font-weight:700">${fmt(tongKL)}</td></tr>`;
 }
 function gomTheoThangTrongNam(list){
   const theoThang = {};
