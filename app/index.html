@@ -2253,10 +2253,16 @@ function vietTatTen(ten){
 }
 function kyHieuHuong(huong){ return huong==='xuat' ? 'E' : 'I'; }
 function kyHieuTuyen(tuyen){ return tuyen==='Đường thủy' ? 'T' : tuyen==='Khác' ? 'K' : 'B'; }
+function maKhachHangBai(khachHang, bai){
+  const tenBai = boDauTiengViet((bai||'').replace(/^Bãi\s+/i,'')).trim().toLowerCase();
+  const tenKH = boDauTiengViet(khachHang||'').trim().toLowerCase();
+  if(tenBai && tenBai === tenKH) return vietTatTen(bai); // tên khách hàng trùng tên bãi (VD Coalimex) -> chỉ ghi 1 lần, không lặp
+  return vietTatTen(khachHang) + vietTatTen(bai);
+}
 function tienToMaLoCan(khachHang, bai, ngay, huong, tuyen){
   const d = new Date(ngay+'T00:00:00');
   const ddmmyy = String(d.getDate()).padStart(2,'0') + String(d.getMonth()+1).padStart(2,'0') + String(d.getFullYear()).slice(2);
-  return `${kyHieuHuong(huong)}${kyHieuTuyen(tuyen)}${vietTatTen(khachHang)}${vietTatTen(bai)}${ddmmyy}`;
+  return `${kyHieuHuong(huong)}${kyHieuTuyen(tuyen)}${maKhachHangBai(khachHang,bai)}${ddmmyy}`;
 }
 function taoMaLoCan(khachHang, bai, ngay, huong, tuyen){
   const prefix = tienToMaLoCan(khachHang, bai, ngay, huong, tuyen);
@@ -2270,6 +2276,35 @@ function layHoacTaoLoCan(khachHang, bai, ngay, huong, tuyen, cache, nguoiTao){
     phieuIds:[], soLuongXe:0, tongKhoiLuong:0, thoiGianTao:new Date().toLocaleString('vi-VN'), nguoiTao};
   state.locan.push(lc);
   cache[key] = lc;
+  return lc;
+}
+function tachTenTauVaSoHieu(input){
+  const parts = (input||'').trim().split(/\s+/).filter(Boolean);
+  if(parts.length >= 2 && /^[\d-]+$/.test(parts[parts.length-1])){
+    return { tenTau: parts.slice(0,-1).join(' '), soHieu: parts[parts.length-1].replace(/-/g,'') };
+  }
+  return { tenTau: (input||'').trim(), soHieu: '' };
+}
+function phanNgayThuy(ngayBD, ngayKT){
+  const dBD = new Date(ngayBD+'T00:00:00'), dKT = new Date(ngayKT+'T00:00:00');
+  const ddBD = String(dBD.getDate()).padStart(2,'0'), mmBD = String(dBD.getMonth()+1).padStart(2,'0'), yyBD = String(dBD.getFullYear()).slice(2);
+  const ddKT = String(dKT.getDate()).padStart(2,'0'), mmKT = String(dKT.getMonth()+1).padStart(2,'0'), yyKT = String(dKT.getFullYear()).slice(2);
+  if(mmBD===mmKT && yyBD===yyKT) return `${ddBD}${ddKT}${mmBD}${yyBD}`; // cùng tháng -> gọn: ngày đầu+ngày cuối+tháng+năm
+  return `${ddBD}${mmBD}${yyBD}-${ddKT}${mmKT}${yyKT}`; // vắt qua tháng/năm khác -> ghi đủ 2 mốc để không nhầm
+}
+function taoMaLoCanThuy(khachHang, bai, ngayBD, ngayKT, tenTauGoc, huong){
+  const {tenTau, soHieu} = tachTenTauVaSoHieu(tenTauGoc);
+  const base = `${kyHieuHuong(huong)}T${maKhachHangBai(khachHang,bai)}${phanNgayThuy(ngayBD,ngayKT)}${vietTatTen(tenTau)}${soHieu}`;
+  const trung = state.locan.filter(l=>l.maGoc === base);
+  if(!trung.length) return {ma: base, maGoc: base};
+  if(trung.length === 1 && trung[0].ma === base) trung[0].ma = base + '-01'; // vừa phát hiện trùng lần đầu -> đổi lô cũ thành -01 để đồng bộ với lô mới -02
+  return {ma: base + '-' + String(trung.length+1).padStart(2,'0'), maGoc: base};
+}
+function taoLoCanThuy(khachHang, bai, ngayBD, ngayKT, tenTauGoc, huong, nguoiTao){
+  const {ma, maGoc} = taoMaLoCanThuy(khachHang, bai, ngayBD, ngayKT, tenTauGoc, huong);
+  const lc = {id:'LC'+(state.nextId++), ma, maGoc, khachHang, bai, ngay:ngayBD, ngayKetThuc:ngayKT, huong, tuyen:'Đường thủy', tenTau:tenTauGoc,
+    phieuIds:[], soLuongXe:0, tongKhoiLuong:0, thoiGianTao:new Date().toLocaleString('vi-VN'), nguoiTao};
+  state.locan.push(lc);
   return lc;
 }
 function ganLoCanHoiTo(){
@@ -2288,12 +2323,19 @@ function confirmWeighImport(){
   const pw = pendingWeigh; if(!pw) return;
   let count = 0;
   const loCanTheoNgay = {};
+  let loCanThuyChung = null;
+  if(pw.tuyen === 'Đường thủy' && pw.tickets.length){
+    const danhSachNgay = pw.tickets.map(t=>t.ngay || new Date().toISOString().slice(0,10));
+    const ngayBD = danhSachNgay.reduce((a,b)=>a<b?a:b);
+    const ngayKT = danhSachNgay.reduce((a,b)=>a>b?a:b);
+    loCanThuyChung = taoLoCanThuy(pw.khachHang, pw.bai, ngayBD, ngayKT, pw.tenTau, pw.huong, currentUser.name);
+  }
   pw.tickets.forEach(t=>{
     const phuongTien = `${t.bienSo}${t.roMoc?' — '+t.roMoc:''} (phiếu ${t.soPhieu})${pw.tenTau?', tàu '+pw.tenTau:''}`;
     let loaiXe = duDoanLoaiXeXemTruoc(t, pw);
     if(!loaiXe && pw.tuyen !== 'Đường thủy') loaiXe = hoiLoaiXeThuCong(t, pw.bai);
     const ngayPhieu = t.ngay || new Date().toISOString().slice(0,10);
-    const lc = layHoacTaoLoCan(pw.khachHang, pw.bai, ngayPhieu, pw.huong, pw.tuyen, loCanTheoNgay, currentUser.name);
+    const lc = loCanThuyChung || layHoacTaoLoCan(pw.khachHang, pw.bai, ngayPhieu, pw.huong, pw.tuyen, loCanTheoNgay, currentUser.name);
     if(pw.huong === 'nhap'){
       const id = 'N'+(state.nextId++);
       state.nhap.push({id, lotId:pw.lotId, ngay:ngayPhieu,
