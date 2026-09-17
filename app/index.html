@@ -602,6 +602,7 @@ function loadState(){
     if(state.xuat) state.xuat.forEach(x=>{ if(x.loCanId===undefined) x.loCanId = null; if(x.soHopDong===undefined) x.soHopDong = ''; });
     ganLoCanHoiTo(); // gán mã lô cân cho phiếu nhập/xuất cũ chưa từng có (trước khi có tính năng gộp mã theo khách hàng+bãi+ngày)
     ganLaiLoCanThuyHoiTo(); // phiếu đường thủy nhập trước khi có quy luật gộp theo tàu — gộp lại đúng theo tàu thay vì đang tách theo từng ngày
+    suaTrungLoCanThuyHoiTo(); // sửa các lô tàu bị coi là khác nhau chỉ vì khoảng ngày ghi trên mã lệch nhau (trước khi định danh trùng bỏ qua phần ngày)
     state.dexuatmuahang.forEach(x=>{ if(x.loaiLienQuan===undefined) x.loaiLienQuan = x.lienQuanThietBi ? 'thietbi' : ''; }); // đổi từ checkbox lienQuanThietBi sang chọn 1 trong 2 loại liên quan (thêm "Nhập kho vật tư/nhiên liệu")
     state.xacnhanhoanthanh.forEach(x=>{ if(!x.trangThaiXacNhan) Object.assign(x, {trangThaiXacNhan:'Đã xác nhận', nguoiXacNhanLai:'Dữ liệu cũ', ngayXacNhanLai:x.ngayXacNhan, lyDoTuChoi:null}); }); // dữ liệu cũ trước khi có bước Kế toán xác nhận lại — coi như đã được chấp nhận
     state.hoadon.forEach(h=>{ if(h.trangThaiThanhToan===undefined) h.trangThaiThanhToan = 'Chưa thanh toán'; });
@@ -2273,8 +2274,10 @@ function tienToMaLoCan(khachHang, bai, ngay, huong, tuyen){
 }
 function taoMaLoCan(khachHang, bai, ngay, huong, tuyen){
   const prefix = tienToMaLoCan(khachHang, bai, ngay, huong, tuyen);
-  const soLuongTrung = state.locan.filter(l=>l.ma.startsWith(prefix)).length;
-  return prefix + String(soLuongTrung+1).padStart(2,'0');
+  let soLuongTrung = state.locan.filter(l=>l.ma.startsWith(prefix)).length;
+  let ma = prefix + String(soLuongTrung+1).padStart(2,'0');
+  while(state.locan.some(l=>l.ma===ma)){ soLuongTrung++; ma = prefix + String(soLuongTrung+1).padStart(2,'0'); } // bảo hiểm tuyệt đối: mã lô là khóa chính, không bao giờ được trùng
+  return ma;
 }
 function layHoacTaoLoCan(khachHang, bai, ngay, huong, tuyen, cache, nguoiTao){
   const key = khachHang+'|'+bai+'|'+ngay+'|'+huong+'|'+tuyen;
@@ -2302,15 +2305,19 @@ function phanNgayThuy(ngayBD, ngayKT){
 }
 function taoMaLoCanThuy(khachHang, bai, ngayBD, ngayKT, tenTauGoc, huong){
   const {tenTau, soHieu} = tachTenTauVaSoHieu(tenTauGoc);
+  // định danh tàu KHÔNG gồm ngày — nhưng chỉ coi là "trùng lô" (thêm b/c) khi có ngày bắt đầu HOẶC ngày kết thúc khớp với 1 lô cùng tàu đã có.
+  // Nếu khoảng ngày hoàn toàn khác (VD tháng sau tàu này quay lại chở chuyến khác hẳn) thì KHÔNG coi là trùng, giữ mã gốc riêng, không thêm hậu tố.
+  const dinhDanhTau = `${kyHieuHuong(huong)}T${maKhachHangBai(khachHang,bai)}${vietTatTen(tenTau)}${soHieu}`;
   const base = `${kyHieuHuong(huong)}T${maKhachHangBai(khachHang,bai)}${phanNgayThuy(ngayBD,ngayKT)}${vietTatTen(tenTau)}${soHieu}`;
-  const soLuongTrung = state.locan.filter(l=>l.maGoc === base).length;
-  // trường hợp thường (chỉ 1 lần) -> giữ nguyên mã gốc, không thêm hậu tố gì cả. Chỉ khi phát hiện trùng (cùng tàu/bãi/khách hàng/ngày, ví dụ nhập 2 loại than khác nhau) mới thêm chữ b, c... vào lô trùng — lô đầu tiên không bị đổi lại.
-  const ma = soLuongTrung === 0 ? base : base + String.fromCharCode(97 + soLuongTrung);
-  return {ma, maGoc: base};
+  const trung = state.locan.filter(l=>l.dinhDanhTau === dinhDanhTau && (l.ngay===ngayBD || l.ngayKetThuc===ngayKT || l.ngay===ngayKT || l.ngayKetThuc===ngayBD));
+  let bump = trung.length;
+  let ma = bump === 0 ? base : base + String.fromCharCode(97 + bump);
+  while(state.locan.some(l=>l.ma===ma)){ bump++; ma = base + String.fromCharCode(97 + bump); } // bảo hiểm tuyệt đối: mã lô là khóa chính, không bao giờ được trùng
+  return {ma, maGoc: base, dinhDanhTau};
 }
 function taoLoCanThuy(khachHang, bai, ngayBD, ngayKT, tenTauGoc, huong, nguoiTao){
-  const {ma, maGoc} = taoMaLoCanThuy(khachHang, bai, ngayBD, ngayKT, tenTauGoc, huong);
-  const lc = {id:'LC'+(state.nextId++), ma, maGoc, khachHang, bai, ngay:ngayBD, ngayKetThuc:ngayKT, huong, tuyen:'Đường thủy', tenTau:tenTauGoc,
+  const {ma, maGoc, dinhDanhTau} = taoMaLoCanThuy(khachHang, bai, ngayBD, ngayKT, tenTauGoc, huong);
+  const lc = {id:'LC'+(state.nextId++), ma, maGoc, dinhDanhTau, khachHang, bai, ngay:ngayBD, ngayKetThuc:ngayKT, huong, tuyen:'Đường thủy', tenTau:tenTauGoc,
     phieuIds:[], soLuongXe:0, tongKhoiLuong:0, thoiGianTao:new Date().toLocaleString('vi-VN'), nguoiTao};
   state.locan.push(lc);
   return lc;
@@ -2358,6 +2365,48 @@ function ganLaiLoCanThuyHoiTo(){
   });
   const idsConDung = new Set([...state.nhap, ...state.xuat].map(n=>n.loCanId).filter(Boolean));
   state.locan = state.locan.filter(l=>idsConDung.has(l.id)); // dọn các lô cân cũ không còn phiếu nào tham chiếu tới nữa
+}
+function suaTrungLoCanThuyHoiTo(){
+  // chạy trong loadState() — không được đọc currentUser ở đây.
+  // Trước đây định danh trùng tàu có gồm cả khoảng ngày, nên 2 lần xác nhận cùng 1 tàu nhưng ngày ghi trên mã lệch nhau (VD 13-16 và 13-15) bị coi là 2 tàu khác nhau, không tự thêm "b". Quét lại và sửa cho đúng — nhưng chỉ gộp các lô có ngày bắt đầu/kết thúc trùng nhau (cùng 1 đợt xác nhận), KHÔNG gộp các chuyến hoàn toàn khác ngày (VD tháng sau tàu quay lại chở chuyến khác).
+  const nhomTau = {};
+  state.locan.forEach(l=>{
+    if(l.tuyen !== 'Đường thủy') return;
+    if(l.dinhDanhTau === undefined){
+      const {tenTau, soHieu} = tachTenTauVaSoHieu(l.tenTau||'');
+      l.dinhDanhTau = `${kyHieuHuong(l.huong)}T${maKhachHangBai(l.khachHang,l.bai)}${vietTatTen(tenTau)}${soHieu}`;
+    }
+    if(!nhomTau[l.dinhDanhTau]) nhomTau[l.dinhDanhTau] = [];
+    nhomTau[l.dinhDanhTau].push(l);
+  });
+  Object.values(nhomTau).forEach(list=>{
+    if(list.length < 2) return;
+    const daXet = new Set();
+    list.forEach(l=>{
+      if(daXet.has(l.id)) return;
+      const cum = [l]; daXet.add(l.id);
+      let themMoi = true;
+      while(themMoi){
+        themMoi = false;
+        list.forEach(k=>{
+          if(daXet.has(k.id)) return;
+          const trung = cum.some(c=> c.ngay===k.ngay || c.ngay===k.ngayKetThuc || c.ngayKetThuc===k.ngay || c.ngayKetThuc===k.ngayKetThuc);
+          if(trung){ cum.push(k); daXet.add(k.id); themMoi = true; }
+        });
+      }
+      if(cum.length < 2) return; // cụm chỉ có 1 -> không trùng, giữ nguyên mã riêng
+      cum.sort((a,b)=>(parseInt(a.id.replace(/\D/g,''),10)||0) - (parseInt(b.id.replace(/\D/g,''),10)||0));
+      cum.forEach((c,i)=>{
+        const {tenTau, soHieu} = tachTenTauVaSoHieu(c.tenTau||'');
+        const baseCuaNo = `${kyHieuHuong(c.huong)}T${maKhachHangBai(c.khachHang,c.bai)}${phanNgayThuy(c.ngay, c.ngayKetThuc||c.ngay)}${vietTatTen(tenTau)}${soHieu}`;
+        c.maGoc = baseCuaNo;
+        let bump = i;
+        let maMoi = i===0 ? baseCuaNo : baseCuaNo + String.fromCharCode(97+bump);
+        while(state.locan.some(l=>l!==c && l.ma===maMoi)){ bump++; maMoi = baseCuaNo + String.fromCharCode(97+bump); } // bảo hiểm tuyệt đối: mã lô là khóa chính, không bao giờ được trùng
+        c.ma = maMoi;
+      });
+    });
+  });
 }
 function confirmWeighImport(){
   const pw = pendingWeigh; if(!pw) return;
