@@ -2121,12 +2121,12 @@ function renderWeighImportBlock(huong){
         </select></div>
         <div class="field"><label>Bãi</label><select id="wg-bai-${huong}">${baiOptionsHtml(Object.keys(BAI_THEO_KHACH)[0]||'')}</select></div>
         <div class="field"><label>Tuyến</label><select id="wg-tuyen-${huong}" onchange="toggleWeighTauField('${huong}')">
-          <option value="Đường bộ">Đường bộ</option><option value="Đường thủy">Đường thủy</option><option value="Khác">Khác</option>
+          <option value="Đường bộ"${huong==='xuat'?'':' selected'}>Đường bộ</option><option value="Đường thủy"${huong==='xuat'?' selected':''}>Đường thủy</option><option value="Khác">Khác</option>
         </select></div>
-        <div class="field" id="wg-taufield-${huong}" style="display:none;grid-column:1/-1"><label>Tên tàu</label><input id="wg-tentau-${huong}" placeholder="VD: tên tàu"></div>
+        <div class="field" id="wg-taufield-${huong}" style="display:${huong==='xuat'?'':'none'};grid-column:1/-1"><label>Tên tàu</label><input id="wg-tentau-${huong}" placeholder="VD: tên tàu"></div>
         <div class="field" id="wg-tuyenkhacfield-${huong}" style="display:none;grid-column:1/-1"><label>Nhập tên tuyến</label><input id="wg-tuyenkhac-${huong}"></div>
         ${huong==='xuat' ? `
-        <div class="field" id="wg-dichvufield-${huong}" style="display:none;grid-column:1/-1">
+        <div class="field" id="wg-dichvufield-${huong}" style="display:;grid-column:1/-1">
           <label>Dịch vụ kèm theo (tùy chọn)</label>
           <div style="display:flex;gap:18px;flex-wrap:wrap">
             <label style="display:flex;align-items:center;gap:6px;font-weight:400"><input type="checkbox" id="wg-sang-${huong}" onchange="toggleWeighDichVuOption('${huong}','sang')"> Sàng than</label>
