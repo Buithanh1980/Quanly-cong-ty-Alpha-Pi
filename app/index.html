@@ -1553,22 +1553,30 @@ function renderNhap(body){
   const lots = visibleLots(); const lotIds = lots.map(l=>l.id);
   const rows = state.nhap.filter(n=>lotIds.includes(n.lotId)).sort((a,b)=>b.ngay.localeCompare(a.ngay));
   const nhomLoCan = nhomPhieuTheoLoCan(rows);
+  const {thangHienTaiList, theoThangList, theoNamList} = gomNhomLoCanTheoKy(nhomLoCan);
   const nhXem = nhomLoCan.find(nh=>nh.loCanId === loCanXemChiTietNhap) || null;
+  const kyDangMo = theoThangList.find(g=>g.key===kyXemDanhSachNhap) || theoNamList.find(g=>g.key===kyXemDanhSachNhap) || null;
+  const nhanKyDangMo = kyDangMo ? (kyDangMo.thang ? `Tháng ${kyDangMo.thang}/${kyDangMo.nam}` : `Năm ${kyDangMo.nam}`) : '';
   body.innerHTML = `
     ${renderBaoCaoChiTietNhap()}
     <div class="panel-head"><h3>Phiếu nhập hàng</h3></div>
     ${renderWeighImportBlock('nhap')}
-    <p style="font-size:11.5px;color:var(--ink-soft);margin:0 0 10px">Bấm vào Mã lô để xem chi tiết từng xe của lô đó ở bảng bên dưới.</p>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:0 0 10px">Bấm vào Mã lô để xem chi tiết từng xe của lô đó ở bảng bên dưới. Các tháng/năm trước đã gộp lại cho gọn — bấm vào dòng gộp để xem lại danh sách mã lô.</p>
     <div class="table-wrap"><table>
       <thead><tr><th>Mã lô</th><th>Ngày</th><th>Chủ hàng</th><th>Bãi nhận hàng</th><th>Tuyến</th><th>Số xe/ tên tàu</th><th style="text-align:right">Tổng khối lượng</th></tr></thead>
-      <tbody>${nhomLoCan.length ? nhomLoCan.map(nh=>{
-        const first = nh.phieu[0]; const lot = state.lots.find(l=>l.id===first.lotId);
-        const loCan = state.locan.find(l=>l.id===nh.loCanId);
-        const tongKL = nh.phieu.reduce((s,n)=>s+n.khoiLuong,0);
-        const dangXem = loCanXemChiTietNhap === nh.loCanId;
-        return `<tr${dangXem?' style="background:var(--grey-tint)"':''}><td><button class="mini-btn" onclick="chonLoCanXemChiTietNhap('${nh.loCanId}')" style="font-family:var(--mono,monospace)">${loCan?loCan.ma:'— chưa gán mã —'}</button></td><td class="mono">${first.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${first.tuyen}</td><td>${oSoXeTenTau(first, loCan, nh.phieu)}</td><td class="num" style="font-weight:700">${fmt(tongKL)}</td></tr>`;
-      }).join('') : `<tr class="empty-row"><td colspan="7">Chưa có phiếu nhập nào</td></tr>`}</tbody>
+      <tbody>${(thangHienTaiList.length||theoThangList.length||theoNamList.length) ? [
+        ...thangHienTaiList.map(nh=>hangMaLoHtml(nh, loCanXemChiTietNhap, 'chonLoCanXemChiTietNhap')),
+        ...theoThangList.map(g=>hangGomKyHtml(`Tháng ${g.thang}/${g.nam}`, g.key, g.list, kyXemDanhSachNhap)),
+        ...theoNamList.map(g=>hangGomKyHtml(`Năm ${g.nam}`, g.key, g.list, kyXemDanhSachNhap)),
+      ].join('') : `<tr class="empty-row"><td colspan="7">Chưa có phiếu nhập nào</td></tr>`}</tbody>
     </table></div>
+
+    ${kyDangMo ? `
+    <div class="panel-head" style="margin-top:24px"><h3 style="font-size:14px">Danh sách mã lô — ${nhanKyDangMo}</h3></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Mã lô</th><th>Ngày</th><th>Chủ hàng</th><th>Bãi nhận hàng</th><th>Tuyến</th><th>Số xe/ tên tàu</th><th style="text-align:right">Tổng khối lượng</th></tr></thead>
+      <tbody>${kyDangMo.list.map(nh=>hangMaLoHtml(nh, loCanXemChiTietNhap, 'chonLoCanXemChiTietNhap')).join('')}</tbody>
+    </table></div>` : ''}
 
     <div class="panel-head" style="margin-top:24px"><h3 style="font-size:14px">Chi tiết từng xe${nhXem ? ` — mã lô ${state.locan.find(l=>l.id===nhXem.loCanId) ? state.locan.find(l=>l.id===nhXem.loCanId).ma : ''}` : ''}</h3></div>
     ${nhXem ? `<div class="table-wrap"><table>
@@ -1740,6 +1748,55 @@ let loCanXemChiTietNhap = null;
 function chonLoCanXemChiTietNhap(loCanId){
   loCanXemChiTietNhap = (loCanXemChiTietNhap === loCanId) ? null : loCanId;
   renderM1();
+}
+let kyXemDanhSachNhap = null;
+function chonKyXemDanhSachNhap(key){
+  kyXemDanhSachNhap = (kyXemDanhSachNhap === key) ? null : key;
+  renderM1();
+}
+function namThangCuaNgay(ngay){ const d = new Date(ngay+'T00:00:00'); return {nam:d.getFullYear(), thang:d.getMonth()+1}; }
+function gomNhomLoCanTheoKy(nhomLoCan){
+  const homNay = new Date(); const namHienTai = homNay.getFullYear(), thangHienTai = homNay.getMonth()+1;
+  const thangHienTaiList = [];
+  const theoThang = {}; // "YYYY-MM" (các tháng khác trong năm hiện tại)
+  const theoNam = {}; // "YYYY" (các năm trước)
+  nhomLoCan.forEach(nh=>{
+    const {nam, thang} = namThangCuaNgay(nh.phieu[0].ngay);
+    if(nam===namHienTai && thang===thangHienTai){
+      thangHienTaiList.push(nh);
+    } else if(nam===namHienTai){
+      const key = `${nam}-${String(thang).padStart(2,'0')}`;
+      if(!theoThang[key]) theoThang[key] = {key, nam, thang, list:[]};
+      theoThang[key].list.push(nh);
+    } else {
+      const key = String(nam);
+      if(!theoNam[key]) theoNam[key] = {key, nam, list:[]};
+      theoNam[key].list.push(nh);
+    }
+  });
+  return {
+    thangHienTaiList,
+    theoThangList: Object.values(theoThang).sort((a,b)=>b.thang-a.thang),
+    theoNamList: Object.values(theoNam).sort((a,b)=>b.nam-a.nam),
+  };
+}
+function tongHopNhomKy(list){
+  const soLo = list.length;
+  const soPhieu = list.reduce((s,nh)=>s+nh.phieu.length,0);
+  const tongKL = list.reduce((s,nh)=>s+nh.phieu.reduce((s2,n)=>s2+n.khoiLuong,0),0);
+  return {soLo, soPhieu, tongKL};
+}
+function hangMaLoHtml(nh, dangXemLoCanId, tenHam){
+  const first = nh.phieu[0]; const lot = state.lots.find(l=>l.id===first.lotId);
+  const loCan = state.locan.find(l=>l.id===nh.loCanId);
+  const tongKL = nh.phieu.reduce((s,n)=>s+n.khoiLuong,0);
+  const dangXem = dangXemLoCanId === nh.loCanId;
+  return `<tr${dangXem?' style="background:var(--grey-tint)"':''}><td><button class="mini-btn" onclick="${tenHam}('${nh.loCanId}')" style="font-family:var(--mono,monospace)">${loCan?loCan.ma:'— chưa gán mã —'}</button></td><td class="mono">${first.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${first.tuyen}</td><td>${oSoXeTenTau(first, loCan, nh.phieu)}</td><td class="num" style="font-weight:700">${fmt(tongKL)}</td></tr>`;
+}
+function hangGomKyHtml(nhan, key, list, dangXemKey){
+  const {soLo, tongKL} = tongHopNhomKy(list);
+  const dangXem = dangXemKey === key;
+  return `<tr${dangXem?' style="background:var(--grey-tint)"':''}><td><button class="mini-btn" onclick="chonKyXemDanhSachNhap('${key}')" style="font-family:var(--mono,monospace)">${nhan}</button></td><td colspan="5" style="color:var(--ink-soft);font-style:italic">Đã gộp — ${soLo} mã lô</td><td class="num" style="font-weight:700">${fmt(tongKL)}</td></tr>`;
 }
 let loCanXemChiTietXuat = null;
 function chonLoCanXemChiTietXuat(loCanId){
