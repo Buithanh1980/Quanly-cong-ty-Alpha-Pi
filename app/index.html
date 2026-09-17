@@ -1694,6 +1694,8 @@ function renderBaoCaoChiTietXuat(){
     .map(key=>{ const [ten,ngay]=key.split('|'); return {v:key, t:`${ten} — ${ngay}`}; })
     .sort((a,b)=>a.t.localeCompare(b.t));
   bcXuatRowsCache = rows;
+  const nhomBc = nhomPhieuTheoLoCan(rows);
+  const bcXem = nhomBc.find(x=>x.loCanId === loCanXemChiTietBaoCaoXuat) || null;
   return `
     <div class="panel-head"><h3>Báo cáo chi tiết xuất hàng</h3><button type="button" class="btn-secondary" onclick="xuatExcelBaoCaoXuat()">Xuất file Excel</button></div>
     <div class="inline-form compact-filters" style="grid-template-columns:repeat(7,1fr)">
@@ -1725,31 +1727,79 @@ function renderBaoCaoChiTietXuat(){
         ${tauOptions.map(o=>`<option value="${o.v}" ${bcXuatTau===o.v?'selected':''}>${o.t}</option>`).join('')}
       </select></div>` : ''}
     </div>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:10px 0">Bấm vào Mã lô để xem chi tiết từng xe của lô đó. File Excel xuất ra vẫn đầy đủ chi tiết từng xe theo đúng bộ lọc, không phụ thuộc mã lô nào đang mở.</p>
     <div class="table-wrap"><table>
-      <thead><tr><th>Số TT</th><th>Ngày xuất</th><th>Số phiếu</th><th>Chủ Hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">Khối lượng hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Phương tiện</th></tr></thead>
+      <thead><tr><th>Mã lô</th><th>Ngày</th><th>Chủ hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>Số xe/ tên tàu</th><th style="text-align:right">Khối lượng</th></tr></thead>
       <tbody>
-        ${rows.length ? rows.map((x,i)=>{ const lot=state.lots.find(l=>l.id===x.lotId); return `<tr><td class="mono">${i+1}</td><td class="mono">${x.ngay}</td><td class="mono">${x.soPhieu||''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${x.tuyen}</td><td>${x.bienSo||x.nguon||''}</td><td>${x.roMoc||''}</td><td>${x.hangHoaRaw||''}</td><td class="num">${x.klCoHang?fmt(x.klCoHang):''}</td><td class="num">${x.klXe?fmt(x.klXe):''}</td><td class="num">${fmt(x.khoiLuong)}</td><td class="mono">${x.gioCanTong||''}</td><td class="mono">${x.gioCanXe||''}</td><td>${x.ghiChuPhieu||''}</td><td>${x.loaiXe||''}</td></tr>`; }).join('') : `<tr class="empty-row"><td colspan="16">Không có phiếu xuất nào khớp bộ lọc</td></tr>`}
+        ${nhomBc.length ? nhomBc.map(nh=>{
+          const first = nh.phieu[0]; const lot = state.lots.find(l=>l.id===first.lotId);
+          const loCan = state.locan.find(l=>l.id===nh.loCanId);
+          const tongLo = nh.phieu.reduce((s,x)=>s+x.khoiLuong,0);
+          const dangXem = loCanXemChiTietBaoCaoXuat === nh.loCanId;
+          return `<tr${dangXem?' style="background:var(--grey-tint)"':''}><td><button class="mini-btn" onclick="chonLoCanXemChiTietBaoCaoXuat('${nh.loCanId}')" style="font-family:var(--mono,monospace)">${loCan?loCan.ma:'— chưa gán mã —'}</button></td><td class="mono">${first.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${first.tuyen}</td><td>${oSoXeTenTau(first, loCan, nh.phieu)}</td><td class="num">${fmt(tongLo)}</td></tr>`;
+        }).join('') : `<tr class="empty-row"><td colspan="7">Không có phiếu xuất nào khớp bộ lọc</td></tr>`}
       </tbody>
-      ${rows.length ? `<tfoot><tr style="font-weight:700;background:var(--grey-tint)"><td colspan="11">Tổng khối lượng</td><td class="num">${fmt(tongKL)}</td><td colspan="4"></td></tr></tfoot>` : ''}
-    </table></div>`;
+      ${rows.length ? `<tfoot><tr style="font-weight:700;background:var(--grey-tint)"><td colspan="6">Tổng khối lượng</td><td class="num">${fmt(tongKL)}</td></tr></tfoot>` : ''}
+    </table></div>
+    ${bcXem ? `<div class="table-wrap" style="margin-top:10px"><table>
+      <thead><tr><th>Số TT</th><th>Ngày xuất</th><th>Số phiếu</th><th>Chủ Hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">Khối lượng hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Phương tiện</th></tr></thead>
+      <tbody>${bcXem.phieu.map((x,i)=>{ const lot=state.lots.find(l=>l.id===x.lotId); return `<tr><td class="mono">${i+1}</td><td class="mono">${x.ngay}</td><td class="mono">${x.soPhieu||''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${x.tuyen}</td><td>${x.bienSo||x.nguon||''}</td><td>${x.roMoc||''}</td><td>${x.hangHoaRaw||''}</td><td class="num">${x.klCoHang?fmt(x.klCoHang):''}</td><td class="num">${x.klXe?fmt(x.klXe):''}</td><td class="num">${fmt(x.khoiLuong)}</td><td class="mono">${x.gioCanTong||''}</td><td class="mono">${x.gioCanXe||''}</td><td>${x.ghiChuPhieu||''}</td><td>${x.loaiXe||''}</td></tr>`; }).join('')}</tbody>
+    </table></div>` : ''}`;
 }
 
 function renderXuat(body){
   const lots = visibleLots(); const lotIds = lots.map(l=>l.id);
   const rows = state.xuat.filter(x=>lotIds.includes(x.lotId)).sort((a,b)=>b.ngay.localeCompare(a.ngay));
+  const nhomLoCan = nhomPhieuTheoLoCan(rows);
+  const {thangHienTaiList, theoThangList, theoNamList} = gomNhomLoCanTheoKy(nhomLoCan);
+  const xXem = nhomLoCan.find(nh=>nh.loCanId === loCanXemChiTietXuat) || null;
+  const kyDangMo = theoThangList.find(g=>g.key===kyXemDanhSachXuat) || null;
+  const namDangMo = theoNamList.find(g=>g.key===namXemThangXuat) || null;
+  const cacThangTrongNam = namDangMo ? gomTheoThangTrongNam(namDangMo.list) : [];
+  const thangTrongNamDangMo = cacThangTrongNam.find(g=>g.key===thangTrongNamXemXuat) || null;
   body.innerHTML = `
     ${renderBaoCaoChiTietXuat()}
     <div class="panel-head"><h3>Phiếu xuất hàng</h3></div>
     ${renderWeighImportBlock('xuat')}
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:0 0 10px">Bấm vào Mã lô để xem chi tiết từng xe của lô đó ở bảng bên dưới. Các tháng/năm trước đã gộp lại cho gọn — bấm vào dòng gộp để xem lại (năm thì xổ ra các tháng trước, bấm tiếp vào tháng mới ra danh sách mã lô).</p>
     <div class="table-wrap"><table>
-      <thead><tr><th>Số TT</th><th>Ngày xuất</th><th>Số phiếu</th><th>Mã lô cân</th><th>Chủ Hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">Khối lượng hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Phương tiện</th><th></th></tr></thead>
-      <tbody>
-        ${rows.map((x,i) => { const lot = state.lots.find(l=>l.id===x.lotId); const loCan = state.locan.find(l=>l.id===x.loCanId);
-          return `<tr><td class="mono">${i+1}</td><td class="mono">${x.ngay}</td><td class="mono">${x.soPhieu||''}</td><td class="mono">${loCan?loCan.ma:''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${x.tuyen}</td><td>${x.bienSo||x.nguon||''}</td><td>${x.roMoc||''}</td><td>${x.hangHoaRaw||''}</td><td class="num">${x.klCoHang?fmt(x.klCoHang):''}</td><td class="num">${x.klXe?fmt(x.klXe):''}</td><td class="num">${fmt(x.khoiLuong)}</td><td class="mono">${x.gioCanTong||''}</td><td class="mono">${x.gioCanXe||''}</td><td>${x.ghiChuPhieu||''}</td><td>${x.loaiXe||''}</td>
-            <td>${canEnter('M1') ? `<div class="row-actions">${actionButtons('xuat', x.id)}</div>` : ''}</td></tr>`;
-        }).join('') || `<tr class="empty-row"><td colspan="18">Chưa có phiếu xuất nào</td></tr>`}
-      </tbody>
-    </table></div>`;
+      <thead><tr><th>Mã lô</th><th>Ngày</th><th>Chủ hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>Số xe/ tên tàu</th><th style="text-align:right">Tổng khối lượng</th></tr></thead>
+      <tbody>${(thangHienTaiList.length||theoThangList.length||theoNamList.length) ? [
+        ...thangHienTaiList.map(nh=>hangMaLoHtml(nh, loCanXemChiTietXuat, 'chonLoCanXemChiTietXuat')),
+        ...theoThangList.map(g=>hangGomKyHtml(`Tháng ${g.thang}/${g.nam}`, g.key, g.list, kyXemDanhSachXuat, 'chonKyXemDanhSachXuat')),
+        ...theoNamList.map(g=>hangGomKyHtml(`Năm ${g.nam}`, g.key, g.list, namXemThangXuat, 'chonNamXemThangXuat')),
+      ].join('') : `<tr class="empty-row"><td colspan="7">Chưa có phiếu xuất nào</td></tr>`}</tbody>
+    </table></div>
+
+    ${kyDangMo ? `
+    <div class="panel-head" style="margin-top:24px"><h3 style="font-size:14px">Danh sách mã lô — Tháng ${kyDangMo.thang}/${kyDangMo.nam}</h3></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Mã lô</th><th>Ngày</th><th>Chủ hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>Số xe/ tên tàu</th><th style="text-align:right">Tổng khối lượng</th></tr></thead>
+      <tbody>${kyDangMo.list.map(nh=>hangMaLoHtml(nh, loCanXemChiTietXuat, 'chonLoCanXemChiTietXuat')).join('')}</tbody>
+    </table></div>` : ''}
+
+    ${namDangMo ? `
+    <div class="panel-head" style="margin-top:24px"><h3 style="font-size:14px">Các tháng trong Năm ${namDangMo.nam}</h3></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Tháng</th><th>Ngày</th><th>Chủ hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>Số xe/ tên tàu</th><th style="text-align:right">Tổng khối lượng</th></tr></thead>
+      <tbody>${cacThangTrongNam.map(g=>hangGomKyHtml(`Tháng ${g.thang}/${g.nam}`, g.key, g.list, thangTrongNamXemXuat, 'chonThangTrongNamXemXuat')).join('')}</tbody>
+    </table></div>` : ''}
+
+    ${thangTrongNamDangMo ? `
+    <div class="panel-head" style="margin-top:24px"><h3 style="font-size:14px">Danh sách mã lô — Tháng ${thangTrongNamDangMo.thang}/${thangTrongNamDangMo.nam}</h3></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Mã lô</th><th>Ngày</th><th>Chủ hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>Số xe/ tên tàu</th><th style="text-align:right">Tổng khối lượng</th></tr></thead>
+      <tbody>${thangTrongNamDangMo.list.map(nh=>hangMaLoHtml(nh, loCanXemChiTietXuat, 'chonLoCanXemChiTietXuat')).join('')}</tbody>
+    </table></div>` : ''}
+
+    <div class="panel-head" style="margin-top:24px"><h3 style="font-size:14px">Chi tiết từng xe${xXem ? ` — mã lô ${state.locan.find(l=>l.id===xXem.loCanId) ? state.locan.find(l=>l.id===xXem.loCanId).ma : ''}` : ''}</h3></div>
+    ${xXem ? `<div class="table-wrap"><table>
+      <thead><tr><th>Số TT</th><th>Ngày xuất</th><th>Số phiếu</th><th>Chủ Hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">Khối lượng hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Phương tiện</th><th></th></tr></thead>
+      <tbody>${xXem.phieu.map((x,i) => { const lot = state.lots.find(l=>l.id===x.lotId);
+        return `<tr><td class="mono">${i+1}</td><td class="mono">${x.ngay}</td><td class="mono">${x.soPhieu||''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${x.tuyen}</td><td>${x.bienSo||x.nguon||''}</td><td>${x.roMoc||''}</td><td>${x.hangHoaRaw||''}</td><td class="num">${x.klCoHang?fmt(x.klCoHang):''}</td><td class="num">${x.klXe?fmt(x.klXe):''}</td><td class="num">${fmt(x.khoiLuong)}</td><td class="mono">${x.gioCanTong||''}</td><td class="mono">${x.gioCanXe||''}</td><td>${x.ghiChuPhieu||''}</td><td>${x.loaiXe||''}</td>
+          <td>${canEnter('M1') ? `<div class="row-actions">${actionButtons('xuat', x.id)}</div>` : ''}</td></tr>`;
+      }).join('')}</tbody>
+    </table></div>` : `<p style="font-size:12.5px;color:var(--ink-soft)">Bấm vào 1 mã lô ở bảng phía trên để xem chi tiết từng xe.</p>`}`;
   initWeighDropzone('xuat');
 }
 
@@ -1843,6 +1893,27 @@ function chonLoCanXemChiTietXuat(loCanId){
 let loCanXemChiTietBaoCaoNhap = null;
 function chonLoCanXemChiTietBaoCaoNhap(loCanId){
   loCanXemChiTietBaoCaoNhap = (loCanXemChiTietBaoCaoNhap === loCanId) ? null : loCanId;
+  renderM1();
+}
+let loCanXemChiTietBaoCaoXuat = null;
+function chonLoCanXemChiTietBaoCaoXuat(loCanId){
+  loCanXemChiTietBaoCaoXuat = (loCanXemChiTietBaoCaoXuat === loCanId) ? null : loCanId;
+  renderM1();
+}
+let kyXemDanhSachXuat = null;
+function chonKyXemDanhSachXuat(key){
+  kyXemDanhSachXuat = (kyXemDanhSachXuat === key) ? null : key;
+  renderM1();
+}
+let namXemThangXuat = null;
+let thangTrongNamXemXuat = null;
+function chonNamXemThangXuat(key){
+  namXemThangXuat = (namXemThangXuat === key) ? null : key;
+  thangTrongNamXemXuat = null;
+  renderM1();
+}
+function chonThangTrongNamXemXuat(key){
+  thangTrongNamXemXuat = (thangTrongNamXemXuat === key) ? null : key;
   renderM1();
 }
 function nhomPhieuTheoLoCan(rows){
