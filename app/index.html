@@ -2280,8 +2280,9 @@ function layHoacTaoLoCan(khachHang, bai, ngay, huong, tuyen, cache, nguoiTao){
 }
 function tachTenTauVaSoHieu(input){
   const parts = (input||'').trim().split(/\s+/).filter(Boolean);
-  if(parts.length >= 2 && /^[\d-]+$/.test(parts[parts.length-1])){
-    return { tenTau: parts.slice(0,-1).join(' '), soHieu: parts[parts.length-1].replace(/-/g,'') };
+  const cuoi = parts[parts.length-1] || '';
+  if(parts.length >= 2 && (/\d/.test(cuoi) || cuoi.includes('-'))){ // số hiệu tàu có thể lẫn chữ (VD "HN-01"), chỉ cần có số hoặc dấu "-" là nhận diện được
+    return { tenTau: parts.slice(0,-1).join(' '), soHieu: cuoi }; // giữ nguyên dấu "-" trong số hiệu, không tách rời khỏi tên tàu
   }
   return { tenTau: (input||'').trim(), soHieu: '' };
 }
@@ -2295,10 +2296,10 @@ function phanNgayThuy(ngayBD, ngayKT){
 function taoMaLoCanThuy(khachHang, bai, ngayBD, ngayKT, tenTauGoc, huong){
   const {tenTau, soHieu} = tachTenTauVaSoHieu(tenTauGoc);
   const base = `${kyHieuHuong(huong)}T${maKhachHangBai(khachHang,bai)}${phanNgayThuy(ngayBD,ngayKT)}${vietTatTen(tenTau)}${soHieu}`;
-  const trung = state.locan.filter(l=>l.maGoc === base);
-  if(!trung.length) return {ma: base, maGoc: base};
-  if(trung.length === 1 && trung[0].ma === base) trung[0].ma = base + '-01'; // vừa phát hiện trùng lần đầu -> đổi lô cũ thành -01 để đồng bộ với lô mới -02
-  return {ma: base + '-' + String(trung.length+1).padStart(2,'0'), maGoc: base};
+  const soLuongTrung = state.locan.filter(l=>l.maGoc === base).length;
+  // trường hợp thường (chỉ 1 lần) -> giữ nguyên mã gốc, không thêm hậu tố gì cả. Chỉ khi phát hiện trùng (cùng tàu/bãi/khách hàng/ngày, ví dụ nhập 2 loại than khác nhau) mới thêm chữ b, c... vào lô trùng — lô đầu tiên không bị đổi lại.
+  const ma = soLuongTrung === 0 ? base : base + String.fromCharCode(97 + soLuongTrung);
+  return {ma, maGoc: base};
 }
 function taoLoCanThuy(khachHang, bai, ngayBD, ngayKT, tenTauGoc, huong, nguoiTao){
   const {ma, maGoc} = taoMaLoCanThuy(khachHang, bai, ngayBD, ngayKT, tenTauGoc, huong);
