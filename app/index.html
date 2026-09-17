@@ -688,6 +688,7 @@ function visibleLots(){
   return state.lots;
 }
 function fmt(n){ return Number(n).toLocaleString('vi-VN', {maximumFractionDigits:2}); }
+function fmtKL(n){ return Number(n).toLocaleString('vi-VN', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function daysUntil(dateStr){ return Math.round((new Date(dateStr) - REF_DATE) / 86400000); }
 function expiryPill(dateStr){
   const d = daysUntil(dateStr);
@@ -931,7 +932,7 @@ function renderTongQuan(body){
   };
   const tatCaBai = khachGroups.flatMap(g=>g.bais.map(b=>({...b, chuHang:g.chuHang})));
   const tkTheoBai = tatCaBai.map(b=>({...b, nhap:gomChieu(state.nhap,b.lotId), xuat:gomChieu(state.xuat,b.lotId)}));
-  const capO = v => `<td class="num"><span class="cell-box">${v.chuyen?fmt(v.tan):'0'}</span></td>`;
+  const capO = v => `<td class="num"><span class="cell-box">${v.chuyen?fmtKL(v.tan):'0'}</span></td>`;
   const dongNhomTK = (nhanNhom, rows) => rows.map((r,i)=>
     `<tr>${i===0?`<td rowspan="${rows.length}" style="font-weight:700;vertical-align:middle;background:var(--paper-raised)">${nhanNhom}</td>`:''}<td>${r.label}</td>${tkTheoBai.map(b=>capO(r.get(b))).join('')}</tr>`
   ).join('');
@@ -953,16 +954,16 @@ function renderTongQuan(body){
       return `
       <div style="font-weight:600;color:var(--ink-soft);font-size:13px;margin:14px 0 8px">${g.chuHang}</div>
       <div class="stat-row compact">
-        ${g.bais.map(b=>`<div class="stat-card"><div class="slabel">${b.viTri}</div><div class="sval">${fmt(b.ton)} <span class="sunit">tấn</span></div></div>`).join('')}
-        <div class="stat-card" style="background:var(--grey-tint)"><div class="slabel">Tổng ${g.chuHang}</div><div class="sval" style="font-weight:700">${fmt(tongKhach)} <span class="sunit">tấn</span></div></div>
+        ${g.bais.map(b=>`<div class="stat-card"><div class="slabel">${b.viTri}</div><div class="sval">${fmtKL(b.ton)} <span class="sunit">tấn</span></div></div>`).join('')}
+        <div class="stat-card" style="background:var(--grey-tint)"><div class="slabel">Tổng ${g.chuHang}</div><div class="sval" style="font-weight:700">${fmtKL(tongKhach)} <span class="sunit">tấn</span></div></div>
       </div>`;
     }).join('')}`;
 
   body.innerHTML = `
     <div class="stat-row">
-      <div class="stat-card"><div class="slabel">Tổng tồn hiện tại</div><div class="sval">${fmt(tongTon)} <span class="sunit">tấn</span></div></div>
-      <div class="stat-card"><div class="slabel">Nhập lũy kế trong năm</div><div class="sval">${fmt(tongNhapNam)} <span class="sunit">tấn</span></div></div>
-      <div class="stat-card"><div class="slabel">Xuất lũy kế trong năm</div><div class="sval">${fmt(tongXuatNam)} <span class="sunit">tấn</span></div></div>
+      <div class="stat-card"><div class="slabel">Tổng tồn hiện tại</div><div class="sval">${fmtKL(tongTon)} <span class="sunit">tấn</span></div></div>
+      <div class="stat-card"><div class="slabel">Nhập lũy kế trong năm</div><div class="sval">${fmtKL(tongNhapNam)} <span class="sunit">tấn</span></div></div>
+      <div class="stat-card"><div class="slabel">Xuất lũy kế trong năm</div><div class="sval">${fmtKL(tongXuatNam)} <span class="sunit">tấn</span></div></div>
     </div>
     <div class="panel-head">
       <h3>Chọn ngày xem báo cáo / tồn kho</h3>
@@ -1598,7 +1599,7 @@ function renderNhap(body){
     ${nhXem ? `<div class="table-wrap"><table>
       <thead><tr><th>Số TT</th><th>Ngày nhập</th><th>Số phiếu</th><th>Chủ Hàng</th><th>Bãi nhận hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">Khối lượng hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Phương tiện</th><th></th></tr></thead>
       <tbody>${nhXem.phieu.map((n,i) => { const lot = state.lots.find(l=>l.id===n.lotId);
-        return `<tr><td class="mono">${i+1}</td><td class="mono">${n.ngay}</td><td class="mono">${n.soPhieu||''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${n.tuyen}</td><td>${n.bienSo||n.nguon||''}</td><td>${n.roMoc||''}</td><td>${n.hangHoaRaw||''}</td><td class="num">${n.klCoHang?fmt(n.klCoHang):''}</td><td class="num">${n.klXe?fmt(n.klXe):''}</td><td class="num">${fmt(n.khoiLuong)}</td><td class="mono">${n.gioCanTong||''}</td><td class="mono">${n.gioCanXe||''}</td><td>${n.ghiChuPhieu||''}</td><td>${n.loaiXe||''}</td>
+        return `<tr><td class="mono">${i+1}</td><td class="mono">${n.ngay}</td><td class="mono">${n.soPhieu||''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${n.tuyen}</td><td>${n.bienSo||n.nguon||''}</td><td>${n.roMoc||''}</td><td>${n.hangHoaRaw||''}</td><td class="num">${n.klCoHang?fmtKL(n.klCoHang):''}</td><td class="num">${n.klXe?fmtKL(n.klXe):''}</td><td class="num">${fmtKL(n.khoiLuong)}</td><td class="mono">${n.gioCanTong||''}</td><td class="mono">${n.gioCanXe||''}</td><td>${n.ghiChuPhieu||''}</td><td>${n.loaiXe||''}</td>
           <td>${canEnter('M1') ? `<div class="row-actions">${actionButtons('nhap', n.id)}</div>` : ''}</td></tr>`;
       }).join('')}</tbody>
     </table></div>` : `<p style="font-size:12.5px;color:var(--ink-soft)">Bấm vào 1 mã lô ở bảng phía trên để xem chi tiết từng xe.</p>`}`;
@@ -1665,14 +1666,14 @@ function renderBaoCaoChiTietNhap(){
           const loCan = state.locan.find(l=>l.id===nh.loCanId);
           const tongLo = nh.phieu.reduce((s,n)=>s+n.khoiLuong,0);
           const dangXem = loCanXemChiTietBaoCaoNhap === nh.loCanId;
-          return `<tr${dangXem?' style="background:var(--grey-tint)"':''}><td><button class="mini-btn" onclick="chonLoCanXemChiTietBaoCaoNhap('${nh.loCanId}')" style="font-family:var(--mono,monospace)">${loCan?loCan.ma:'— chưa gán mã —'}</button></td><td class="mono">${first.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${first.tuyen}</td><td>${oSoXeTenTau(first, loCan, nh.phieu)}</td><td class="num">${fmt(tongLo)}</td></tr>`;
+          return `<tr${dangXem?' style="background:var(--grey-tint)"':''}><td><button class="mini-btn" onclick="chonLoCanXemChiTietBaoCaoNhap('${nh.loCanId}')" style="font-family:var(--mono,monospace)">${loCan?loCan.ma:'— chưa gán mã —'}</button></td><td class="mono">${first.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${first.tuyen}</td><td>${oSoXeTenTau(first, loCan, nh.phieu)}</td><td class="num">${fmtKL(tongLo)}</td></tr>`;
         }).join('') : `<tr class="empty-row"><td colspan="7">Không có phiếu nhập nào khớp bộ lọc</td></tr>`}
       </tbody>
-      ${rows.length ? `<tfoot><tr style="font-weight:700;background:var(--grey-tint)"><td colspan="6">Tổng khối lượng</td><td class="num">${fmt(tongKL)}</td></tr></tfoot>` : ''}
+      ${rows.length ? `<tfoot><tr style="font-weight:700;background:var(--grey-tint)"><td colspan="6">Tổng khối lượng</td><td class="num">${fmtKL(tongKL)}</td></tr></tfoot>` : ''}
     </table></div>
     ${bcXem ? `<div class="table-wrap" style="margin-top:10px"><table>
       <thead><tr><th>Số TT</th><th>Ngày nhập</th><th>Số phiếu</th><th>Chủ Hàng</th><th>Bãi nhận hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">Khối lượng hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Phương tiện</th></tr></thead>
-      <tbody>${bcXem.phieu.map((n,i)=>{ const lot=state.lots.find(l=>l.id===n.lotId); return `<tr><td class="mono">${i+1}</td><td class="mono">${n.ngay}</td><td class="mono">${n.soPhieu||''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${n.tuyen}</td><td>${n.bienSo||n.nguon||''}</td><td>${n.roMoc||''}</td><td>${n.hangHoaRaw||''}</td><td class="num">${n.klCoHang?fmt(n.klCoHang):''}</td><td class="num">${n.klXe?fmt(n.klXe):''}</td><td class="num">${fmt(n.khoiLuong)}</td><td class="mono">${n.gioCanTong||''}</td><td class="mono">${n.gioCanXe||''}</td><td>${n.ghiChuPhieu||''}</td><td>${n.loaiXe||''}</td></tr>`; }).join('')}</tbody>
+      <tbody>${bcXem.phieu.map((n,i)=>{ const lot=state.lots.find(l=>l.id===n.lotId); return `<tr><td class="mono">${i+1}</td><td class="mono">${n.ngay}</td><td class="mono">${n.soPhieu||''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${n.tuyen}</td><td>${n.bienSo||n.nguon||''}</td><td>${n.roMoc||''}</td><td>${n.hangHoaRaw||''}</td><td class="num">${n.klCoHang?fmtKL(n.klCoHang):''}</td><td class="num">${n.klXe?fmtKL(n.klXe):''}</td><td class="num">${fmtKL(n.khoiLuong)}</td><td class="mono">${n.gioCanTong||''}</td><td class="mono">${n.gioCanXe||''}</td><td>${n.ghiChuPhieu||''}</td><td>${n.loaiXe||''}</td></tr>`; }).join('')}</tbody>
     </table></div>` : ''}`;
 }
 function renderBaoCaoChiTietXuat(){
@@ -1736,14 +1737,14 @@ function renderBaoCaoChiTietXuat(){
           const loCan = state.locan.find(l=>l.id===nh.loCanId);
           const tongLo = nh.phieu.reduce((s,x)=>s+x.khoiLuong,0);
           const dangXem = loCanXemChiTietBaoCaoXuat === nh.loCanId;
-          return `<tr${dangXem?' style="background:var(--grey-tint)"':''}><td><button class="mini-btn" onclick="chonLoCanXemChiTietBaoCaoXuat('${nh.loCanId}')" style="font-family:var(--mono,monospace)">${loCan?loCan.ma:'— chưa gán mã —'}</button></td><td class="mono">${first.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${first.tuyen}</td><td>${oSoXeTenTau(first, loCan, nh.phieu)}</td><td class="num">${fmt(tongLo)}</td></tr>`;
+          return `<tr${dangXem?' style="background:var(--grey-tint)"':''}><td><button class="mini-btn" onclick="chonLoCanXemChiTietBaoCaoXuat('${nh.loCanId}')" style="font-family:var(--mono,monospace)">${loCan?loCan.ma:'— chưa gán mã —'}</button></td><td class="mono">${first.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${first.tuyen}</td><td>${oSoXeTenTau(first, loCan, nh.phieu)}</td><td class="num">${fmtKL(tongLo)}</td></tr>`;
         }).join('') : `<tr class="empty-row"><td colspan="7">Không có phiếu xuất nào khớp bộ lọc</td></tr>`}
       </tbody>
-      ${rows.length ? `<tfoot><tr style="font-weight:700;background:var(--grey-tint)"><td colspan="6">Tổng khối lượng</td><td class="num">${fmt(tongKL)}</td></tr></tfoot>` : ''}
+      ${rows.length ? `<tfoot><tr style="font-weight:700;background:var(--grey-tint)"><td colspan="6">Tổng khối lượng</td><td class="num">${fmtKL(tongKL)}</td></tr></tfoot>` : ''}
     </table></div>
     ${bcXem ? `<div class="table-wrap" style="margin-top:10px"><table>
       <thead><tr><th>Số TT</th><th>Ngày xuất</th><th>Số phiếu</th><th>Chủ Hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">Khối lượng hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Phương tiện</th></tr></thead>
-      <tbody>${bcXem.phieu.map((x,i)=>{ const lot=state.lots.find(l=>l.id===x.lotId); return `<tr><td class="mono">${i+1}</td><td class="mono">${x.ngay}</td><td class="mono">${x.soPhieu||''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${x.tuyen}</td><td>${x.bienSo||x.nguon||''}</td><td>${x.roMoc||''}</td><td>${x.hangHoaRaw||''}</td><td class="num">${x.klCoHang?fmt(x.klCoHang):''}</td><td class="num">${x.klXe?fmt(x.klXe):''}</td><td class="num">${fmt(x.khoiLuong)}</td><td class="mono">${x.gioCanTong||''}</td><td class="mono">${x.gioCanXe||''}</td><td>${x.ghiChuPhieu||''}</td><td>${x.loaiXe||''}</td></tr>`; }).join('')}</tbody>
+      <tbody>${bcXem.phieu.map((x,i)=>{ const lot=state.lots.find(l=>l.id===x.lotId); return `<tr><td class="mono">${i+1}</td><td class="mono">${x.ngay}</td><td class="mono">${x.soPhieu||''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${x.tuyen}</td><td>${x.bienSo||x.nguon||''}</td><td>${x.roMoc||''}</td><td>${x.hangHoaRaw||''}</td><td class="num">${x.klCoHang?fmtKL(x.klCoHang):''}</td><td class="num">${x.klXe?fmtKL(x.klXe):''}</td><td class="num">${fmtKL(x.khoiLuong)}</td><td class="mono">${x.gioCanTong||''}</td><td class="mono">${x.gioCanXe||''}</td><td>${x.ghiChuPhieu||''}</td><td>${x.loaiXe||''}</td></tr>`; }).join('')}</tbody>
     </table></div>` : ''}`;
 }
 
@@ -1796,7 +1797,7 @@ function renderXuat(body){
     ${xXem ? `<div class="table-wrap"><table>
       <thead><tr><th>Số TT</th><th>Ngày xuất</th><th>Số phiếu</th><th>Chủ Hàng</th><th>Bãi xuất hàng</th><th>Tuyến</th><th>BS xe/ tên tàu</th><th>Biển số mooc</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">Khối lượng hàng</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Phương tiện</th><th></th></tr></thead>
       <tbody>${xXem.phieu.map((x,i) => { const lot = state.lots.find(l=>l.id===x.lotId);
-        return `<tr><td class="mono">${i+1}</td><td class="mono">${x.ngay}</td><td class="mono">${x.soPhieu||''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${x.tuyen}</td><td>${x.bienSo||x.nguon||''}</td><td>${x.roMoc||''}</td><td>${x.hangHoaRaw||''}</td><td class="num">${x.klCoHang?fmt(x.klCoHang):''}</td><td class="num">${x.klXe?fmt(x.klXe):''}</td><td class="num">${fmt(x.khoiLuong)}</td><td class="mono">${x.gioCanTong||''}</td><td class="mono">${x.gioCanXe||''}</td><td>${x.ghiChuPhieu||''}</td><td>${x.loaiXe||''}</td>
+        return `<tr><td class="mono">${i+1}</td><td class="mono">${x.ngay}</td><td class="mono">${x.soPhieu||''}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${x.tuyen}</td><td>${x.bienSo||x.nguon||''}</td><td>${x.roMoc||''}</td><td>${x.hangHoaRaw||''}</td><td class="num">${x.klCoHang?fmtKL(x.klCoHang):''}</td><td class="num">${x.klXe?fmtKL(x.klXe):''}</td><td class="num">${fmtKL(x.khoiLuong)}</td><td class="mono">${x.gioCanTong||''}</td><td class="mono">${x.gioCanXe||''}</td><td>${x.ghiChuPhieu||''}</td><td>${x.loaiXe||''}</td>
           <td>${canEnter('M1') ? `<div class="row-actions">${actionButtons('xuat', x.id)}</div>` : ''}</td></tr>`;
       }).join('')}</tbody>
     </table></div>` : `<p style="font-size:12.5px;color:var(--ink-soft)">Bấm vào 1 mã lô ở bảng phía trên để xem chi tiết từng xe.</p>`}`;
@@ -1868,12 +1869,12 @@ function hangMaLoHtml(nh, dangXemLoCanId, tenHam){
   const loCan = state.locan.find(l=>l.id===nh.loCanId);
   const tongKL = nh.phieu.reduce((s,n)=>s+n.khoiLuong,0);
   const dangXem = dangXemLoCanId === nh.loCanId;
-  return `<tr${dangXem?' style="background:var(--grey-tint)"':''}><td><button class="mini-btn" onclick="${tenHam}('${nh.loCanId}')" style="font-family:var(--mono,monospace)">${loCan?loCan.ma:'— chưa gán mã —'}</button></td><td class="mono">${first.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${first.tuyen}</td><td>${oSoXeTenTau(first, loCan, nh.phieu)}</td><td class="num" style="font-weight:700">${fmt(tongKL)}</td></tr>`;
+  return `<tr${dangXem?' style="background:var(--grey-tint)"':''}><td><button class="mini-btn" onclick="${tenHam}('${nh.loCanId}')" style="font-family:var(--mono,monospace)">${loCan?loCan.ma:'— chưa gán mã —'}</button></td><td class="mono">${first.ngay}</td><td>${lot?lot.chuHang:''}</td><td>${lot?lot.viTri:''}</td><td>${first.tuyen}</td><td>${oSoXeTenTau(first, loCan, nh.phieu)}</td><td class="num" style="font-weight:700">${fmtKL(tongKL)}</td></tr>`;
 }
 function hangGomKyHtml(nhan, key, list, dangXemKey, tenHam){
   const {soLo, tongKL} = tongHopNhomKy(list);
   const dangXem = dangXemKey === key;
-  return `<tr${dangXem?' style="background:var(--grey-tint)"':''}><td><button class="mini-btn" onclick="${tenHam||'chonKyXemDanhSachNhap'}('${key}')" style="font-family:var(--mono,monospace);font-weight:700;font-size:14px">${nhan}</button></td><td colspan="5" style="color:var(--ink-soft);font-style:italic">Đã gộp — ${soLo} mã lô</td><td class="num" style="font-weight:700">${fmt(tongKL)}</td></tr>`;
+  return `<tr${dangXem?' style="background:var(--grey-tint)"':''}><td><button class="mini-btn" onclick="${tenHam||'chonKyXemDanhSachNhap'}('${key}')" style="font-family:var(--mono,monospace);font-weight:700;font-size:14px">${nhan}</button></td><td colspan="5" style="color:var(--ink-soft);font-style:italic">Đã gộp — ${soLo} mã lô</td><td class="num" style="font-weight:700">${fmtKL(tongKL)}</td></tr>`;
 }
 function gomTheoThangTrongNam(list){
   const theoThang = {};
@@ -2163,15 +2164,15 @@ function renderWeighImportBlock(huong){
   const maLoCanDuKien = ngayCoTrongLo.map(ngay=>`${taoMaLoCan(pw.khachHang, pw.bai, ngay, pw.huong, pw.tuyen)} (${ngay})`).join(', ');
   return `<div class="inline-form" style="grid-template-columns:1fr;border-color:var(--brand)">
     <div class="panel-head" style="margin:0"><h3 style="font-size:14px">Xem trước — ${pw.huong==='nhap'?'Nhập':'Xuất'} hàng, ${pw.khachHang} — ${pw.bai}${pw.tenTau?' — tàu '+pw.tenTau:''} (lô ${pw.lotId})</h3></div>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:0">Đọc được <b>${pw.tickets.length}</b> phiếu cân, tổng <b>${fmt(tong)} tấn</b>. Sẽ gộp vào mã lô cân: <b>${maLoCanDuKien}</b>. Kiểm tra kỹ từng dòng bên dưới (đặc biệt cột Loại xe dự kiến) trước khi bấm xác nhận — xác nhận xong không sửa hàng loạt lại được, phải sửa tay từng phiếu.
-      ${pw.huong==='xuat' ? `Tồn khả dụng của lô hiện tại: <b>${fmt(tonKhaDung)} tấn</b>${tong>tonKhaDung?' — <span style="color:var(--red)">vượt tồn, kiểm tra lại trước khi duyệt từng phiếu!</span>':''}.` : ''}
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:0">Đọc được <b>${pw.tickets.length}</b> phiếu cân, tổng <b>${fmtKL(tong)} tấn</b>. Sẽ gộp vào mã lô cân: <b>${maLoCanDuKien}</b>. Kiểm tra kỹ từng dòng bên dưới (đặc biệt cột Loại xe dự kiến) trước khi bấm xác nhận — xác nhận xong không sửa hàng loạt lại được, phải sửa tay từng phiếu.
+      ${pw.huong==='xuat' ? `Tồn khả dụng của lô hiện tại: <b>${fmtKL(tonKhaDung)} tấn</b>${tong>tonKhaDung?' — <span style="color:var(--red)">vượt tồn, kiểm tra lại trước khi duyệt từng phiếu!</span>':''}.` : ''}
       ${chuaXacDinh>0 ? `<br><span style="color:var(--red)">⚠ ${chuaXacDinh} phiếu chưa tự xác định được Loại xe — sẽ được hỏi bắt buộc khi bấm xác nhận.</span>` : ''}</p>
     <div class="table-wrap" style="max-height:320px;overflow-y:auto">
       <table><thead><tr><th>Số phiếu</th><th>Ngày</th><th>BS xe</th><th>BS mooc/Số HĐ</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">KL hàng (tấn)</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Loại xe (dự kiến)</th></tr></thead>
       <tbody>${pw.tickets.slice(0,300).map(t=>{
         const duDoan = duDoanLoaiXeXemTruoc(t, pw);
         return `<tr${duDoan?'':' style="background:rgba(163,55,43,.08)"'}><td class="mono">${t.soPhieu}</td><td class="mono">${t.ngay||pw.tuyen}</td><td class="mono">${t.bienSo}</td><td class="mono">${t.roMoc||t.soHopDong||''}</td><td>${t.hangHoa||''}</td>
-        <td class="num">${t.klCoHang?fmt(t.klCoHang):''}</td><td class="num">${t.klXe?fmt(t.klXe):''}</td><td class="num">${fmt(t.khoiLuongTan)}</td>
+        <td class="num">${t.klCoHang?fmtKL(t.klCoHang):''}</td><td class="num">${t.klXe?fmtKL(t.klXe):''}</td><td class="num">${fmtKL(t.khoiLuongTan)}</td>
         <td class="mono">${t.gioCanTong||''}</td><td class="mono">${t.gioCanXe||''}</td><td>${t.ghiChu||''}</td>
         <td>${duDoan ? duDoan : '<span class="pill rejected">⚠ Chưa xác định</span>'}</td></tr>`;
       }).join('')}</tbody></table>
@@ -2613,12 +2614,12 @@ function confirmWeighImport(){
     if(pw.sangThan){
       const kl = pw.sangCaTau ? tongKL : pw.sangKL;
       state.dichvu.push({id:'D'+(state.nextId++), lotId:pw.lotId, ngay:ngayDv, loai:'Sàng tuyển', khoiLuong:kl, tenTau:pw.tenTau||null,
-        ghiChu: `${pw.sangCaTau?'Sàng cả tàu':'Sàng theo khối lượng tùy chỉnh'}${pw.tenTau?' — tàu '+pw.tenTau:''} (${fmt(kl)} tấn)`, nguoiThucHien: currentUser.name});
+        ghiChu: `${pw.sangCaTau?'Sàng cả tàu':'Sàng theo khối lượng tùy chỉnh'}${pw.tenTau?' — tàu '+pw.tenTau:''} (${fmtKL(kl)} tấn)`, nguoiThucHien: currentUser.name});
     }
     if(pw.tronThan){
       const kl = pw.tronCaTau ? tongKL : pw.tronKL;
       state.dichvu.push({id:'D'+(state.nextId++), lotId:pw.lotId, ngay:ngayDv, loai:'Phối trộn', khoiLuong:kl, tenTau:pw.tenTau||null,
-        ghiChu: `${pw.tronCaTau?'Trộn cả tàu':'Trộn theo khối lượng tùy chỉnh'}${pw.tenTau?' — tàu '+pw.tenTau:''} (${fmt(kl)} tấn)`, nguoiThucHien: currentUser.name});
+        ghiChu: `${pw.tronCaTau?'Trộn cả tàu':'Trộn theo khối lượng tùy chỉnh'}${pw.tenTau?' — tàu '+pw.tenTau:''} (${fmtKL(kl)} tấn)`, nguoiThucHien: currentUser.name});
     }
   }
   logActivity(`Nhập ${count} phiếu cân từ file (${pw.huong==='nhap'?'nhập':'xuất'} hàng, lô ${pw.lotId})`);
@@ -3679,7 +3680,7 @@ function saveEditModal(e){
   if(schema.guard === 'xuat'){
     const tonKhaDung = tonHienTai(record.lotId) + record.khoiLuong;
     if(updates.khoiLuong > tonKhaDung){
-      errEl.textContent = `Khối lượng mới (${fmt(updates.khoiLuong)} tấn) vượt tồn khả dụng của lô (${fmt(tonKhaDung)} tấn). Không thể lưu.`;
+      errEl.textContent = `Khối lượng mới (${fmtKL(updates.khoiLuong)} tấn) vượt tồn khả dụng của lô (${fmtKL(tonKhaDung)} tấn). Không thể lưu.`;
       errEl.style.display = 'block';
       return false;
     }
@@ -4313,8 +4314,8 @@ function renderM3(){
           let action = (canAppr && k.trangThai==='Chờ xử lý' && lech!==0)
             ? `<button class="mini-btn approve" onclick="xuLyKiemKe('${k.id}')">Xử lý</button>` : '';
           if(canAdd) action += actionButtons('kiemke', k.id);
-          return `<tr><td class="mono">${k.ngay}</td><td class="mono">${k.lotId}</td><td class="num">${fmt(k.tonSoSach)}</td>
-            <td class="num">${fmt(k.tonThucTe)}</td><td class="num" style="color:${lech<0?'var(--red)':lech>0?'var(--brand)':'inherit'}">${lech>0?'+':''}${fmt(lech)}</td>
+          return `<tr><td class="mono">${k.ngay}</td><td class="mono">${k.lotId}</td><td class="num">${fmtKL(k.tonSoSach)}</td>
+            <td class="num">${fmtKL(k.tonThucTe)}</td><td class="num" style="color:${lech<0?'var(--red)':lech>0?'var(--brand)':'inherit'}">${lech>0?'+':''}${fmtKL(lech)}</td>
             <td><span class="pill ${pillClass}">${trangThaiHien}</span>${k.nguyenNhan?`<div style="font-size:11px;color:var(--ink-soft);margin-top:3px">${k.nguyenNhan}</div>`:''}</td><td><div class="row-actions">${action}</div></td></tr>`;
         }).join('') || `<tr class="empty-row"><td colspan="7">Chưa có đợt kiểm kê nào</td></tr>`}
       </tbody>
@@ -4327,7 +4328,7 @@ function submitKiemKe(e){
   const tonSoSach = tonHienTai(lotId);
   state.kiemke.push({id:'KK'+(state.nextId++), ngay:document.getElementById('kk-ngay').value, lotId,
     tonSoSach, tonThucTe, trangThai: tonThucTe===tonSoSach ? 'Đã xử lý' : 'Chờ xử lý', nguyenNhan:'', nguoiLap:currentUser.name, nguoiDuyet:null});
-  logActivity(`Lập biên bản kiểm kê lô ${lotId} — chênh lệch ${fmt(tonThucTe-tonSoSach)} tấn`);
+  logActivity(`Lập biên bản kiểm kê lô ${lotId} — chênh lệch ${fmtKL(tonThucTe-tonSoSach)} tấn`);
   renderM3(); return false;
 }
 function xuLyKiemKe(id){
@@ -4852,7 +4853,7 @@ function tinhViecCanXuLy(){
     ...state.dexuatmuahang.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>dongViecCoCanhBao(`Đề xuất mua hàng — ${x.noiDung}`, x.soLuong*x.donGia, tbDeXuat)),
     ...state.denghithanhtoan.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>dongViecCoCanhBao(`Đề nghị thanh toán — ${x.noiDung}`, x.soTien, tbDeNghi)),
     ...state.tamung.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>dongViecCoCanhBao(`Tạm ứng — ${x.noiDung}`, x.soTienTamUng, tbTamUng)),
-    ...state.kiemke.filter(k=>k.trangThai==='Chờ xử lý' && (k.tonThucTe-k.tonSoSach)!==0).map(k=>`M3 · Xử lý chênh lệch kiểm kê — lô ${k.lotId} (chênh ${fmt(k.tonThucTe-k.tonSoSach)} tấn)`),
+    ...state.kiemke.filter(k=>k.trangThai==='Chờ xử lý' && (k.tonThucTe-k.tonSoSach)!==0).map(k=>`M3 · Xử lý chênh lệch kiểm kê — lô ${k.lotId} (chênh ${fmtKL(k.tonThucTe-k.tonSoSach)} tấn)`),
     ...state.banggia.filter(r=>!r.nguoiDuyetBLD && tinhTrangThaiBangGia(r)==='Chờ duyệt').map(r=>`M10 · Duyệt bảng giá — ${r.tenDichVu} cho "${r.doiTac}" (${fmt(r.donGia)} đ)`),
   ] : [];
   const canKiemTra = currentUser.id==='TC' ? [
@@ -6124,7 +6125,7 @@ function sendAIQuestion(text){
 function traLoiAI(q){
   const low = q.toLowerCase();
   if(low.includes('tồn kho') || (low.includes('tồn') && low.includes('lô'))){
-    return 'Tồn kho hiện tại theo lô:\n' + state.lots.map(l=>`• ${l.id} (${l.chuHang} — ${l.loaiHang}): ${fmt(tonHienTai(l.id))} tấn`).join('\n');
+    return 'Tồn kho hiện tại theo lô:\n' + state.lots.map(l=>`• ${l.id} (${l.chuHang} — ${l.loaiHang}): ${fmtKL(tonHienTai(l.id))} tấn`).join('\n');
   }
   if(low.includes('thiết bị') && (low.includes('hạn') || low.includes('hết hạn'))){
     const list = state.dangkiem.map(d=>({d, t:state.thietbi.find(t=>t.id===d.phuongTienId), days:daysUntil(d.hanDangKiem)})).filter(x=>x.t && x.days<=30);
