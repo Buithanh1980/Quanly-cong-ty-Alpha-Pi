@@ -1929,12 +1929,13 @@ function nhomPhieuTheoLoCan(rows){
 function theoLoaiXeText(list){
   const dem = {};
   list.forEach(n=>{ const lx = n.loaiXe || 'Chưa xác định'; dem[lx] = (dem[lx]||0)+1; });
-  return Object.entries(dem).map(([lx,sl])=>`${sl} ${lx==='Chưa xác định'?lx:lx.replace('Xe ','')}`).join(' · ');
+  return Object.entries(dem).map(([lx,sl])=>`${sl} ${lx==='Chưa xác định'?lx:lx.toLowerCase()}`).join(' · ');
 }
 function oSoXeTenTau(first, loCan, phieuList){
   if(first.tuyen === 'Đường thủy'){
     const ten = (loCan && loCan.tenTau) ? loCan.tenTau : (first.nguon || '(chưa rõ tên tàu)');
-    return `<span style="font-weight:700">${ten}</span><br><span style="font-size:11px;color:var(--ink-soft);font-weight:400">${phieuList.length} chuyến cân</span>`;
+    // đường thủy mặc định coi các xe là xe ben (không thu phí mở bửng/rửa xe) nên ghi rõ "chuyến xe ben" thay vì "chuyến cân" chung chung
+    return `<span style="font-weight:700">${ten}</span><br><span style="font-size:11px;color:var(--ink-soft);font-weight:400">${phieuList.length} chuyến xe ben</span>`;
   }
   const theoLoai = theoLoaiXeText(phieuList);
   return `${phieuList.length}${theoLoai?`<br><span style="font-size:11px;color:var(--ink-soft);font-weight:400">${theoLoai}</span>`:''}`;
