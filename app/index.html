@@ -3389,7 +3389,7 @@ function closeModal(id){ document.getElementById(id).classList.remove('active');
 
 /* ===================== SỬA / XÓA BẢN GHI (DÙNG CHUNG) ===================== */
 const LOAI_XE_OPTIONS = ['Xe ben','Xe thùng','Xe container','Tàu'].map(v=>({v,t:v}));
-const THIETBI_TEN_OPTIONS = ['Xe múc','Xe xúc lật','Xe tải','Cẩu điện'].map(v=>({v,t:v}));
+const THIETBI_TEN_OPTIONS = ['Xe đầu kéo','Xe ben','Xe múc nhỏ','Xe múc to','Xe xúc lật','Cẩu điện','Xe tưới nước'].map(v=>({v,t:v}));
 const TRANG_THAI_HOAT_DONG_OPTIONS = [{v:'Đang hoạt động',t:'Đang hoạt động'},{v:'Đang sửa chữa',t:'Đang sửa chữa'},{v:'Ngừng hoạt động',t:'Ngừng hoạt động'}];
 const LOAI_VIEC_LIST = ['Xuống hàng nhập','Gom hàng nhập','Xuất hàng','Vun hàng','Sàng than','Trộn than','Bảo dưỡng sửa chữa'];
 const CA_NHAP_CA_NGAY = 'Ca nhập cả ngày (7h-11h & 13h-17h)';
@@ -3454,6 +3454,7 @@ const FIELD_SCHEMAS = {
   thietbi: {ten:'thiết bị', fields:[
     {key:'ten', label:'Tên thiết bị', type:'select', options:THIETBI_TEN_OPTIONS},
     {key:'bienSo', label:'Biển số', type:'text'},
+    {key:'taiXe', label:'Tài xế/người phụ trách (để trống nếu phân theo ca, không cố định)', type:'text'},
     {key:'trangThaiHoatDong', label:'Trạng thái hoạt động', type:'select', options:TRANG_THAI_HOAT_DONG_OPTIONS},
   ]},
   nhienlieu: {ten:'nhật ký nhiên liệu', fields:[
@@ -3839,14 +3840,15 @@ function renderM2(){
         <form class="inline-form" onsubmit="return submitThietBi(event)">
           <div class="field"><label>Tên thiết bị/phương tiện</label><select required id="tb-ten">${THIETBI_TEN_OPTIONS.map(o=>`<option value="${o.v}">${o.t}</option>`).join('')}</select></div>
           <div class="field"><label>Biển số</label><input id="tb-bienso" placeholder="VD: 43H-060.50"></div>
+          <div class="field"><label>Tài xế/người phụ trách</label><input id="tb-taixe" placeholder="Để trống nếu phân theo ca, không cố định"></div>
           <div class="form-actions"><button type="submit" class="add-btn">Lưu</button></div>
         </form></details>
       ${renderNhapThietBiBlock()}` : ''}
       <div class="table-wrap"><table>
-        <thead><tr><th>Thiết bị/phương tiện</th><th>Biển số</th><th>Trạng thái</th><th>Bảo dưỡng theo hạng mục (hiện tại/mốc tiếp theo)</th><th>Nhiên liệu</th><th>Kiểm định</th><th></th></tr></thead>
-        <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td class="mono">${t.bienSo||''}</td><td>${trangThaiHoatDongPill(t.trangThaiHoatDong)}</td><td>${baoDuongPill(t.bienSo)}</td><td>${tieuHaoPill(t.bienSo)}</td><td>${kiemDinhPill(t.id)}</td>
+        <thead><tr><th>Thiết bị/phương tiện</th><th>Biển số</th><th>Tài xế</th><th>Trạng thái</th><th>Bảo dưỡng theo hạng mục (hiện tại/mốc tiếp theo)</th><th>Nhiên liệu</th><th>Kiểm định</th><th></th></tr></thead>
+        <tbody>${state.thietbi.map(t => `<tr><td>${t.ten}</td><td class="mono">${t.bienSo||''}</td><td>${t.taiXe||'<span style="color:var(--ink-soft);font-style:italic">Phân theo ca</span>'}</td><td>${trangThaiHoatDongPill(t.trangThaiHoatDong)}</td><td>${baoDuongPill(t.bienSo)}</td><td>${tieuHaoPill(t.bienSo)}</td><td>${kiemDinhPill(t.id)}</td>
           <td>${canAdd ? `<div class="row-actions">${actionButtons('thietbi', t.id)}</div>` : ''}</td></tr>`).join('')
-          || `<tr class="empty-row"><td colspan="7">Chưa có thiết bị nào</td></tr>`}</tbody>
+          || `<tr class="empty-row"><td colspan="8">Chưa có thiết bị nào</td></tr>`}</tbody>
       </table></div>
       <p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px">Giờ hoạt động/số km, hạng mục bảo dưỡng và mức tiêu hao nhiên liệu được cập nhật từ tab Nhiên liệu và tab Sửa chữa/Vật tư mỗi lần ghi nhận. Hạn kiểm định lấy từ tab Kiểm định. Bấm Sửa để đổi trạng thái hoạt động.</p>`;
   } else if(currentTab === 'nhienlieu'){
@@ -3882,6 +3884,7 @@ function submitThietBi(e){
   const ten = document.getElementById('tb-ten').value;
   state.thietbi.push({id:'TB'+(state.nextId++), ten, loai:'', boPhan:'Khai thác',
     bienSo:document.getElementById('tb-bienso').value,
+    taiXe:document.getElementById('tb-taixe').value,
     trangThaiHoatDong:'Đang hoạt động',
     viTri:'Nội bộ bãi'});
   logActivity(`Thêm thiết bị/phương tiện "${ten}"`);
@@ -3894,15 +3897,15 @@ function renderNhapThietBiBlock(){
       <div class="inline-form" style="grid-template-columns:1fr">
         <div class="field"><label>Chọn file Excel đã điền theo mẫu</label><input type="file" accept=".xlsx,.xls" onchange="parseThietBiExcelFile(this)"></div>
       </div>
-      <p style="font-size:12px;color:var(--ink-soft);margin:8px 0 0">Cột "Tên thiết bị/phương tiện" phải đúng 1 trong các loại: ${THIETBI_TEN_OPTIONS.map(o=>o.v).join(', ')}. Biển số đã có sẵn trong danh mục sẽ được bỏ qua để tránh trùng.</p>
+      <p style="font-size:12px;color:var(--ink-soft);margin:8px 0 0">Cột "Tên thiết bị/phương tiện" phải đúng 1 trong các loại: ${THIETBI_TEN_OPTIONS.map(o=>o.v).join(', ')}. Biển số đã có sẵn trong danh mục sẽ được bỏ qua để tránh trùng. Cột "Tài xế" để trống với các xe/máy phân người vận hành theo ca, không cố định.</p>
     </details>`;
   }
   const rows = pendingThietBiImport.rows;
   return `<div class="add-details" style="border-color:var(--brand)">
     <div class="add-summary" style="cursor:default">Xem trước ${rows.length} thiết bị/phương tiện từ file — kiểm tra rồi bấm Xác nhận nhập</div>
     <div class="table-wrap" style="margin-top:10px"><table>
-      <thead><tr><th>Tên thiết bị/phương tiện</th><th>Biển số</th><th>Trạng thái hoạt động</th></tr></thead>
-      <tbody>${rows.map(r=>`<tr><td>${r.ten}</td><td class="mono">${r.bienSo}</td><td>${r.trangThaiHoatDong}</td></tr>`).join('')}</tbody>
+      <thead><tr><th>Tên thiết bị/phương tiện</th><th>Biển số</th><th>Tài xế</th><th>Trạng thái hoạt động</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr><td>${r.ten}</td><td class="mono">${r.bienSo}</td><td>${r.taiXe||'<span style="color:var(--ink-soft);font-style:italic">Phân theo ca</span>'}</td><td>${r.trangThaiHoatDong}</td></tr>`).join('')}</tbody>
     </table></div>
     <div class="form-actions" style="margin-top:12px">
       <button type="button" class="add-btn" onclick="xacNhanNhapThietBi()">Xác nhận nhập ${rows.length} thiết bị</button>
@@ -3925,6 +3928,7 @@ function parseThietBiExcelFile(input){
       const rows = raw.map(r=>({
         ten: String(layGiaTriDong(r,'Tên thiết bị')).trim(),
         bienSo: String(layGiaTriDong(r,'Biển số')).trim(),
+        taiXe: String(layGiaTriDong(r,'Tài xế','Người phụ trách')).trim(),
         trangThaiHoatDong: String(layGiaTriDong(r,'Trạng thái hoạt động','Trạng thái')).trim() || 'Đang hoạt động',
       })).filter(r=>tenHopLe.includes(r.ten));
       if(!rows.length) throw new Error('Không đọc được dòng nào hợp lệ — kiểm tra lại cột "Tên thiết bị/phương tiện" đúng 1 trong các loại cho phép chưa.');
@@ -3944,7 +3948,7 @@ function xacNhanNhapThietBi(){
   pendingThietBiImport.rows.forEach(r=>{
     if(r.bienSo && state.thietbi.some(t=>t.bienSo===r.bienSo)) return;
     state.thietbi.push({id:'TB'+(state.nextId++), ten:r.ten, loai:'', boPhan:'Khai thác',
-      bienSo:r.bienSo, trangThaiHoatDong:TRANG_THAI_HOAT_DONG_OPTIONS.some(o=>o.v===r.trangThaiHoatDong) ? r.trangThaiHoatDong : 'Đang hoạt động',
+      bienSo:r.bienSo, taiXe:r.taiXe, trangThaiHoatDong:TRANG_THAI_HOAT_DONG_OPTIONS.some(o=>o.v===r.trangThaiHoatDong) ? r.trangThaiHoatDong : 'Đang hoạt động',
       viTri:'Nội bộ bãi'});
     count++;
   });
