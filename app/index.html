@@ -2160,18 +2160,22 @@ function renderWeighImportBlock(huong){
   const tong = pw.tickets.reduce((s,t)=>s+t.khoiLuongTan,0);
   const tonKhaDung = pw.huong==='xuat' ? tonHienTai(pw.lotId) : null;
   const chuaXacDinh = pw.tickets.filter(t=>!duDoanLoaiXeXemTruoc(t, pw)).length;
+  const trungLap = pw.tickets.filter(t=>phieuTrungLap(t, pw.huong, pw.lotId)).length;
   const ngayCoTrongLo = [...new Set(pw.tickets.map(t=>t.ngay||new Date().toISOString().slice(0,10)))].sort();
   const maLoCanDuKien = ngayCoTrongLo.map(ngay=>`${taoMaLoCan(pw.khachHang, pw.bai, ngay, pw.huong, pw.tuyen)} (${ngay})`).join(', ');
   return `<div class="inline-form" style="grid-template-columns:1fr;border-color:var(--brand)">
     <div class="panel-head" style="margin:0"><h3 style="font-size:14px">Xem trước — ${pw.huong==='nhap'?'Nhập':'Xuất'} hàng, ${pw.khachHang} — ${pw.bai}${pw.tenTau?' — tàu '+pw.tenTau:''} (lô ${pw.lotId})</h3></div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:0">Đọc được <b>${pw.tickets.length}</b> phiếu cân, tổng <b>${fmtKL(tong)} tấn</b>. Sẽ gộp vào mã lô cân: <b>${maLoCanDuKien}</b>. Kiểm tra kỹ từng dòng bên dưới (đặc biệt cột Loại xe dự kiến) trước khi bấm xác nhận — xác nhận xong không sửa hàng loạt lại được, phải sửa tay từng phiếu.
       ${pw.huong==='xuat' ? `Tồn khả dụng của lô hiện tại: <b>${fmtKL(tonKhaDung)} tấn</b>${tong>tonKhaDung?' — <span style="color:var(--red)">vượt tồn, kiểm tra lại trước khi duyệt từng phiếu!</span>':''}.` : ''}
-      ${chuaXacDinh>0 ? `<br><span style="color:var(--red)">⚠ ${chuaXacDinh} phiếu chưa tự xác định được Loại xe — sẽ được hỏi bắt buộc khi bấm xác nhận.</span>` : ''}</p>
+      ${chuaXacDinh>0 ? `<br><span style="color:var(--red)">⚠ ${chuaXacDinh} phiếu chưa tự xác định được Loại xe — sẽ được hỏi bắt buộc khi bấm xác nhận.</span>` : ''}
+      ${trungLap>0 ? `<br><span style="color:var(--red)">⚠ ${trungLap} phiếu nghi TRÙNG với phiếu đã nhập trước đó (cùng ngày, khối lượng, biển số/số phiếu) — có thể file này đã nhập rồi hoặc nhập 2 lần. Xem các dòng tô vàng bên dưới, kiểm tra kỹ trước khi xác nhận.</span>` : ''}</p>
     <div class="table-wrap" style="max-height:320px;overflow-y:auto">
       <table><thead><tr><th>Số phiếu</th><th>Ngày</th><th>BS xe</th><th>BS mooc/Số HĐ</th><th>Tên hàng hóa</th><th style="text-align:right">KL có hàng</th><th style="text-align:right">KL xe</th><th style="text-align:right">KL hàng (tấn)</th><th>Giờ cân tổng</th><th>Giờ cân xe</th><th>Ghi chú</th><th>Loại xe (dự kiến)</th></tr></thead>
       <tbody>${pw.tickets.slice(0,300).map(t=>{
         const duDoan = duDoanLoaiXeXemTruoc(t, pw);
-        return `<tr${duDoan?'':' style="background:rgba(163,55,43,.08)"'}><td class="mono">${t.soPhieu}</td><td class="mono">${t.ngay||pw.tuyen}</td><td class="mono">${t.bienSo}</td><td class="mono">${t.roMoc||t.soHopDong||''}</td><td>${t.hangHoa||''}</td>
+        const trung = phieuTrungLap(t, pw.huong, pw.lotId);
+        const nen = trung ? 'background:rgba(230,150,20,.18)' : (duDoan ? '' : 'background:rgba(163,55,43,.08)');
+        return `<tr${nen?` style="${nen}"`:''}><td class="mono">${trung?'<span title="Nghi trùng với phiếu đã nhập trước đó" style="color:var(--red);font-weight:700">⚠ </span>':''}${t.soPhieu}</td><td class="mono">${t.ngay||pw.tuyen}</td><td class="mono">${t.bienSo}</td><td class="mono">${t.roMoc||t.soHopDong||''}</td><td>${t.hangHoa||''}</td>
         <td class="num">${t.klCoHang?fmtKL(t.klCoHang):''}</td><td class="num">${t.klXe?fmtKL(t.klXe):''}</td><td class="num">${fmtKL(t.khoiLuongTan)}</td>
         <td class="mono">${t.gioCanTong||''}</td><td class="mono">${t.gioCanXe||''}</td><td>${t.ghiChu||''}</td>
         <td>${duDoan ? duDoan : '<span class="pill rejected">⚠ Chưa xác định</span>'}</td></tr>`;
@@ -2189,6 +2193,15 @@ function duDoanLoaiXeXemTruoc(t, pw){
   if(pw.bai === 'Bãi Vinalift') return suyLuanLoaiXeVinalift(t.soHopDong, t.ghiChu);
   if(pw.bai === 'Bãi Phú Thái') return suyLuanLoaiXePhuThai(t.ghiChu);
   return t.roMoc ? 'Xe container' : null;
+}
+// Phát hiện phiếu cân nghi trùng với dữ liệu đã nhập trước đó (VD nhân viên tải nhầm lại đúng file cũ,
+// hoặc 2 file xuất từ trạm cân bị chồng khoảng ngày) — so khớp cùng lô (khách hàng+bãi) + cùng ngày + cùng
+// khối lượng, ưu tiên khớp theo Số phiếu (định danh gốc từ phần mềm trạm cân), nếu thiếu Số phiếu thì khớp theo biển số.
+function phieuTrungLap(t, huong, lotId){
+  const list = huong === 'nhap' ? state.nhap : state.xuat;
+  const ngay = t.ngay || new Date().toISOString().slice(0,10);
+  return list.some(r => r.lotId === lotId && r.ngay === ngay && Math.abs((r.khoiLuong||0) - (t.khoiLuongTan||0)) < 0.01
+    && ((t.soPhieu||'').trim() && (r.soPhieu||'').trim() ? r.soPhieu.trim() === t.soPhieu.trim() : (r.bienSo||'').trim() === (t.bienSo||'').trim()));
 }
 function updateWeighBaiOptions(huong){
   const kh = document.getElementById('wg-khachhang-'+huong).value;
@@ -2576,6 +2589,11 @@ function suaTrungLoCanThuyHoiTo(){
 }
 function confirmWeighImport(){
   const pw = pendingWeigh; if(!pw) return;
+  const soTrungLap = pw.tickets.filter(t=>phieuTrungLap(t, pw.huong, pw.lotId)).length;
+  if(soTrungLap > 0){
+    const tiepTuc = confirm(`Cảnh báo: ${soTrungLap}/${pw.tickets.length} phiếu trong file này nghi TRÙNG với phiếu đã có trong hệ thống (cùng ngày, khối lượng, biển số/số phiếu) — có thể file này đã được nhập trước đó rồi.\n\nVẫn xác nhận nhập toàn bộ ${pw.tickets.length} phiếu?`);
+    if(!tiepTuc) return;
+  }
   if(pw.huong === 'xuat'){
     const tongXuat = pw.tickets.reduce((s,t)=>s+t.khoiLuongTan,0);
     const tonKhaDung = tonHienTai(pw.lotId);
