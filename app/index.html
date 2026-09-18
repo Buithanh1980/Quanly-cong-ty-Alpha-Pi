@@ -2576,6 +2576,14 @@ function suaTrungLoCanThuyHoiTo(){
 }
 function confirmWeighImport(){
   const pw = pendingWeigh; if(!pw) return;
+  if(pw.huong === 'xuat'){
+    const tongXuat = pw.tickets.reduce((s,t)=>s+t.khoiLuongTan,0);
+    const tonKhaDung = tonHienTai(pw.lotId);
+    if(tongXuat > tonKhaDung){
+      const tiepTuc = confirm(`Cảnh báo: tổng khối lượng xuất (${fmtKL(tongXuat)} tấn) vượt tồn khả dụng của lô (${fmtKL(tonKhaDung)} tấn) — kho sẽ âm ${fmtKL(tongXuat-tonKhaDung)} tấn.\n\nVẫn xác nhận nhập ${pw.tickets.length} phiếu này?`);
+      if(!tiepTuc) return;
+    }
+  }
   let count = 0;
   const loCanTheoNgay = {};
   let loCanThuyChung = null;
@@ -4859,13 +4867,15 @@ function trungBinhDaDuyet(collection, tinhTien){
   if(daDuyet.length < 2) return null;
   return daDuyet.reduce((s,r)=>s+tinhTien(r),0) / daDuyet.length;
 }
-function nhanCanhBaoBatThuong(soTien, trungBinh){
-  if(soTien >= NGUONG_CANH_BAO_BAT_THUONG) return true;
+function nhanCanhBaoBatThuong(soTien, trungBinh, khongCoHoaDon){
+  const nguong = khongCoHoaDon ? NGUONG_CANH_BAO_BAT_THUONG/3 : NGUONG_CANH_BAO_BAT_THUONG;
+  if(soTien >= nguong) return true;
   return trungBinh!=null && trungBinh>0 && soTien > trungBinh*1.5;
 }
-function dongViecCoCanhBao(nhan, soTien, trungBinh){
-  const batThuong = nhanCanhBaoBatThuong(soTien, trungBinh);
-  return `${batThuong?'⚠ ':''}${nhan} (${fmt(soTien)} đ)${batThuong?' — cao bất thường, cần xem kỹ':''}`;
+function dongViecCoCanhBao(nhan, soTien, trungBinh, khongCoHoaDon){
+  const batThuong = nhanCanhBaoBatThuong(soTien, trungBinh, khongCoHoaDon);
+  const ghiChuHD = khongCoHoaDon ? ' (không hóa đơn/chứng từ)' : '';
+  return `${batThuong?'⚠ ':''}${nhan} (${fmt(soTien)} đ)${ghiChuHD}${batThuong?' — cao bất thường, cần xem kỹ':''}`;
 }
 function tinhViecCanXuLy(){
   const tbDeXuat = trungBinhDaDuyet('dexuatmuahang', r=>r.soLuong*r.donGia);
@@ -4873,7 +4883,7 @@ function tinhViecCanXuLy(){
   const tbTamUng = trungBinhDaDuyet('tamung', r=>r.soTienTamUng);
   const canDuyet = currentUser.id==='BLD' ? [
     ...state.dexuatmuahang.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>dongViecCoCanhBao(`Đề xuất mua hàng — ${x.noiDung}`, x.soLuong*x.donGia, tbDeXuat)),
-    ...state.denghithanhtoan.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>dongViecCoCanhBao(`Đề nghị thanh toán — ${x.noiDung}`, x.soTien, tbDeNghi)),
+    ...state.denghithanhtoan.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>dongViecCoCanhBao(`Đề nghị thanh toán — ${x.noiDung}`, x.soTien, tbDeNghi, !x.coHoaDon)),
     ...state.tamung.filter(x=>x.trangThai==='Đã kiểm tra').map(x=>dongViecCoCanhBao(`Tạm ứng — ${x.noiDung}`, x.soTienTamUng, tbTamUng)),
     ...state.kiemke.filter(k=>k.trangThai==='Chờ xử lý' && (k.tonThucTe-k.tonSoSach)!==0).map(k=>`M3 · Xử lý chênh lệch kiểm kê — lô ${k.lotId} (chênh ${fmtKL(k.tonThucTe-k.tonSoSach)} tấn)`),
     ...state.banggia.filter(r=>!r.nguoiDuyetBLD && tinhTrangThaiBangGia(r)==='Chờ duyệt').map(r=>`M10 · Duyệt bảng giá — ${r.tenDichVu} cho "${r.doiTac}" (${fmt(r.donGia)} đ)`),
@@ -4896,7 +4906,15 @@ function tinhViecCanXuLy(){
     ...state.denghithanhtoan.filter(x=>x.boPhan===boPhanCuaToi() && x.trangThai==='Chờ trưởng phòng duyệt').map(x=>`Trưởng bộ phận duyệt (đề nghị thanh toán) — ${x.noiDung} (${fmt(x.soTien)} đ)`),
     ...state.tamung.filter(x=>x.boPhan===boPhanCuaToi() && x.trangThai==='Chờ trưởng phòng duyệt').map(x=>`Trưởng bộ phận duyệt (tạm ứng) — ${x.noiDung} (${fmt(x.soTienTamUng)} đ)`),
   ] : [];
-  return [...canDuyet, ...canKiemTra, ...canChiQuyChanMay, ...canDuyetBoPhan];
+  const xemHetTaiChinh = xemToanBoTaiChinh();
+  const canhBaoDuLieu = (xemHetTaiChinh || currentUser.id==='KT') ? [
+    ...state.lots.filter(l=>tonHienTai(l.id)<0).map(l=>`⚠ Kho âm — lô ${l.id} (${l.chuHang} — ${l.loaiHang}): tồn ${fmtKL(tonHienTai(l.id))} tấn, cần kiểm tra lại phiếu xuất/nhập`),
+    ...(xemHetTaiChinh && soDuQuy('Chính')<0 ? [`⚠ Quỹ chính đang âm: ${fmt(soDuQuy('Chính'))} đ`] : []),
+    ...(soDuQuy('Chân Mây')<0 ? [`⚠ Quỹ Chân Mây đang âm: ${fmt(soDuQuy('Chân Mây'))} đ`] : []),
+    ...(xemHetTaiChinh ? state.tamung.filter(t=>t.trangThai!=='Đã quyết toán' && t.trangThai!=='Từ chối' && -daysUntil(t.ngay)>30)
+      .map(t=>`⚠ Tạm ứng quá hạn ${-daysUntil(t.ngay)} ngày chưa quyết toán — ${t.nguoiNhan}: ${t.noiDung} (${fmt(t.soTienTamUng)} đ)`) : []),
+  ] : [];
+  return [...canhBaoDuLieu, ...canDuyet, ...canKiemTra, ...canChiQuyChanMay, ...canDuyetBoPhan];
 }
 function renderTaiChinhTongQuan(body){
   const viecCanXuLy = tinhViecCanXuLy();
@@ -5388,6 +5406,15 @@ function luuQuyetToanTamUng(){
   }
   const thucTe = dongHopLe.reduce((s,d)=>s+d.soTien,0);
   const lech = t.soTienTamUng - thucTe;
+  if(lech < 0){
+    const quy = t.quy || 'Chính';
+    const soDu = soDuQuy(quy);
+    const canChiBoSung = -lech;
+    if(canChiBoSung > soDu){
+      const tiepTuc = confirm(`Cảnh báo: quyết toán này phát sinh chi bổ sung ${fmt(canChiBoSung)} đ (chi thực tế vượt số đã tạm ứng), nhưng Quỹ ${quy} hiện chỉ còn ${fmt(soDu)} đ — quỹ sẽ âm ${fmt(canChiBoSung-soDu)} đ.\n\nVẫn tiếp tục lưu quyết toán?`);
+      if(!tiepTuc) return;
+    }
+  }
   t.soTienQuyetToan = thucTe; t.chenhLech = lech; t.trangThai = 'Đã quyết toán'; t.chiTietQuyetToan = dongHopLe;
   if(lech > 0) themSoQuy('Thu', lech, t.hinhThuc, `Hoàn tạm ứng thừa: ${t.noiDung}`, `Tạm ứng ${t.id}`, t.quy);
   if(lech < 0) themSoQuy('Chi', -lech, t.hinhThuc, `Chi bổ sung tạm ứng thiếu: ${t.noiDung}`, `Tạm ứng ${t.id}`, t.quy);
